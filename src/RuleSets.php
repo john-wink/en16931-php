@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace JohnWink\En16931;
 
 use JohnWink\En16931\CodeList\CodeLists;
+use JohnWink\En16931\CodeList\CountryCodes;
+use JohnWink\En16931\CodeList\CurrencyCodes;
 use JohnWink\En16931\Contracts\Rule;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
+use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Rules\CalculationRule;
 use JohnWink\En16931\Rules\CodeListRule;
 use JohnWink\En16931\Rules\ConditionalRule;
 use JohnWink\En16931\Rules\LineRule;
 use JohnWink\En16931\Rules\PresenceRule;
+use JohnWink\En16931\Rules\SubtotalRule;
 
 /**
  * The assembled rule sets. {@see self::en16931()} is the EN 16931 core (a
@@ -54,6 +58,28 @@ final class RuleSets
 
             new ConditionalRule('BR-AE-02', 'BT-31', 'A reverse-charge invoice (AE) requires the Seller VAT identifier (BT-31).', static fn (Invoice $invoice): bool => $invoice->hasCategory('AE'), static fn (Invoice $invoice): bool => $invoice->seller->hasVatId()),
             new ConditionalRule('BR-AE-03', 'BT-48', 'A reverse-charge invoice (AE) requires the Buyer VAT identifier (BT-48).', static fn (Invoice $invoice): bool => $invoice->hasCategory('AE'), static fn (Invoice $invoice): bool => $invoice->buyer->hasVatId()),
+
+            new PresenceRule('BR-01', 'BT-24', 'An Invoice shall have a Specification identifier (BT-24).', static fn (Invoice $invoice): bool => self::filled($invoice->customizationId)),
+            new PresenceRule('BR-CO-18', 'BG-23', 'An Invoice shall have at least one VAT breakdown group (BG-23).', static fn (Invoice $invoice): bool => $invoice->taxSubtotals !== []),
+
+            new LineRule('BR-21', 'BT-126', 'Each Invoice line shall have a line identifier (BT-126).', static fn (InvoiceLine $invoiceLine): bool => self::filled($invoiceLine->id)),
+            new LineRule('BR-22', 'BT-129', 'Each Invoice line shall have an invoiced quantity (BT-129).', static fn (InvoiceLine $invoiceLine): bool => self::filled($invoiceLine->quantity)),
+            new LineRule('BR-23', 'BT-130', 'Each Invoice line shall have a unit of measure code (BT-130).', static fn (InvoiceLine $invoiceLine): bool => self::filled($invoiceLine->unitCode)),
+            new LineRule('BR-24', 'BT-131', 'Each Invoice line shall have a net amount (BT-131).', static fn (InvoiceLine $invoiceLine): bool => self::filled($invoiceLine->netAmount)),
+            new LineRule('BR-25', 'BT-153', 'Each Invoice line shall have an item name (BT-153).', static fn (InvoiceLine $invoiceLine): bool => self::filled($invoiceLine->name)),
+            new LineRule('BR-26', 'BT-146', 'Each Invoice line shall have an item net price (BT-146).', static fn (InvoiceLine $invoiceLine): bool => self::filled($invoiceLine->netPrice)),
+            new LineRule('BR-CO-04', 'BT-151', 'Each Invoice line shall have a VAT category code (BT-151).', static fn (InvoiceLine $invoiceLine): bool => self::filled($invoiceLine->taxCategory)),
+
+            new SubtotalRule('BR-45', 'BT-116', 'Each VAT breakdown group shall have a taxable amount (BT-116).', static fn (TaxSubtotal $taxSubtotal): bool => self::filled($taxSubtotal->taxableAmount)),
+            new SubtotalRule('BR-46', 'BT-117', 'Each VAT breakdown group shall have a tax amount (BT-117).', static fn (TaxSubtotal $taxSubtotal): bool => self::filled($taxSubtotal->taxAmount)),
+            new SubtotalRule('BR-47', 'BT-118', 'Each VAT breakdown group shall have a VAT category code (BT-118).', static fn (TaxSubtotal $taxSubtotal): bool => self::filled($taxSubtotal->category)),
+            new SubtotalRule('BR-CO-17', 'BT-117', 'The category tax amount (BT-117) must equal the taxable amount (BT-116) × rate (BT-119).', static fn (TaxSubtotal $taxSubtotal): bool => self::categoryTaxConsistent($taxSubtotal)),
+            new SubtotalRule('BR-E-10', 'BT-120', 'A VAT-exempt (E) breakdown group shall have a VAT exemption reason (BT-120/BT-121).', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== 'E' || self::hasExemptionReason($taxSubtotal)),
+            new SubtotalRule('BR-AE-10', 'BT-120', 'A reverse-charge (AE) breakdown group shall have a VAT exemption reason (BT-120/BT-121).', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== 'AE' || self::hasExemptionReason($taxSubtotal)),
+
+            new CodeListRule('BR-CL-03', 'BT-5', 'The Invoice currency code (BT-5) shall be a valid ISO 4217 code', static fn (Invoice $invoice): ?string => $invoice->currency, CurrencyCodes::CODES),
+            new CodeListRule('BR-CL-14', 'BT-40', 'The Seller country code (BT-40) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->seller->countryCode, CountryCodes::CODES),
+            new CodeListRule('BR-CL-14', 'BT-55', 'The Buyer country code (BT-55) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->buyer->countryCode, CountryCodes::CODES),
         ];
     }
 
@@ -91,6 +117,31 @@ final class RuleSets
     private static function isPositive(?string $value): bool
     {
         return Decimal::isNumeric($value) && Decimal::compare($value, '0') > 0;
+    }
+
+    private static function hasExemptionReason(TaxSubtotal $taxSubtotal): bool
+    {
+        if (self::filled($taxSubtotal->exemptionReason)) {
+            return true;
+        }
+
+        return self::filled($taxSubtotal->exemptionReasonCode);
+    }
+
+    /**
+     * BR-CO-17: the category tax amount must equal the taxable amount × the rate
+     * (rounded to two decimals). Skipped when a value is missing — the presence
+     * rules own that.
+     */
+    private static function categoryTaxConsistent(TaxSubtotal $taxSubtotal): bool
+    {
+        if (! Decimal::isNumeric($taxSubtotal->taxableAmount) || ! Decimal::isNumeric($taxSubtotal->rate) || ! Decimal::isNumeric($taxSubtotal->taxAmount)) {
+            return true;
+        }
+
+        $expected = Decimal::round(Decimal::mul($taxSubtotal->taxableAmount, Decimal::mul($taxSubtotal->rate, '0.01')));
+
+        return Decimal::equals($expected, $taxSubtotal->taxAmount);
     }
 
     private static function sumLineNet(Invoice $invoice): string

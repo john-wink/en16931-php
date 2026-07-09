@@ -59,5 +59,6 @@ function makeInvoice(mixed ...$overrides): Invoice
             taxAmount: '19.00',
         )]),
         notes: $pick('notes', []),
+        allowanceCharges: $pick('allowanceCharges', []),
     );
 }

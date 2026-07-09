@@ -46,14 +46,18 @@ without XML.
 - **Document presence** BR-01 (BT-24), BR-02/03/04/05/06/07/09/11/16, BR-CO-18
 - **Line presence** BR-21/22/23/24/25/26 (BT-126/129/130/131/153/146), BR-CO-04
 - **VAT breakdown presence** BR-45/46/47 (BT-116/117/118)
-- **Calculation (tolerance-free, exact BCMath)** BR-CO-10/13/14/15/16, BR-CO-17
-  (category tax = taxable × rate)
-- **VAT category** BR-27 (net price ≥ 0), BR-S-05, BR-AE-02/03, BR-E-10, BR-AE-10
+- **Calculation (tolerance-free, exact BCMath)** BR-CO-10/11/12/13/14/15/16/17,
+  and the per-category taxable-sum rules BR-{S,Z,E,AE,IC,G,O}-08 (line net −
+  document allowances + charges)
+- **Decimals** BR-DEC-09..20/23 (amounts ≤ 2 decimal places)
+- **VAT category** BR-27 (net price ≥ 0), BR-S-05, BR-AE-02/03, per-category
+  BR-\*-01 (matching breakdown), BR-\*-09 (zero tax), BR-\*-10 (exemption reason)
 - **Code lists** BR-CL-01 (BT-3), BR-CL-03 (ISO 4217 currency), BR-CL-14
   (ISO 3166 country, seller + buyer), BR-CL-17 (BT-151)
 - **XRechnung CIUS** BR-DE-1 (Leitweg-ID), BR-DE-5/6/7 (seller contact)
 
-Full ISO 4217 and ISO 3166-1 code lists are bundled.
+Full ISO 4217 and ISO 3166-1 code lists are bundled. Document-level allowances
+and charges (BG-20/BG-21) are modelled and reconciled.
 
 ## Roadmap
 

@@ -16,6 +16,7 @@ final readonly class Invoice
      * @param  list<InvoiceLine>  $lines
      * @param  list<TaxSubtotal>  $taxSubtotals
      * @param  list<string>  $notes
+     * @param  list<DocumentAllowanceCharge>  $allowanceCharges
      */
     public function __construct(
         public ?string $number,           // BT-1
@@ -31,6 +32,7 @@ final readonly class Invoice
         public array $lines,
         public array $taxSubtotals,
         public array $notes = [],
+        public array $allowanceCharges = [],
     ) {}
 
     public function hasCategory(string $category): bool

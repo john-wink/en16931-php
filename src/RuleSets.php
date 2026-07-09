@@ -14,9 +14,11 @@ use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Rules\CalculationRule;
 use JohnWink\En16931\Rules\CodeListRule;
 use JohnWink\En16931\Rules\ConditionalRule;
+use JohnWink\En16931\Rules\InvoiceRule;
 use JohnWink\En16931\Rules\LineRule;
 use JohnWink\En16931\Rules\PresenceRule;
 use JohnWink\En16931\Rules\SubtotalRule;
+use JohnWink\En16931\Rules\TaxableSumRule;
 
 /**
  * The assembled rule sets. {@see self::en16931()} is the EN 16931 core (a
@@ -81,7 +83,36 @@ final class RuleSets
             new CodeListRule('BR-CL-14', 'BT-40', 'The Seller country code (BT-40) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->seller->countryCode, CountryCodes::CODES),
             new CodeListRule('BR-CL-14', 'BT-55', 'The Buyer country code (BT-55) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->buyer->countryCode, CountryCodes::CODES),
 
+            new CalculationRule('BR-CO-11', 'BT-107', 'Sum of allowances on document level (BT-107) must equal the sum of the document allowance amounts (BT-92)', static fn (Invoice $invoice): string => self::sumAllowanceCharges($invoice, false), static fn (Invoice $invoice): ?string => $invoice->totals->allowanceTotal),
+            new CalculationRule('BR-CO-12', 'BT-108', 'Sum of charges on document level (BT-108) must equal the sum of the document charge amounts (BT-99)', static fn (Invoice $invoice): string => self::sumAllowanceCharges($invoice, true), static fn (Invoice $invoice): ?string => $invoice->totals->chargeTotal),
+
+            new TaxableSumRule,
+
+            ...self::decimalRules(),
             ...self::categoryRules(),
+        ];
+    }
+
+    /**
+     * BR-DEC-*: monetary amounts shall not carry more than two decimal places.
+     *
+     * @return list<Rule>
+     */
+    private static function decimalRules(): array
+    {
+        return [
+            new InvoiceRule('BR-DEC-09', 'BT-106', 'The sum of line net amounts (BT-106) shall not have more than two decimals.', static fn (Invoice $invoice): bool => self::maxTwoDecimals($invoice->totals->lineTotal)),
+            new InvoiceRule('BR-DEC-10', 'BT-107', 'The document allowance total (BT-107) shall not have more than two decimals.', static fn (Invoice $invoice): bool => self::maxTwoDecimals($invoice->totals->allowanceTotal)),
+            new InvoiceRule('BR-DEC-11', 'BT-108', 'The document charge total (BT-108) shall not have more than two decimals.', static fn (Invoice $invoice): bool => self::maxTwoDecimals($invoice->totals->chargeTotal)),
+            new InvoiceRule('BR-DEC-12', 'BT-109', 'The invoice total without VAT (BT-109) shall not have more than two decimals.', static fn (Invoice $invoice): bool => self::maxTwoDecimals($invoice->totals->taxBasisTotal)),
+            new InvoiceRule('BR-DEC-13', 'BT-110', 'The invoice total VAT (BT-110) shall not have more than two decimals.', static fn (Invoice $invoice): bool => self::maxTwoDecimals($invoice->totals->taxTotal)),
+            new InvoiceRule('BR-DEC-14', 'BT-112', 'The invoice total with VAT (BT-112) shall not have more than two decimals.', static fn (Invoice $invoice): bool => self::maxTwoDecimals($invoice->totals->grandTotal)),
+            new InvoiceRule('BR-DEC-16', 'BT-113', 'The paid amount (BT-113) shall not have more than two decimals.', static fn (Invoice $invoice): bool => self::maxTwoDecimals($invoice->totals->paidAmount)),
+            new InvoiceRule('BR-DEC-17', 'BT-114', 'The rounding amount (BT-114) shall not have more than two decimals.', static fn (Invoice $invoice): bool => self::maxTwoDecimals($invoice->totals->roundingAmount)),
+            new InvoiceRule('BR-DEC-18', 'BT-115', 'The amount due for payment (BT-115) shall not have more than two decimals.', static fn (Invoice $invoice): bool => self::maxTwoDecimals($invoice->totals->payableAmount)),
+            new LineRule('BR-DEC-23', 'BT-131', 'The line net amount (BT-131) shall not have more than two decimals.', static fn (InvoiceLine $invoiceLine): bool => self::maxTwoDecimals($invoiceLine->netAmount)),
+            new SubtotalRule('BR-DEC-19', 'BT-116', 'The VAT category taxable amount (BT-116) shall not have more than two decimals.', static fn (TaxSubtotal $taxSubtotal): bool => self::maxTwoDecimals($taxSubtotal->taxableAmount)),
+            new SubtotalRule('BR-DEC-20', 'BT-117', 'The VAT category tax amount (BT-117) shall not have more than two decimals.', static fn (TaxSubtotal $taxSubtotal): bool => self::maxTwoDecimals($taxSubtotal->taxAmount)),
         ];
     }
 
@@ -163,6 +194,28 @@ final class RuleSets
         }
 
         return Decimal::compare($value, '0') === 0;
+    }
+
+    private static function maxTwoDecimals(?string $value): bool
+    {
+        if (! Decimal::isNumeric($value)) {
+            return true;
+        }
+
+        return preg_match('/^-?\d+(\.\d{1,2})?$/', trim($value)) === 1;
+    }
+
+    private static function sumAllowanceCharges(Invoice $invoice, bool $charges): string
+    {
+        $sum = '0';
+
+        foreach ($invoice->allowanceCharges as $allowanceCharge) {
+            if ($allowanceCharge->isCharge === $charges && Decimal::isNumeric($allowanceCharge->amount)) {
+                $sum = Decimal::add($sum, $allowanceCharge->amount);
+            }
+        }
+
+        return $sum;
     }
 
     private static function lineHasCategory(Invoice $invoice, string $category): bool

@@ -8,6 +8,7 @@ use DOMDocument;
 use DOMElement;
 use DOMNode;
 use DOMXPath;
+use JohnWink\En16931\Model\DocumentAllowanceCharge;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
 use JohnWink\En16931\Model\Party;
@@ -48,7 +49,30 @@ final class CiiInvoiceReader
             lines: $this->lines($xpath),
             taxSubtotals: $this->taxSubtotals($xpath),
             notes: $this->notes($xpath),
+            allowanceCharges: $this->allowanceCharges($xpath),
         );
+    }
+
+    /**
+     * @return list<DocumentAllowanceCharge>
+     */
+    private function allowanceCharges(DOMXPath $domxPath): array
+    {
+        $result = [];
+
+        foreach ($this->nodes($domxPath, '//ram:ApplicableHeaderTradeSettlement/ram:SpecifiedTradeAllowanceCharge') as $domElement) {
+            $indicator = $this->value($domxPath, 'ram:ChargeIndicator/udt:Indicator', $domElement);
+
+            $result[] = new DocumentAllowanceCharge(
+                isCharge: $indicator === 'true' || $indicator === '1',
+                amount: $this->value($domxPath, 'ram:ActualAmount', $domElement),
+                taxCategory: $this->value($domxPath, 'ram:CategoryTradeTax/ram:CategoryCode', $domElement),
+                taxRate: $this->value($domxPath, 'ram:CategoryTradeTax/ram:RateApplicablePercent', $domElement),
+                reason: $this->value($domxPath, 'ram:Reason', $domElement),
+            );
+        }
+
+        return $result;
     }
 
     private function xpath(string $xml): DOMXPath

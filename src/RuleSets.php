@@ -80,7 +80,44 @@ final class RuleSets
             new CodeListRule('BR-CL-03', 'BT-5', 'The Invoice currency code (BT-5) shall be a valid ISO 4217 code', static fn (Invoice $invoice): ?string => $invoice->currency, CurrencyCodes::CODES),
             new CodeListRule('BR-CL-14', 'BT-40', 'The Seller country code (BT-40) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->seller->countryCode, CountryCodes::CODES),
             new CodeListRule('BR-CL-14', 'BT-55', 'The Buyer country code (BT-55) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->buyer->countryCode, CountryCodes::CODES),
+
+            ...self::categoryRules(),
         ];
+    }
+
+    /**
+     * Per-VAT-category consistency rules (BR-S/Z/E/AE/IC/G/O). Kept free of
+     * false positives: they do not assume document-level allowances/charges
+     * (not modelled here), so the taxable-sum rules (BR-*-08) are deferred and
+     * only the category/tax/reason invariants are enforced.
+     *
+     * @return list<Rule>
+     */
+    private static function categoryRules(): array
+    {
+        $categoryPrefix = ['S' => 'BR-S', 'Z' => 'BR-Z', 'E' => 'BR-E', 'AE' => 'BR-AE', 'K' => 'BR-IC', 'G' => 'BR-G', 'O' => 'BR-O'];
+        $rules = [];
+
+        // BR-*-01: a used line VAT category must have a matching breakdown group.
+        foreach ($categoryPrefix as $category => $id) {
+            $rules[] = new ConditionalRule("{$id}-01", 'BG-23', "A line with VAT category {$category} requires a matching VAT breakdown group.", static fn (Invoice $invoice): bool => self::lineHasCategory($invoice, $category), static fn (Invoice $invoice): bool => self::subtotalHasCategory($invoice, $category));
+        }
+
+        // BR-*-09: categories that carry no VAT must have a category tax amount of 0.
+        foreach (['Z' => 'BR-Z', 'E' => 'BR-E', 'AE' => 'BR-AE', 'K' => 'BR-IC', 'G' => 'BR-G', 'O' => 'BR-O'] as $category => $id) {
+            $rules[] = new SubtotalRule("{$id}-09", 'BT-117', "A {$category} VAT breakdown group shall have a category tax amount (BT-117) of 0.", static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== $category || self::isZeroOrMissing($taxSubtotal->taxAmount));
+        }
+
+        // BR-{IC,G,O}-10: exemption reason required (E and AE covered in the core set).
+        foreach (['K' => 'BR-IC', 'G' => 'BR-G', 'O' => 'BR-O'] as $category => $id) {
+            $rules[] = new SubtotalRule("{$id}-10", 'BT-120', "A {$category} VAT breakdown group shall have a VAT exemption reason (BT-120/BT-121).", static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== $category || self::hasExemptionReason($taxSubtotal));
+        }
+
+        // BR-S-10 / BR-Z-10: Standard/Zero groups must NOT carry an exemption reason.
+        $rules[] = new SubtotalRule('BR-S-10', 'BT-120', 'A Standard-rated (S) VAT breakdown group shall not have a VAT exemption reason.', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== 'S' || ! self::hasExemptionReason($taxSubtotal));
+        $rules[] = new SubtotalRule('BR-Z-10', 'BT-120', 'A Zero-rated (Z) VAT breakdown group shall not have a VAT exemption reason.', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== 'Z' || ! self::hasExemptionReason($taxSubtotal));
+
+        return $rules;
     }
 
     /**
@@ -117,6 +154,25 @@ final class RuleSets
     private static function isPositive(?string $value): bool
     {
         return Decimal::isNumeric($value) && Decimal::compare($value, '0') > 0;
+    }
+
+    private static function isZeroOrMissing(?string $value): bool
+    {
+        if (! Decimal::isNumeric($value)) {
+            return true;
+        }
+
+        return Decimal::compare($value, '0') === 0;
+    }
+
+    private static function lineHasCategory(Invoice $invoice, string $category): bool
+    {
+        return array_any($invoice->lines, fn (InvoiceLine $invoiceLine): bool => $invoiceLine->taxCategory === $category);
+    }
+
+    private static function subtotalHasCategory(Invoice $invoice, string $category): bool
+    {
+        return array_any($invoice->taxSubtotals, fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category === $category);
     }
 
     private static function hasExemptionReason(TaxSubtotal $taxSubtotal): bool

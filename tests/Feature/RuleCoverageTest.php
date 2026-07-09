@@ -82,3 +82,31 @@ it('accepts an exempt group that carries an exemption reason', function (): void
 
     expect($result->hasViolation('BR-E-10'))->toBeFalse();
 });
+
+it('flags a reverse-charge group that carries a non-zero tax amount (BR-AE-09)', function (): void {
+    $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
+        category: 'AE', rate: '0.00', taxableAmount: '100.00', taxAmount: '19.00',
+        exemptionReason: 'Reverse charge',
+    )]));
+
+    expect($result->hasViolation('BR-AE-09'))->toBeTrue();
+});
+
+it('flags a Standard group that carries an exemption reason (BR-S-10)', function (): void {
+    $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
+        category: 'S', rate: '19.00', taxableAmount: '100.00', taxAmount: '19.00',
+        exemptionReason: 'should not be here',
+    )]));
+
+    expect($result->hasViolation('BR-S-10'))->toBeTrue();
+});
+
+it('flags a used line category with no matching breakdown group (BR-S-01)', function (): void {
+    // Default line is category S, but the only breakdown group is E.
+    $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
+        category: 'E', rate: '0.00', taxableAmount: '100.00', taxAmount: '0.00',
+        exemptionReason: 'exempt',
+    )]));
+
+    expect($result->hasViolation('BR-S-01'))->toBeTrue();
+});

@@ -1,0 +1,76 @@
+{
+    "name": "john-wink/en16931-php",
+    "description": "A dependency-free, Java-free PHP validator for EN 16931 electronic invoices (ZUGFeRD / Factur-X / XRechnung, CII syntax) — business rules, calculations and code lists in pure PHP.",
+    "keywords": [
+        "en16931",
+        "e-invoice",
+        "e-rechnung",
+        "xrechnung",
+        "zugferd",
+        "factur-x",
+        "cii",
+        "validation",
+        "schematron",
+        "germany"
+    ],
+    "homepage": "https://github.com/john-wink/en16931-php",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "John Wink",
+            "email": "john-coding@ys.consulting",
+            "role": "Developer"
+        }
+    ],
+    "support": {
+        "issues": "https://github.com/john-wink/en16931-php/issues",
+        "source": "https://github.com/john-wink/en16931-php"
+    },
+    "require": {
+        "php": "^8.4",
+        "ext-bcmath": "*",
+        "ext-dom": "*",
+        "ext-libxml": "*"
+    },
+    "require-dev": {
+        "laravel/pint": "^1.18",
+        "pestphp/pest": "^4.0",
+        "pestphp/pest-plugin-type-coverage": "^4.0",
+        "phpstan/phpstan": "^2.0",
+        "rector/rector": "^2.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "JohnWink\\En16931\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "JohnWink\\En16931\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "analyse": "vendor/bin/phpstan analyse",
+        "test": "vendor/bin/pest",
+        "test:parallel": "vendor/bin/pest --parallel",
+        "test:types": "vendor/bin/pest --type-coverage --min=100",
+        "format": "vendor/bin/pint",
+        "lint": "vendor/bin/pint --test",
+        "rector": "vendor/bin/rector process",
+        "rector:check": "vendor/bin/rector process --dry-run",
+        "qa": [
+            "@lint",
+            "@rector:check",
+            "@analyse",
+            "@test:parallel"
+        ]
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}

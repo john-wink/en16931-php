@@ -1,0 +1,7 @@
+parameters:
+    level: max
+    paths:
+        - src
+    treatPhpDocTypesAsCertain: false
+    tmpDir: build/phpstan
+    # Greenfield package: no baseline. Fix every error; never suppress.

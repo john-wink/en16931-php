@@ -69,16 +69,24 @@ it('fatally rejects none of the official KoSIT XRechnung positive test suite', f
     expect($rejected)->toBe([]);
 });
 
-it('agrees with KoSIT that a tampered total is rejected (BR-CO-15)', function (): void {
+it('fires the same rule as KoSIT for a targeted violation', function (string $ruleId, string $search, string $replace): void {
     $runner = kositRunner();
     $xml = (string) file_get_contents(__DIR__.'/../Fixtures/corpus/en16931-cii.xml');
-    $tampered = (string) preg_replace('/(<ram:GrandTotalAmount>)[0-9.]+/', '${1}9999.99', $xml, 1);
+    $tampered = str_replace($search, $replace, $xml);
+
+    expect($tampered)->not->toBe($xml); // the mutation actually applied
 
     $kosit = $runner->validate($tampered);
     $ours = En16931Validator::en16931()->validate($tampered);
 
+    // Both reject, and both fire the targeted rule — negative-direction parity.
     expect($kosit['accept'])->toBeFalse()
+        ->and(in_array($ruleId, $kosit['codes'], true))->toBeTrue()
         ->and($ours->isValid())->toBeFalse()
-        ->and($ours->hasViolation('BR-CO-15'))->toBeTrue()
-        ->and(in_array('BR-CO-15', $kosit['codes'], true))->toBeTrue();
-});
+        ->and($ours->hasViolation($ruleId))->toBeTrue();
+})->with([
+    'BR-CO-15 (grand total)' => ['BR-CO-15', '<ram:GrandTotalAmount>957.87', '<ram:GrandTotalAmount>9999.99'],
+    'BR-CO-13 (tax basis)' => ['BR-CO-13', '<ram:TaxBasisTotalAmount>873.00', '<ram:TaxBasisTotalAmount>999.00'],
+    'BR-CO-14 (total VAT)' => ['BR-CO-14', '<ram:TaxTotalAmount currencyID="EUR">84.87', '<ram:TaxTotalAmount currencyID="EUR">99.99'],
+    'BR-27 (negative net price)' => ['BR-27', '<ram:ChargeAmount>9.90', '<ram:ChargeAmount>-9.90'],
+]);

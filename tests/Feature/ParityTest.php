@@ -46,6 +46,29 @@ it('agrees with the KoSIT validator on real schema-valid invoices', function (st
     expect(array_values(array_diff($ourCodes, $kosit['codes'])))->toBe([]);
 })->with(fn (): array => glob(__DIR__.'/../Fixtures/corpus/*.xml') ?: []);
 
+it('fatally rejects none of the official KoSIT XRechnung positive test suite', function (): void {
+    $instances = glob(dirname(__DIR__, 2).'/build/kosit/testsuite/instances/*/*.xml') ?: [];
+
+    if ($instances === []) {
+        test()->markTestSkipped('KoSIT test suite not downloaded — run tools/kosit-setup.sh.');
+    }
+
+    // Every instance in the official suite is a valid XRechnung, so a subset
+    // validator must never FATALLY reject one (warnings are allowed). This is a
+    // broad false-positive proof over real instances, without needing Java.
+    $rejected = [];
+    foreach ($instances as $instance) {
+        $xml = (string) file_get_contents($instance);
+        $result = parityValidatorFor($xml)->validate($xml);
+
+        if (! $result->isValid()) {
+            $rejected[basename($instance)] = array_values(array_unique(array_map(static fn ($violation): string => $violation->ruleId, $result->fatals())));
+        }
+    }
+
+    expect($rejected)->toBe([]);
+});
+
 it('agrees with KoSIT that a tampered total is rejected (BR-CO-15)', function (): void {
     $runner = kositRunner();
     $xml = (string) file_get_contents(__DIR__.'/../Fixtures/corpus/en16931-cii.xml');

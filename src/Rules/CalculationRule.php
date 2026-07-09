@@ -8,12 +8,14 @@ use Closure;
 use JohnWink\En16931\Contracts\Rule;
 use JohnWink\En16931\Decimal;
 use JohnWink\En16931\Model\Invoice;
+use JohnWink\En16931\Severity;
 use JohnWink\En16931\Violation;
 
 /**
  * A tolerance-free calculation rule (BR-CO-* etc.): the declared total must
  * equal the computed one once both are rounded to two decimals. Skipped when
- * the declared value is absent (a presence rule owns that).
+ * the declared value is absent (a presence rule owns that). The severity is
+ * configurable to mirror the KoSIT levels (e.g. BR-CO-16 is informational).
  */
 final readonly class CalculationRule implements Rule
 {
@@ -27,6 +29,7 @@ final readonly class CalculationRule implements Rule
         private string $message,
         private Closure $computed,
         private Closure $declared,
+        private Severity $severity = Severity::Fatal,
     ) {}
 
     public function id(): string
@@ -52,6 +55,6 @@ final readonly class CalculationRule implements Rule
             return [];
         }
 
-        return [Violation::fatal($this->id, "{$this->message} (declared {$declared}, computed {$computed}).", $this->flag)];
+        return [new Violation($this->id, $this->severity, "{$this->message} (declared {$declared}, computed {$computed}).", $this->flag)];
     }
 }

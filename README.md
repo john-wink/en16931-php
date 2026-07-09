@@ -83,9 +83,16 @@ bash tools/kosit-setup.sh          # downloads the KoSIT jar + config to build/k
 vendor/bin/pest tests/Feature/ParityTest.php
 ```
 
-The test skips automatically when Java or the KoSIT tools are absent, so the
-normal suite runs everywhere; CI (`.github/workflows/ci.yml`) sets Java up and
-runs it on every push.
+It also runs the **entire official KoSIT XRechnung test suite** (all valid
+instances) through this library and asserts it fatally rejects **none** of them
+— a broad false-positive proof over real instances (measured: 0 / 72). The test
+skips automatically when Java or the KoSIT tools are absent, so the normal suite
+runs everywhere; CI (`.github/workflows/ci.yml`) sets Java up and runs it on
+every push.
+
+> The oracle already paid for itself: it caught an incomplete BT-3 code list
+> (type `877`) and that the KoSIT config treats BR-CO-16 as *informational*, not
+> fatal — both now fixed, taking false positives on the official suite to zero.
 
 ## Quality gates
 

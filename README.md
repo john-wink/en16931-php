@@ -65,6 +65,28 @@ and charges (BG-20/BG-21) are modelled and reconciled.
 - The remaining EN 16931 rules (line-level allowances/charges, more BR-CO-*)
 - Conformance harness diffing against the KoSIT validator on the official corpus
 
+## Conformance / parity with KoSIT
+
+The results are proven against the **official KoSIT validator** (the Java
+reference: validator 1.5.0 + XRechnung 3.0.2 configuration), used as a dev/CI
+oracle — never shipped or required at runtime. `tests/Feature/ParityTest.php`
+runs real, schema-valid EN 16931 and XRechnung invoices through **both** this
+library and KoSIT and asserts:
+
+1. **verdict parity** — accept/reject agrees, and
+2. **no false positives** — every rule this library fires, KoSIT fired too.
+
+Reproduce it (needs a JRE):
+
+```bash
+bash tools/kosit-setup.sh          # downloads the KoSIT jar + config to build/kosit/
+vendor/bin/pest tests/Feature/ParityTest.php
+```
+
+The test skips automatically when Java or the KoSIT tools are absent, so the
+normal suite runs everywhere; CI (`.github/workflows/ci.yml`) sets Java up and
+runs it on every push.
+
 ## Quality gates
 
 ```bash

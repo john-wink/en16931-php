@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  qa:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, dom
+          coverage: none
+      - run: composer install --no-interaction --prefer-dist
+      - run: composer qa
+
+  parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: bcmath, dom
+          coverage: none
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: composer install --no-interaction --prefer-dist
+      - name: Set up the KoSIT oracle
+        run: bash tools/kosit-setup.sh
+      - name: Prove parity against the KoSIT validator
+        run: vendor/bin/pest tests/Feature/ParityTest.php

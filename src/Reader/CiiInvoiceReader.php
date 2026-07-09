@@ -6,7 +6,6 @@ namespace JohnWink\En16931\Reader;
 
 use DOMDocument;
 use DOMElement;
-use DOMNode;
 use DOMXPath;
 use JohnWink\En16931\Model\DocumentAllowanceCharge;
 use JohnWink\En16931\Model\Invoice;
@@ -23,6 +22,8 @@ use RuntimeException;
  */
 final class CiiInvoiceReader
 {
+    use HandlesXmlNodes;
+
     private const string RSM = 'urn:un:unece:uncefact:data:standard:CrossIndustryInvoice:100';
 
     private const string RAM = 'urn:un:unece:uncefact:data:standard:ReusableAggregateBusinessInformationEntity:100';
@@ -213,58 +214,6 @@ final class CiiInvoiceReader
         }
 
         return $notes;
-    }
-
-    private function value(DOMXPath $domxPath, string $query, ?DOMNode $domNode = null): ?string
-    {
-        $node = $this->node($domxPath, $query, $domNode);
-
-        if (! $node instanceof DOMElement) {
-            return null;
-        }
-
-        return $this->text($node);
-    }
-
-    private function node(DOMXPath $domxPath, string $query, ?DOMNode $domNode = null): ?DOMElement
-    {
-        $list = $domNode instanceof DOMNode ? $domxPath->query($query, $domNode) : $domxPath->query($query);
-
-        if ($list === false) {
-            return null;
-        }
-
-        $node = $list->item(0);
-
-        return $node instanceof DOMElement ? $node : null;
-    }
-
-    /**
-     * @return list<DOMElement>
-     */
-    private function nodes(DOMXPath $domxPath, string $query, ?DOMNode $domNode = null): array
-    {
-        $list = $domNode instanceof DOMNode ? $domxPath->query($query, $domNode) : $domxPath->query($query);
-
-        if ($list === false) {
-            return [];
-        }
-
-        $elements = [];
-        foreach ($list as $node) {
-            if ($node instanceof DOMElement) {
-                $elements[] = $node;
-            }
-        }
-
-        return $elements;
-    }
-
-    private function text(DOMElement $domElement): ?string
-    {
-        $text = trim($domElement->nodeValue ?? '');
-
-        return $text === '' ? null : $text;
     }
 
     /**

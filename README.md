@@ -1,7 +1,7 @@
 # en16931-php
 
 **A dependency-free, Java-free PHP validator for EN 16931 e-invoices** (ZUGFeRD /
-Factur-X / XRechnung, CII syntax).
+Factur-X / XRechnung), in **both CII and UBL syntax**.
 
 The official EN 16931 / KoSIT rule sets are Schematron compiled to XSLT 2.0 and
 run by Saxon (Java). This library reimplements the business rules **natively in
@@ -30,7 +30,8 @@ composer require john-wink/en16931-php
 ```php
 use JohnWink\En16931\En16931Validator;
 
-$result = En16931Validator::xrechnung()->validateCii($xml); // or ::en16931()
+// validate() auto-detects CII vs UBL; validateCii()/validateUbl() force one.
+$result = En16931Validator::xrechnung()->validate($xml); // or ::en16931()
 
 $result->isValid();     // bool — no fatal violation
 foreach ($result->violations as $violation) {
@@ -61,9 +62,7 @@ and charges (BG-20/BG-21) are modelled and reconciled.
 
 ## Roadmap
 
-- The remaining EN 16931 rules (per-category BR-S/Z/E/AE/IC/G/O groups, BR-DEC-*,
-  document-level allowance/charge rules)
-- UBL syntax reader
+- The remaining EN 16931 rules (line-level allowances/charges, more BR-CO-*)
 - Conformance harness diffing against the KoSIT validator on the official corpus
 
 ## Quality gates

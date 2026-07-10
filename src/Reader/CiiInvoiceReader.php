@@ -52,6 +52,8 @@ final class CiiInvoiceReader
             taxSubtotals: $this->taxSubtotals($xpath),
             notes: $this->notes($xpath),
             allowanceCharges: $this->allowanceCharges($xpath),
+            paymentDueDate: $this->date($this->value($xpath, '//ram:SpecifiedTradePaymentTerms/ram:DueDateDateTime/udt:DateTimeString')),
+            paymentTerms: $this->value($xpath, '//ram:SpecifiedTradePaymentTerms/ram:Description'),
         );
     }
 

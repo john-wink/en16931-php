@@ -33,6 +33,8 @@ final readonly class Invoice
         public array $taxSubtotals,
         public array $notes = [],
         public array $allowanceCharges = [],
+        public ?string $paymentDueDate = null,  // BT-9
+        public ?string $paymentTerms = null,    // BT-20
     ) {}
 
     public function hasCategory(string $category): bool

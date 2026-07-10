@@ -60,5 +60,7 @@ function makeInvoice(mixed ...$overrides): Invoice
         )]),
         notes: $pick('notes', []),
         allowanceCharges: $pick('allowanceCharges', []),
+        paymentDueDate: $pick('paymentDueDate', '2026-02-15'),
+        paymentTerms: $pick('paymentTerms', 'Zahlbar innerhalb von 30 Tagen.'),
     );
 }

@@ -84,6 +84,12 @@ it('flags a non-zero VAT rate on an exempt line (BR-E-05)', function (): void {
     expect($result->hasViolation('BR-E-05'))->toBeTrue();
 });
 
+it('flags a positive amount due with no due date or payment terms (BR-CO-25)', function (): void {
+    $result = core()->validateModel(makeInvoice(paymentDueDate: null, paymentTerms: null));
+
+    expect($result->hasViolation('BR-CO-25'))->toBeTrue();
+});
+
 it('flags a line allowance without a reason (BR-42)', function (): void {
     $result = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
         id: '1', name: 'x', netAmount: '95.00', netPrice: '100.00',

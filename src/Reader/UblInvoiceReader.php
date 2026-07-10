@@ -50,6 +50,8 @@ final class UblInvoiceReader
             taxSubtotals: $this->taxSubtotals($xpath, $taxTotal),
             notes: $this->notes($xpath),
             allowanceCharges: $this->allowanceCharges($xpath),
+            paymentDueDate: $this->value($xpath, '/*/cbc:DueDate'),
+            paymentTerms: $this->value($xpath, '/*/cac:PaymentTerms/cbc:Note'),
         );
     }
 

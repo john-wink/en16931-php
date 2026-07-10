@@ -10,6 +10,7 @@ use DOMXPath;
 use JohnWink\En16931\Model\DocumentAllowanceCharge;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
+use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Model\Totals;
@@ -174,10 +175,32 @@ final class CiiInvoiceReader
                 unitCode: $quantityNode instanceof DOMElement ? ($quantityNode->getAttribute('unitCode') ?: null) : null,
                 taxCategory: $this->value($domxPath, 'ram:SpecifiedLineTradeSettlement/ram:ApplicableTradeTax/ram:CategoryCode', $domElement),
                 taxRate: $this->value($domxPath, 'ram:SpecifiedLineTradeSettlement/ram:ApplicableTradeTax/ram:RateApplicablePercent', $domElement),
+                allowanceCharges: $this->lineAllowanceCharges($domxPath, $domElement),
             );
         }
 
         return $lines;
+    }
+
+    /**
+     * @return list<LineAllowanceCharge>
+     */
+    private function lineAllowanceCharges(DOMXPath $domxPath, DOMElement $domElement): array
+    {
+        $result = [];
+
+        foreach ($this->nodes($domxPath, 'ram:SpecifiedLineTradeSettlement/ram:SpecifiedTradeAllowanceCharge', $domElement) as $node) {
+            $indicator = $this->value($domxPath, 'ram:ChargeIndicator/udt:Indicator', $node);
+
+            $result[] = new LineAllowanceCharge(
+                isCharge: $indicator === 'true' || $indicator === '1',
+                amount: $this->value($domxPath, 'ram:ActualAmount', $node),
+                reason: $this->value($domxPath, 'ram:Reason', $node),
+                reasonCode: $this->value($domxPath, 'ram:ReasonCode', $node),
+            );
+        }
+
+        return $result;
     }
 
     /**

@@ -11,12 +11,14 @@ use JohnWink\En16931\Contracts\Rule;
 use JohnWink\En16931\Model\DocumentAllowanceCharge;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
+use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Rules\AllowanceRule;
 use JohnWink\En16931\Rules\CalculationRule;
 use JohnWink\En16931\Rules\CodeListRule;
 use JohnWink\En16931\Rules\ConditionalRule;
 use JohnWink\En16931\Rules\InvoiceRule;
+use JohnWink\En16931\Rules\LineAllowanceRule;
 use JohnWink\En16931\Rules\LineRule;
 use JohnWink\En16931\Rules\PresenceRule;
 use JohnWink\En16931\Rules\SubtotalRule;
@@ -96,6 +98,11 @@ final class RuleSets
             new CalculationRule('BR-CO-12', 'BT-108', 'Sum of charges on document level (BT-108) must equal the sum of the document charge amounts (BT-99)', static fn (Invoice $invoice): string => self::sumAllowanceCharges($invoice, true), static fn (Invoice $invoice): ?string => $invoice->totals->chargeTotal),
 
             new TaxableSumRule,
+
+            new LineAllowanceRule('BR-41', 'BT-136', 'Each line allowance shall have an amount (BT-136).', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => $lineAllowanceCharge->isCharge || self::filled($lineAllowanceCharge->amount)),
+            new LineAllowanceRule('BR-42', 'BT-139', 'Each line allowance shall have a reason (BT-139) or a reason code (BT-140).', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => $lineAllowanceCharge->isCharge || self::filled($lineAllowanceCharge->reason) || self::filled($lineAllowanceCharge->reasonCode)),
+            new LineAllowanceRule('BR-43', 'BT-141', 'Each line charge shall have an amount (BT-141).', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => ! $lineAllowanceCharge->isCharge || self::filled($lineAllowanceCharge->amount)),
+            new LineAllowanceRule('BR-44', 'BT-144', 'Each line charge shall have a reason (BT-144) or a reason code (BT-145).', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => ! $lineAllowanceCharge->isCharge || self::filled($lineAllowanceCharge->reason) || self::filled($lineAllowanceCharge->reasonCode)),
 
             ...self::decimalRules(),
             ...self::categoryRules(),

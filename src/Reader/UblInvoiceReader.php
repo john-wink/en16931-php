@@ -10,6 +10,7 @@ use DOMXPath;
 use JohnWink\En16931\Model\DocumentAllowanceCharge;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
+use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Model\Totals;
@@ -149,10 +150,32 @@ final class UblInvoiceReader
                 unitCode: $quantityNode instanceof DOMElement ? ($quantityNode->getAttribute('unitCode') ?: null) : null,
                 taxCategory: $this->value($domxPath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:ID', $domElement),
                 taxRate: $this->value($domxPath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:Percent', $domElement),
+                allowanceCharges: $this->lineAllowanceCharges($domxPath, $domElement),
             );
         }
 
         return $lines;
+    }
+
+    /**
+     * @return list<LineAllowanceCharge>
+     */
+    private function lineAllowanceCharges(DOMXPath $domxPath, DOMElement $domElement): array
+    {
+        $result = [];
+
+        foreach ($this->nodes($domxPath, 'cac:AllowanceCharge', $domElement) as $node) {
+            $indicator = $this->value($domxPath, 'cbc:ChargeIndicator', $node);
+
+            $result[] = new LineAllowanceCharge(
+                isCharge: $indicator === 'true' || $indicator === '1',
+                amount: $this->value($domxPath, 'cbc:Amount', $node),
+                reason: $this->value($domxPath, 'cbc:AllowanceChargeReason', $node),
+                reasonCode: $this->value($domxPath, 'cbc:AllowanceChargeReasonCode', $node),
+            );
+        }
+
+        return $result;
     }
 
     /**

@@ -47,6 +47,7 @@ without XML.
 - **Document presence** BR-01 (BT-24), BR-02/03/04/05/06/07/09/11/12/13/14/15/16, BR-CO-18
 - **Line presence** BR-21/22/23/24/25/26 (BT-126/129/130/131/153/146), BR-CO-04
 - **VAT breakdown presence** BR-45/46/47 (BT-116/117/118)
+- **Line allowances/charges** BR-41/42/43/44 (BG-27/28: amount + reason)
 - **Calculation (tolerance-free, exact BCMath)** BR-CO-10/11/12/13/14/15/16/17,
   and the per-category taxable-sum rules BR-{S,Z,E,AE,IC,G,O}-08 (line net −
   document allowances + charges)

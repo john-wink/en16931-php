@@ -110,6 +110,8 @@ final class CiiInvoiceReader
             name: $this->value($domxPath, 'ram:Name', $node),
             countryCode: $this->value($domxPath, 'ram:PostalTradeAddress/ram:CountryID', $node),
             vatId: $this->value($domxPath, "ram:SpecifiedTaxRegistration/ram:ID[@schemeID='VA']", $node),
+            identifier: $this->value($domxPath, 'ram:ID', $node),
+            legalRegistrationId: $this->value($domxPath, 'ram:SpecifiedLegalOrganization/ram:ID', $node),
             contactName: $this->value($domxPath, 'ram:DefinedTradeContact/ram:PersonName', $node),
             contactPhone: $this->value($domxPath, 'ram:DefinedTradeContact/ram:TelephoneUniversalCommunication/ram:CompleteNumber', $node),
             contactEmail: $this->value($domxPath, 'ram:DefinedTradeContact/ram:EmailURIUniversalCommunication/ram:URIID', $node),

@@ -85,6 +85,8 @@ final class UblInvoiceReader
             name: $this->value($domxPath, 'cac:PartyLegalEntity/cbc:RegistrationName', $node) ?? $this->value($domxPath, 'cac:PartyName/cbc:Name', $node),
             countryCode: $this->value($domxPath, 'cac:PostalAddress/cac:Country/cbc:IdentificationCode', $node),
             vatId: $this->value($domxPath, 'cac:PartyTaxScheme[cac:TaxScheme/cbc:ID="VAT"]/cbc:CompanyID', $node),
+            identifier: $this->value($domxPath, 'cac:PartyIdentification/cbc:ID', $node),
+            legalRegistrationId: $this->value($domxPath, 'cac:PartyLegalEntity/cbc:CompanyID', $node),
             contactName: $this->value($domxPath, 'cac:Contact/cbc:Name', $node),
             contactPhone: $this->value($domxPath, 'cac:Contact/cbc:Telephone', $node),
             contactEmail: $this->value($domxPath, 'cac:Contact/cbc:ElectronicMail', $node),

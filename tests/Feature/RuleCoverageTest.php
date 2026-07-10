@@ -84,6 +84,14 @@ it('flags a non-zero VAT rate on an exempt line (BR-E-05)', function (): void {
     expect($result->hasViolation('BR-E-05'))->toBeTrue();
 });
 
+it('flags a seller with no identifier at all (BR-CO-26)', function (): void {
+    $result = core()->validateModel(makeInvoice(
+        seller: new Party(name: 'Seller GmbH', countryCode: 'DE'), // no VAT id, BT-29 or BT-30
+    ));
+
+    expect($result->hasViolation('BR-CO-26'))->toBeTrue();
+});
+
 it('flags a Standard document allowance with a zero rate (BR-S-06)', function (): void {
     $result = core()->validateModel(makeInvoice(allowanceCharges: [
         new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '0.00'),

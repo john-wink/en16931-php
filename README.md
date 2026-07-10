@@ -44,15 +44,16 @@ without XML.
 
 ## Covered rules
 
-- **Document presence** BR-01 (BT-24), BR-02/03/04/05/06/07/09/11/16, BR-CO-18
+- **Document presence** BR-01 (BT-24), BR-02/03/04/05/06/07/09/11/12/13/14/15/16, BR-CO-18
 - **Line presence** BR-21/22/23/24/25/26 (BT-126/129/130/131/153/146), BR-CO-04
 - **VAT breakdown presence** BR-45/46/47 (BT-116/117/118)
 - **Calculation (tolerance-free, exact BCMath)** BR-CO-10/11/12/13/14/15/16/17,
   and the per-category taxable-sum rules BR-{S,Z,E,AE,IC,G,O}-08 (line net −
   document allowances + charges)
 - **Decimals** BR-DEC-09..20/23 (amounts ≤ 2 decimal places)
-- **VAT category** BR-27 (net price ≥ 0), BR-S-05, BR-AE-02/03, per-category
-  BR-\*-01 (matching breakdown), BR-\*-09 (zero tax), BR-\*-10 (exemption reason)
+- **VAT category** BR-27 (net price ≥ 0), per-category BR-\*-01 (matching
+  breakdown), BR-\*-05 (line VAT rate), BR-\*-06 (allowance VAT rate), BR-\*-09
+  (zero tax), BR-\*-10 (exemption reason), BR-AE-02/03
 - **Code lists** BR-CL-01 (BT-3), BR-CL-03 (ISO 4217 currency), BR-CL-14
   (ISO 3166 country, seller + buyer), BR-CL-17 (BT-151)
 - **XRechnung CIUS** BR-DE-1 (Leitweg-ID), BR-DE-5/6/7 (seller contact)

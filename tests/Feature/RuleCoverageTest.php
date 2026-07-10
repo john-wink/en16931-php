@@ -66,6 +66,32 @@ it('accepts a correct category tax amount', function (): void {
     expect($result->hasViolation('BR-CO-17'))->toBeFalse();
 });
 
+it('flags a missing total amount without VAT (BR-13)', function (): void {
+    $result = core()->validateModel(makeInvoice(totals: new JohnWink\En16931\Model\Totals(
+        lineTotal: '100.00', taxBasisTotal: null, taxTotal: '19.00',
+        grandTotal: '119.00', paidAmount: '0.00', payableAmount: '119.00',
+    )));
+
+    expect($result->hasViolation('BR-13'))->toBeTrue();
+});
+
+it('flags a non-zero VAT rate on an exempt line (BR-E-05)', function (): void {
+    $result = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
+        id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00',
+        quantity: '1', unitCode: 'C62', taxCategory: 'E', taxRate: '19.00',
+    )]));
+
+    expect($result->hasViolation('BR-E-05'))->toBeTrue();
+});
+
+it('flags a Standard document allowance with a zero rate (BR-S-06)', function (): void {
+    $result = core()->validateModel(makeInvoice(allowanceCharges: [
+        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '0.00'),
+    ]));
+
+    expect($result->hasViolation('BR-S-06'))->toBeTrue();
+});
+
 it('flags an exempt group without an exemption reason (BR-E-10)', function (): void {
     $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
         category: 'E', rate: '0.00', taxableAmount: '100.00', taxAmount: '0.00',

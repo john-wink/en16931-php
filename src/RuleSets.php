@@ -8,9 +8,11 @@ use JohnWink\En16931\CodeList\CodeLists;
 use JohnWink\En16931\CodeList\CountryCodes;
 use JohnWink\En16931\CodeList\CurrencyCodes;
 use JohnWink\En16931\Contracts\Rule;
+use JohnWink\En16931\Model\DocumentAllowanceCharge;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
 use JohnWink\En16931\Model\TaxSubtotal;
+use JohnWink\En16931\Rules\AllowanceRule;
 use JohnWink\En16931\Rules\CalculationRule;
 use JohnWink\En16931\Rules\CodeListRule;
 use JohnWink\En16931\Rules\ConditionalRule;
@@ -45,6 +47,10 @@ final class RuleSets
             new PresenceRule('BR-09', 'BT-40', 'The Seller postal address shall contain a country code (BT-40).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->countryCode)),
             new PresenceRule('BR-11', 'BT-55', 'The Buyer postal address shall contain a country code (BT-55).', static fn (Invoice $invoice): bool => self::filled($invoice->buyer->countryCode)),
             new PresenceRule('BR-16', 'BG-25', 'An Invoice shall have at least one Invoice line (BG-25).', static fn (Invoice $invoice): bool => $invoice->lines !== []),
+            new PresenceRule('BR-12', 'BT-106', 'An Invoice shall have the Sum of Invoice line net amount (BT-106).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->lineTotal)),
+            new PresenceRule('BR-13', 'BT-109', 'An Invoice shall have the Invoice total amount without VAT (BT-109).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->taxBasisTotal)),
+            new PresenceRule('BR-14', 'BT-112', 'An Invoice shall have the Invoice total amount with VAT (BT-112).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->grandTotal)),
+            new PresenceRule('BR-15', 'BT-115', 'An Invoice shall have the Amount due for payment (BT-115).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->payableAmount)),
 
             new CalculationRule('BR-CO-10', 'BT-106', 'Sum of Invoice line net amounts does not equal BT-106', static fn (Invoice $invoice): string => self::sumLineNet($invoice), static fn (Invoice $invoice): ?string => $invoice->totals->lineTotal),
             new CalculationRule('BR-CO-13', 'BT-109', 'Invoice total without VAT (BT-109) must equal BT-106 − BT-107 + BT-108', static fn (Invoice $invoice): string => Decimal::add(Decimal::sub(self::amount($invoice->totals->lineTotal), self::amount($invoice->totals->allowanceTotal)), self::amount($invoice->totals->chargeTotal)), static fn (Invoice $invoice): ?string => $invoice->totals->taxBasisTotal),
@@ -149,6 +155,17 @@ final class RuleSets
         // BR-S-10 / BR-Z-10: Standard/Zero groups must NOT carry an exemption reason.
         $rules[] = new SubtotalRule('BR-S-10', 'BT-120', 'A Standard-rated (S) VAT breakdown group shall not have a VAT exemption reason.', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== 'S' || ! self::hasExemptionReason($taxSubtotal));
         $rules[] = new SubtotalRule('BR-Z-10', 'BT-120', 'A Zero-rated (Z) VAT breakdown group shall not have a VAT exemption reason.', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== 'Z' || ! self::hasExemptionReason($taxSubtotal));
+
+        // BR-{Z,E,AE}-05: a line of a zero-VAT category must carry a rate of 0.
+        foreach (['Z' => 'BR-Z', 'E' => 'BR-E', 'AE' => 'BR-AE'] as $category => $id) {
+            $rules[] = new LineRule("{$id}-05", 'BT-152', "A line with VAT category {$category} shall have a VAT rate (BT-152) of 0.", static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->taxCategory !== $category || ! self::isPositive($invoiceLine->taxRate));
+        }
+
+        // BR-S-06 / BR-{Z,E,AE}-06: document-level allowance/charge VAT rate per category.
+        $rules[] = new AllowanceRule('BR-S-06', 'BT-96', 'A Standard-rated (S) document-level allowance/charge shall have a VAT rate (BT-96) greater than 0.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory !== 'S' || self::isPositive($documentAllowanceCharge->taxRate));
+        foreach (['Z' => 'BR-Z', 'E' => 'BR-E', 'AE' => 'BR-AE'] as $category => $id) {
+            $rules[] = new AllowanceRule("{$id}-06", 'BT-96', "A document-level allowance/charge with VAT category {$category} shall have a VAT rate (BT-96) of 0.", static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory !== $category || ! self::isPositive($documentAllowanceCharge->taxRate));
+        }
 
         return $rules;
     }

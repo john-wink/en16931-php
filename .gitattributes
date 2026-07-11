@@ -1,0 +1,13 @@
+* text=auto eol=lf
+
+# Keep these out of the distributed dist archive (composer archive / Packagist dist)
+/.github            export-ignore
+/tests              export-ignore
+/tools              export-ignore
+/.gitattributes     export-ignore
+/.gitignore         export-ignore
+/composer.lock      export-ignore
+/phpstan.neon.dist  export-ignore
+/phpunit.xml.dist   export-ignore
+/rector.php         export-ignore
+/pint.json          export-ignore

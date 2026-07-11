@@ -8,11 +8,20 @@ on:
 jobs:
   qa:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      # The package declares php ^8.4 and has no runtime Composer dependencies
+      # (ext-bcmath/dom/libxml only), so there is no lowest-version floor of ours
+      # to prove — but the ^8.4 claim must hold on every supported minor. Test
+      # both 8.4 and 8.5.
+      matrix:
+        php: ['8.4', '8.5']
+    name: qa - PHP ${{ matrix.php }}
     steps:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.4'
+          php-version: ${{ matrix.php }}
           extensions: bcmath, dom
           coverage: none
       - run: composer install --no-interaction --prefer-dist

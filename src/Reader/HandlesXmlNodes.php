@@ -57,7 +57,7 @@ trait HandlesXmlNodes
 
     private function text(DOMElement $domElement): ?string
     {
-        $text = trim($domElement->nodeValue ?? '');
+        $text = mb_trim($domElement->nodeValue ?? '');
 
         return $text === '' ? null : $text;
     }

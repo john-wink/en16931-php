@@ -19,7 +19,7 @@ final class Decimal
      */
     public static function isNumeric(?string $value): bool
     {
-        return $value !== null && preg_match('/^-?\d+(\.\d+)?$/', trim($value)) === 1;
+        return $value !== null && preg_match('/^-?\d+(\.\d+)?$/', mb_trim($value)) === 1;
     }
 
     /**

@@ -46,7 +46,8 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "JohnWink\\En16931\\Tests\\": "tests/"
+            "JohnWink\\En16931\\Tests\\": "tests/",
+            "JohnWink\\En16931\\Tools\\": "tools/"
         }
     },
     "scripts": {

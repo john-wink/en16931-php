@@ -95,6 +95,12 @@ final class RuleSets
             new CodeListRule('BR-CL-14', 'BT-40', 'The Seller country code (BT-40) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->seller->countryCode, CountryCodes::CODES),
             new CodeListRule('BR-CL-14', 'BT-55', 'The Buyer country code (BT-55) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->buyer->countryCode, CountryCodes::CODES),
 
+            // BR-CL-17 covers every VAT category code field: BT-151 is checked
+            // as a line rule above; BT-118 / BT-95 / BT-102 here.
+            new SubtotalRule('BR-CL-17', 'BT-118', 'The VAT category code (BT-118) shall be a valid UNCL5305 code.', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category === null || CodeLists::isVatCategory($taxSubtotal->category)),
+            new AllowanceRule('BR-CL-17', 'BT-95', 'The document-level allowance VAT category code (BT-95) shall be a valid UNCL5305 code.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory === null || CodeLists::isVatCategory($documentAllowanceCharge->taxCategory), charges: false),
+            new AllowanceRule('BR-CL-17', 'BT-102', 'The document-level charge VAT category code (BT-102) shall be a valid UNCL5305 code.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory === null || CodeLists::isVatCategory($documentAllowanceCharge->taxCategory), charges: true),
+
             new CalculationRule('BR-CO-11', 'BT-107', 'Sum of allowances on document level (BT-107) must equal the sum of the document allowance amounts (BT-92)', static fn (Invoice $invoice): string => self::sumAllowanceCharges($invoice, false), static fn (Invoice $invoice): ?string => $invoice->totals->allowanceTotal),
             new CalculationRule('BR-CO-12', 'BT-108', 'Sum of charges on document level (BT-108) must equal the sum of the document charge amounts (BT-99)', static fn (Invoice $invoice): string => self::sumAllowanceCharges($invoice, true), static fn (Invoice $invoice): ?string => $invoice->totals->chargeTotal),
 
@@ -107,6 +113,19 @@ final class RuleSets
 
             ...self::decimalRules(),
             ...self::categoryRules(),
+        ];
+    }
+
+    /**
+     * @return list<Rule>
+     */
+    public static function xrechnung(): array
+    {
+        return [
+            new PresenceRule('BR-DE-15', 'BT-10', 'An XRechnung shall contain the Buyer reference / Leitweg-ID (BT-10).', static fn (Invoice $invoice): bool => self::filled($invoice->buyerReference)),
+            new PresenceRule('BR-DE-5', 'BT-41', 'An XRechnung shall contain the Seller contact point (BT-41).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactName)),
+            new PresenceRule('BR-DE-6', 'BT-42', 'An XRechnung shall contain the Seller contact telephone number (BT-42).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactPhone)),
+            new PresenceRule('BR-DE-7', 'BT-43', 'An XRechnung shall contain the Seller contact email address (BT-43).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactEmail)),
         ];
     }
 
@@ -130,16 +149,16 @@ final class RuleSets
             new LineRule('BR-DEC-23', 'BT-131', 'The line net amount (BT-131) shall not have more than two decimals.', static fn (InvoiceLine $invoiceLine): bool => self::maxTwoDecimals($invoiceLine->netAmount)),
             new SubtotalRule('BR-DEC-19', 'BT-116', 'The VAT category taxable amount (BT-116) shall not have more than two decimals.', static fn (TaxSubtotal $taxSubtotal): bool => self::maxTwoDecimals($taxSubtotal->taxableAmount)),
             new SubtotalRule('BR-DEC-20', 'BT-117', 'The VAT category tax amount (BT-117) shall not have more than two decimals.', static fn (TaxSubtotal $taxSubtotal): bool => self::maxTwoDecimals($taxSubtotal->taxAmount)),
-            new AllowanceRule('BR-DEC-01', 'BT-92', 'A document-level allowance amount (BT-92) shall not have more than two decimals.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->isCharge || self::maxTwoDecimals($documentAllowanceCharge->amount)),
-            new AllowanceRule('BR-DEC-02', 'BT-99', 'A document-level charge amount (BT-99) shall not have more than two decimals.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => ! $documentAllowanceCharge->isCharge || self::maxTwoDecimals($documentAllowanceCharge->amount)),
+            new AllowanceRule('BR-DEC-01', 'BT-92', 'A document-level allowance amount (BT-92) shall not have more than two decimals.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => self::maxTwoDecimals($documentAllowanceCharge->amount), charges: false),
+            new AllowanceRule('BR-DEC-02', 'BT-99', 'A document-level charge amount (BT-99) shall not have more than two decimals.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => self::maxTwoDecimals($documentAllowanceCharge->amount), charges: true),
         ];
     }
 
     /**
-     * Per-VAT-category consistency rules (BR-S/Z/E/AE/IC/G/O). Kept free of
-     * false positives: they do not assume document-level allowances/charges
-     * (not modelled here), so the taxable-sum rules (BR-*-08) are deferred and
-     * only the category/tax/reason invariants are enforced.
+     * Per-VAT-category consistency rules (BR-S/Z/E/AE/IC/G/O): breakdown-group
+     * existence (-01), line rates (-05), document allowance/charge rates
+     * (-06/-07), zero tax amounts (-09) and exemption reasons (-10). The
+     * taxable-sum reconciliation (BR-*-08) lives in {@see TaxableSumRule}.
      *
      * @return list<Rule>
      */
@@ -148,9 +167,14 @@ final class RuleSets
         $categoryPrefix = ['S' => 'BR-S', 'Z' => 'BR-Z', 'E' => 'BR-E', 'AE' => 'BR-AE', 'K' => 'BR-IC', 'G' => 'BR-G', 'O' => 'BR-O'];
         $rules = [];
 
-        // BR-*-01: a used line VAT category must have a matching breakdown group.
-        foreach ($categoryPrefix as $category => $id) {
-            $rules[] = new ConditionalRule("{$id}-01", 'BG-23', "A line with VAT category {$category} requires a matching VAT breakdown group.", static fn (Invoice $invoice): bool => self::lineHasCategory($invoice, $category), static fn (Invoice $invoice): bool => self::subtotalHasCategory($invoice, $category));
+        // BR-*-01: a used VAT category (line, document allowance or charge)
+        // must have a matching breakdown group. Officially S works both ways
+        // (usage ⇔ at least one group); every other category requires exactly
+        // one group whenever the category appears anywhere in the invoice.
+        $rules[] = new ConditionalRule('BR-S-01', 'BG-23', 'An invoice using VAT category S shall contain at least one Standard-rated VAT breakdown group — and none without such usage.', static fn (Invoice $invoice): bool => self::usesCategory($invoice, 'S') || self::subtotalHasCategory($invoice, 'S'), static fn (Invoice $invoice): bool => self::usesCategory($invoice, 'S') && self::subtotalHasCategory($invoice, 'S'));
+
+        foreach (array_diff_key($categoryPrefix, ['S' => true]) as $category => $id) {
+            $rules[] = new ConditionalRule("{$id}-01", 'BG-23', "An invoice using VAT category {$category} shall contain exactly one matching VAT breakdown group.", static fn (Invoice $invoice): bool => self::usesCategory($invoice, $category) || self::subtotalHasCategory($invoice, $category), static fn (Invoice $invoice): bool => self::subtotalCategoryCount($invoice, $category) === 1);
         }
 
         // BR-*-09: categories that carry no VAT must have a category tax amount of 0.
@@ -167,36 +191,28 @@ final class RuleSets
         $rules[] = new SubtotalRule('BR-S-10', 'BT-120', 'A Standard-rated (S) VAT breakdown group shall not have a VAT exemption reason.', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== 'S' || ! self::hasExemptionReason($taxSubtotal));
         $rules[] = new SubtotalRule('BR-Z-10', 'BT-120', 'A Zero-rated (Z) VAT breakdown group shall not have a VAT exemption reason.', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== 'Z' || ! self::hasExemptionReason($taxSubtotal));
 
-        // BR-{Z,E,AE}-05: a line of a zero-VAT category must carry a rate of 0.
+        // BR-{Z,E,AE}-05: a line of a zero-VAT category must carry a rate of
+        // exactly 0 — officially an absent rate fails the assert too.
         foreach (['Z' => 'BR-Z', 'E' => 'BR-E', 'AE' => 'BR-AE'] as $category => $id) {
-            $rules[] = new LineRule("{$id}-05", 'BT-152', "A line with VAT category {$category} shall have a VAT rate (BT-152) of 0.", static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->taxCategory !== $category || ! self::isPositive($invoiceLine->taxRate));
+            $rules[] = new LineRule("{$id}-05", 'BT-152', "A line with VAT category {$category} shall have a VAT rate (BT-152) of 0.", static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->taxCategory !== $category || self::isZero($invoiceLine->taxRate));
         }
 
-        // BR-S-06 / BR-{Z,E,AE}-06: document-level allowance/charge VAT rate per category.
-        $rules[] = new AllowanceRule('BR-S-06', 'BT-96', 'A Standard-rated (S) document-level allowance/charge shall have a VAT rate (BT-96) greater than 0.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory !== 'S' || self::isPositive($documentAllowanceCharge->taxRate));
+        // BR-*-06 / BR-*-07: document-level allowance (-06, BT-96) and charge
+        // (-07, BT-103) VAT rates per category — distinct official rule ids.
+        $rules[] = new AllowanceRule('BR-S-06', 'BT-96', 'A Standard-rated (S) document-level allowance shall have a VAT rate (BT-96) greater than 0.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory !== 'S' || self::isPositive($documentAllowanceCharge->taxRate), charges: false);
+        $rules[] = new AllowanceRule('BR-S-07', 'BT-103', 'A Standard-rated (S) document-level charge shall have a VAT rate (BT-103) greater than 0.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory !== 'S' || self::isPositive($documentAllowanceCharge->taxRate), charges: true);
+
         foreach (['Z' => 'BR-Z', 'E' => 'BR-E', 'AE' => 'BR-AE'] as $category => $id) {
-            $rules[] = new AllowanceRule("{$id}-06", 'BT-96', "A document-level allowance/charge with VAT category {$category} shall have a VAT rate (BT-96) of 0.", static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory !== $category || ! self::isPositive($documentAllowanceCharge->taxRate));
+            $rules[] = new AllowanceRule("{$id}-06", 'BT-96', "A document-level allowance with VAT category {$category} shall have a VAT rate (BT-96) of 0.", static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory !== $category || self::isZero($documentAllowanceCharge->taxRate), charges: false);
+            $rules[] = new AllowanceRule("{$id}-07", 'BT-103', "A document-level charge with VAT category {$category} shall have a VAT rate (BT-103) of 0.", static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory !== $category || self::isZero($documentAllowanceCharge->taxRate), charges: true);
         }
 
         return $rules;
     }
 
-    /**
-     * @return list<Rule>
-     */
-    public static function xrechnung(): array
-    {
-        return [
-            new PresenceRule('BR-DE-1', 'BT-10', 'An XRechnung shall contain the Buyer reference / Leitweg-ID (BT-10).', static fn (Invoice $invoice): bool => self::filled($invoice->buyerReference)),
-            new PresenceRule('BR-DE-5', 'BT-41', 'An XRechnung shall contain the Seller contact point (BT-41).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactName)),
-            new PresenceRule('BR-DE-6', 'BT-42', 'An XRechnung shall contain the Seller contact telephone number (BT-42).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactPhone)),
-            new PresenceRule('BR-DE-7', 'BT-43', 'An XRechnung shall contain the Seller contact email address (BT-43).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactEmail)),
-        ];
-    }
-
     private static function filled(?string $value): bool
     {
-        return $value !== null && trim($value) !== '';
+        return $value !== null && mb_trim($value) !== '';
     }
 
     /**
@@ -217,6 +233,11 @@ final class RuleSets
         return Decimal::isNumeric($value) && Decimal::compare($value, '0') > 0;
     }
 
+    private static function isZero(?string $value): bool
+    {
+        return Decimal::isNumeric($value) && Decimal::compare($value, '0') === 0;
+    }
+
     private static function isZeroOrMissing(?string $value): bool
     {
         if (! Decimal::isNumeric($value)) {
@@ -232,7 +253,7 @@ final class RuleSets
             return true;
         }
 
-        return preg_match('/^-?\d+(\.\d{1,2})?$/', trim($value)) === 1;
+        return preg_match('/^-?\d+(\.\d{1,2})?$/', mb_trim($value)) === 1;
     }
 
     private static function sumAllowanceCharges(Invoice $invoice, bool $charges): string
@@ -251,6 +272,24 @@ final class RuleSets
     private static function lineHasCategory(Invoice $invoice, string $category): bool
     {
         return array_any($invoice->lines, fn (InvoiceLine $invoiceLine): bool => $invoiceLine->taxCategory === $category);
+    }
+
+    /**
+     * Whether the category is used anywhere it can be declared: on an invoice
+     * line (BT-151) or a document-level allowance/charge (BT-95/BT-102).
+     */
+    private static function usesCategory(Invoice $invoice, string $category): bool
+    {
+        if (self::lineHasCategory($invoice, $category)) {
+            return true;
+        }
+
+        return array_any($invoice->allowanceCharges, fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory === $category);
+    }
+
+    private static function subtotalCategoryCount(Invoice $invoice, string $category): int
+    {
+        return count(array_filter($invoice->taxSubtotals, static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category === $category));
     }
 
     private static function subtotalHasCategory(Invoice $invoice, string $category): bool

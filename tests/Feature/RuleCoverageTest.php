@@ -35,8 +35,14 @@ it('flags an invalid seller country code (BR-CL-14)', function (): void {
 
 it('flags a line missing its item name (BR-25)', function (): void {
     $result = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
-        id: '1', name: null, netAmount: '100.00', netPrice: '100.00',
-        quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00',
+        id: '1',
+        name: null,
+        netAmount: '100.00',
+        netPrice: '100.00',
+        quantity: '1',
+        unitCode: 'C62',
+        taxCategory: 'S',
+        taxRate: '19.00',
     )]));
 
     expect($result->hasViolation('BR-25'))->toBeTrue();
@@ -44,7 +50,10 @@ it('flags a line missing its item name (BR-25)', function (): void {
 
 it('flags a VAT breakdown missing its taxable amount (BR-45)', function (): void {
     $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
-        category: 'S', rate: '19.00', taxableAmount: null, taxAmount: '19.00',
+        category: 'S',
+        rate: '19.00',
+        taxableAmount: null,
+        taxAmount: '19.00',
     )]));
 
     expect($result->hasViolation('BR-45'))->toBeTrue();
@@ -52,7 +61,10 @@ it('flags a VAT breakdown missing its taxable amount (BR-45)', function (): void
 
 it('flags an inconsistent category tax amount (BR-CO-17)', function (): void {
     $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
-        category: 'S', rate: '19.00', taxableAmount: '100.00', taxAmount: '99.00',
+        category: 'S',
+        rate: '19.00',
+        taxableAmount: '100.00',
+        taxAmount: '99.00',
     )]));
 
     expect($result->hasViolation('BR-CO-17'))->toBeTrue();
@@ -60,7 +72,10 @@ it('flags an inconsistent category tax amount (BR-CO-17)', function (): void {
 
 it('accepts a correct category tax amount', function (): void {
     $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
-        category: 'S', rate: '19.00', taxableAmount: '100.00', taxAmount: '19.00',
+        category: 'S',
+        rate: '19.00',
+        taxableAmount: '100.00',
+        taxAmount: '19.00',
     )]));
 
     expect($result->hasViolation('BR-CO-17'))->toBeFalse();
@@ -68,8 +83,12 @@ it('accepts a correct category tax amount', function (): void {
 
 it('flags a missing total amount without VAT (BR-13)', function (): void {
     $result = core()->validateModel(makeInvoice(totals: new JohnWink\En16931\Model\Totals(
-        lineTotal: '100.00', taxBasisTotal: null, taxTotal: '19.00',
-        grandTotal: '119.00', paidAmount: '0.00', payableAmount: '119.00',
+        lineTotal: '100.00',
+        taxBasisTotal: null,
+        taxTotal: '19.00',
+        grandTotal: '119.00',
+        paidAmount: '0.00',
+        payableAmount: '119.00',
     )));
 
     expect($result->hasViolation('BR-13'))->toBeTrue();
@@ -77,8 +96,14 @@ it('flags a missing total amount without VAT (BR-13)', function (): void {
 
 it('flags a non-zero VAT rate on an exempt line (BR-E-05)', function (): void {
     $result = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
-        id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00',
-        quantity: '1', unitCode: 'C62', taxCategory: 'E', taxRate: '19.00',
+        id: '1',
+        name: 'x',
+        netAmount: '100.00',
+        netPrice: '100.00',
+        quantity: '1',
+        unitCode: 'C62',
+        taxCategory: 'E',
+        taxRate: '19.00',
     )]));
 
     expect($result->hasViolation('BR-E-05'))->toBeTrue();
@@ -92,8 +117,14 @@ it('flags a positive amount due with no due date or payment terms (BR-CO-25)', f
 
 it('flags a line allowance without a reason (BR-42)', function (): void {
     $result = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
-        id: '1', name: 'x', netAmount: '95.00', netPrice: '100.00',
-        quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00',
+        id: '1',
+        name: 'x',
+        netAmount: '95.00',
+        netPrice: '100.00',
+        quantity: '1',
+        unitCode: 'C62',
+        taxCategory: 'S',
+        taxRate: '19.00',
         allowanceCharges: [new JohnWink\En16931\Model\LineAllowanceCharge(isCharge: false, amount: '5.00')],
     )]));
 
@@ -118,7 +149,10 @@ it('flags a Standard document allowance with a zero rate (BR-S-06)', function ()
 
 it('flags an exempt group without an exemption reason (BR-E-10)', function (): void {
     $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
-        category: 'E', rate: '0.00', taxableAmount: '100.00', taxAmount: '0.00',
+        category: 'E',
+        rate: '0.00',
+        taxableAmount: '100.00',
+        taxAmount: '0.00',
     )]));
 
     expect($result->hasViolation('BR-E-10'))->toBeTrue();
@@ -126,7 +160,10 @@ it('flags an exempt group without an exemption reason (BR-E-10)', function (): v
 
 it('accepts an exempt group that carries an exemption reason', function (): void {
     $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
-        category: 'E', rate: '0.00', taxableAmount: '100.00', taxAmount: '0.00',
+        category: 'E',
+        rate: '0.00',
+        taxableAmount: '100.00',
+        taxAmount: '0.00',
         exemptionReason: 'Kleinunternehmer §19 UStG',
     )]));
 
@@ -135,7 +172,10 @@ it('accepts an exempt group that carries an exemption reason', function (): void
 
 it('flags a reverse-charge group that carries a non-zero tax amount (BR-AE-09)', function (): void {
     $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
-        category: 'AE', rate: '0.00', taxableAmount: '100.00', taxAmount: '19.00',
+        category: 'AE',
+        rate: '0.00',
+        taxableAmount: '100.00',
+        taxAmount: '19.00',
         exemptionReason: 'Reverse charge',
     )]));
 
@@ -144,7 +184,10 @@ it('flags a reverse-charge group that carries a non-zero tax amount (BR-AE-09)',
 
 it('flags a Standard group that carries an exemption reason (BR-S-10)', function (): void {
     $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
-        category: 'S', rate: '19.00', taxableAmount: '100.00', taxAmount: '19.00',
+        category: 'S',
+        rate: '19.00',
+        taxableAmount: '100.00',
+        taxAmount: '19.00',
         exemptionReason: 'should not be here',
     )]));
 
@@ -154,9 +197,112 @@ it('flags a Standard group that carries an exemption reason (BR-S-10)', function
 it('flags a used line category with no matching breakdown group (BR-S-01)', function (): void {
     // Default line is category S, but the only breakdown group is E.
     $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
-        category: 'E', rate: '0.00', taxableAmount: '100.00', taxAmount: '0.00',
+        category: 'E',
+        rate: '0.00',
+        taxableAmount: '100.00',
+        taxAmount: '0.00',
         exemptionReason: 'exempt',
     )]));
 
     expect($result->hasViolation('BR-S-01'))->toBeTrue();
+});
+
+it('reports a Standard document charge with a zero rate under BR-S-07, not BR-S-06', function (): void {
+    $result = core()->validateModel(makeInvoice(allowanceCharges: [
+        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: true, amount: '10.00', taxCategory: 'S', taxRate: '0.00'),
+    ]));
+
+    expect($result->hasViolation('BR-S-07'))->toBeTrue()
+        ->and($result->hasViolation('BR-S-06'))->toBeFalse();
+});
+
+it('flags a zero-rated line with an absent VAT rate (BR-Z-05)', function (): void {
+    // Officially xs:decimal(cbc:Percent) = 0 — an absent rate fails the assert.
+    $result = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
+        id: '1',
+        name: 'x',
+        netAmount: '100.00',
+        netPrice: '100.00',
+        quantity: '1',
+        unitCode: 'C62',
+        taxCategory: 'Z',
+        taxRate: null,
+    )]));
+
+    expect($result->hasViolation('BR-Z-05'))->toBeTrue();
+});
+
+it('flags an exempt document allowance with an absent VAT rate (BR-E-06)', function (): void {
+    $result = core()->validateModel(makeInvoice(allowanceCharges: [
+        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'E', taxRate: null),
+    ]));
+
+    expect($result->hasViolation('BR-E-06'))->toBeTrue();
+});
+
+it('flags two Zero-rated breakdown groups — BR-Z-01 requires exactly one', function (): void {
+    $result = core()->validateModel(makeInvoice(
+        lines: [new InvoiceLine(id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'Z', taxRate: '0.00')],
+        taxSubtotals: [
+            new TaxSubtotal(category: 'Z', rate: '0.00', taxableAmount: '60.00', taxAmount: '0.00'),
+            new TaxSubtotal(category: 'Z', rate: '0.00', taxableAmount: '40.00', taxAmount: '0.00'),
+        ],
+    ));
+
+    expect($result->hasViolation('BR-Z-01'))->toBeTrue();
+});
+
+it('triggers BR-Z-01 from a document allowance category as well', function (): void {
+    // Default S line + S breakdown; the Z allowance has no Z breakdown group.
+    $result = core()->validateModel(makeInvoice(allowanceCharges: [
+        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'Z', taxRate: '0.00'),
+    ]));
+
+    expect($result->hasViolation('BR-Z-01'))->toBeTrue();
+});
+
+it('flags a Standard breakdown group when the category is never used (BR-S-01)', function (): void {
+    $result = core()->validateModel(makeInvoice(
+        lines: [new InvoiceLine(id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'Z', taxRate: '0.00')],
+        taxSubtotals: [
+            new TaxSubtotal(category: 'Z', rate: '0.00', taxableAmount: '100.00', taxAmount: '0.00'),
+            new TaxSubtotal(category: 'S', rate: '19.00', taxableAmount: '0.00', taxAmount: '0.00'),
+        ],
+    ));
+
+    expect($result->hasViolation('BR-S-01'))->toBeTrue();
+});
+
+it('flags an invalid VAT category on a breakdown group (BR-CL-17 on BT-118)', function (): void {
+    $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
+        category: 'XX',
+        rate: '19.00',
+        taxableAmount: '100.00',
+        taxAmount: '19.00',
+    )]));
+
+    expect($result->hasViolation('BR-CL-17'))->toBeTrue();
+});
+
+it('accepts VAT category B (split payment) as a valid code', function (): void {
+    $result = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
+        id: '1',
+        name: 'x',
+        netAmount: '100.00',
+        netPrice: '100.00',
+        quantity: '1',
+        unitCode: 'C62',
+        taxCategory: 'B',
+        taxRate: '19.00',
+    )]));
+
+    expect($result->hasViolation('BR-CL-17'))->toBeFalse();
+});
+
+it('accepts newly added official invoice type codes (BR-CL-01)', function (): void {
+    expect(core()->validateModel(makeInvoice(typeCode: '261'))->hasViolation('BR-CL-01'))->toBeFalse();
+});
+
+it('rejects type code 936, which is not part of UNTDID 1001 (BR-CL-01)', function (): void {
+    expect(core()->validateModel(makeInvoice(typeCode: '936'))->hasViolation('BR-CL-01'))->toBeTrue();
 });

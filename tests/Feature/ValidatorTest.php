@@ -32,8 +32,12 @@ it('flags a missing invoice number (BR-02)', function (): void {
 
 it('flags a broken line-total sum (BR-CO-10)', function (): void {
     $result = en()->validateModel(makeInvoice(totals: new Totals(
-        lineTotal: '90.00', taxBasisTotal: '100.00', taxTotal: '19.00',
-        grandTotal: '119.00', paidAmount: '0.00', payableAmount: '119.00',
+        lineTotal: '90.00',
+        taxBasisTotal: '100.00',
+        taxTotal: '19.00',
+        grandTotal: '119.00',
+        paidAmount: '0.00',
+        payableAmount: '119.00',
     )));
 
     expect($result->hasViolation('BR-CO-10'))->toBeTrue();
@@ -41,8 +45,12 @@ it('flags a broken line-total sum (BR-CO-10)', function (): void {
 
 it('flags a broken grand total (BR-CO-15)', function (): void {
     $result = en()->validateModel(makeInvoice(totals: new Totals(
-        lineTotal: '100.00', taxBasisTotal: '100.00', taxTotal: '19.00',
-        grandTotal: '120.00', paidAmount: '0.00', payableAmount: '120.00',
+        lineTotal: '100.00',
+        taxBasisTotal: '100.00',
+        taxTotal: '19.00',
+        grandTotal: '120.00',
+        paidAmount: '0.00',
+        payableAmount: '120.00',
     )));
 
     expect($result->hasViolation('BR-CO-15'))->toBeTrue();
@@ -50,8 +58,14 @@ it('flags a broken grand total (BR-CO-15)', function (): void {
 
 it('flags a negative item net price (BR-27)', function (): void {
     $result = en()->validateModel(makeInvoice(lines: [new InvoiceLine(
-        id: '1', name: 'x', netAmount: '-5.00', netPrice: '-5.00',
-        quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00',
+        id: '1',
+        name: 'x',
+        netAmount: '-5.00',
+        netPrice: '-5.00',
+        quantity: '1',
+        unitCode: 'C62',
+        taxCategory: 'S',
+        taxRate: '19.00',
     )]));
 
     expect($result->hasViolation('BR-27'))->toBeTrue();
@@ -70,9 +84,9 @@ it('flags an invalid invoice type code (BR-CL-01)', function (): void {
     expect(en()->validateModel(makeInvoice(typeCode: '999'))->hasViolation('BR-CL-01'))->toBeTrue();
 });
 
-it('requires the Leitweg-ID only under the XRechnung rule set (BR-DE-1)', function (): void {
+it('requires the Leitweg-ID only under the XRechnung rule set (BR-DE-15)', function (): void {
     $invoice = makeInvoice(buyerReference: null);
 
-    expect(en()->validateModel($invoice)->hasViolation('BR-DE-1'))->toBeFalse()
-        ->and(xr()->validateModel($invoice)->hasViolation('BR-DE-1'))->toBeTrue();
+    expect(en()->validateModel($invoice)->hasViolation('BR-DE-15'))->toBeFalse()
+        ->and(xr()->validateModel($invoice)->hasViolation('BR-DE-15'))->toBeTrue();
 });

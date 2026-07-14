@@ -6,6 +6,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Pre-1.0: the public API may still change between minor versions.
 
+## [Unreleased]
+
+### Added
+
+- Rule-coverage matrix: [COVERAGE.md](COVERAGE.md) + README summary, generated
+  by `tools/generate-coverage.php` against the official EN 16931 **1.3.16** /
+  XRechnung **2.5.0** artefacts (`resources/rules-reference.json`, built by
+  `tools/build-rules-reference.php`) and drift-guarded by `CoverageDocTest`.
+- BR-S/Z/E/AE-07: document-level **charge** VAT rate rules — previously these
+  violations were reported under the `-06` (allowance) ids.
+- BR-CL-17 now also validates BT-95 / BT-102 / BT-118 (was: BT-151 only), and
+  VAT category `B` (split payment) is accepted as a valid UNCL5305 code.
+
+### Changed
+
+- BR-Z/E/AE-05 and BR-Z/E/AE-06/-07 require the VAT rate to be **exactly 0**;
+  an absent or negative rate now fails, matching the official asserts.
+- BR-{S,Z,E,AE,IC,G,O}-01 follow the official semantics: document-level
+  allowances/charges trigger them too, non-S categories require **exactly one**
+  matching VAT breakdown group, and an unused Standard-rated group violates
+  BR-S-01.
+- BR-CL-01 uses the complete official UNTDID 1001 list (62 codes): adds
+  261/262/296/308/471–473/500–503, removes the non-official 936.
+
+### Fixed
+
+- The Leitweg-ID rule (BT-10) reports the official id **BR-DE-15** — it was
+  mislabelled as BR-DE-1 (which officially requires PAYMENT INSTRUCTIONS,
+  BG-16, and remains open).
+
 ## [0.1.0] - 2026-07-11
 
 Initial pre-release.

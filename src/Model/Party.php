@@ -24,6 +24,8 @@ final readonly class Party
         public ?string $postCode = null,           // BT-38 / BT-53
         public ?string $electronicAddress = null,  // BT-34 / BT-49
         public ?string $electronicAddressScheme = null, // BT-34-1 / BT-49-1 (@schemeID)
+        public ?string $identifierScheme = null,          // BT-29-1 / BT-46-1 / BT-60-1 (@schemeID)
+        public ?string $legalRegistrationIdScheme = null, // BT-30-1 / BT-47-1 / BT-61-1 (@schemeID)
     ) {}
 
     /**

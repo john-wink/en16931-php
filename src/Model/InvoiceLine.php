@@ -32,5 +32,6 @@ final readonly class InvoiceLine
         public array $itemClassifications = [],      // BT-158
         /** @var list<ItemAttribute> */
         public array $attributes = [],               // BG-32
+        public ?string $originCountryCode = null,    // BT-159
     ) {}
 }

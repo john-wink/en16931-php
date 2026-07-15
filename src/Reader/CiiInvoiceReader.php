@@ -71,11 +71,36 @@ final class CiiInvoiceReader
             taxPointDate: $this->date($this->value($xpath, '//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax/ram:TaxPointDate/udt:DateString')),
             attachments: $this->attachments($xpath),
             precedingInvoiceReferences: $this->precedingInvoiceReferences($xpath),
+            amountCurrencyCodes: $this->amountCurrencyCodes($xpath),
         );
     }
 
     /**
-     * BG-24: additional referenced documents of type 916 (supporting documents).
+     * Every distinct @currencyID used on an amount (BR-CL-03).
+     *
+     * @return list<string>
+     */
+    private function amountCurrencyCodes(DOMXPath $domxPath): array
+    {
+        $codes = [];
+        $list = $domxPath->query('//@currencyID');
+
+        if ($list !== false) {
+            foreach ($list as $attributeNode) {
+                $value = mb_trim($attributeNode->nodeValue ?? '');
+
+                if ($value !== '') {
+                    $codes[$value] = true;
+                }
+            }
+        }
+
+        return array_keys($codes);
+    }
+
+    /**
+     * Every additional referenced document — supporting documents (type 916)
+     * and invoiced-object references (type 130) alike.
      *
      * @return list<Attachment>
      */
@@ -83,11 +108,13 @@ final class CiiInvoiceReader
     {
         $attachments = [];
 
-        foreach ($this->nodes($domxPath, '//ram:ApplicableHeaderTradeAgreement/ram:AdditionalReferencedDocument[ram:TypeCode="916"]') as $domElement) {
+        foreach ($this->nodes($domxPath, '//ram:ApplicableHeaderTradeAgreement/ram:AdditionalReferencedDocument') as $domElement) {
             $attachments[] = new Attachment(
                 reference: $this->value($domxPath, 'ram:IssuerAssignedID', $domElement),
                 filename: $this->attribute($domxPath, 'ram:AttachmentBinaryObject', 'filename', $domElement),
                 mimeCode: $this->attribute($domxPath, 'ram:AttachmentBinaryObject', 'mimeCode', $domElement),
+                typeCode: $this->value($domxPath, 'ram:TypeCode', $domElement),
+                scheme: $this->value($domxPath, 'ram:ReferenceTypeCode', $domElement),
             );
         }
 
@@ -239,6 +266,8 @@ final class CiiInvoiceReader
             postCode: $this->value($domxPath, 'ram:PostalTradeAddress/ram:PostcodeCode', $node),
             electronicAddress: $this->value($domxPath, 'ram:URIUniversalCommunication/ram:URIID', $node),
             electronicAddressScheme: $this->attribute($domxPath, 'ram:URIUniversalCommunication/ram:URIID', 'schemeID', $node),
+            identifierScheme: $this->attribute($domxPath, 'ram:GlobalID', 'schemeID', $node),
+            legalRegistrationIdScheme: $this->attribute($domxPath, 'ram:SpecifiedLegalOrganization/ram:ID', 'schemeID', $node),
         );
     }
 
@@ -308,6 +337,7 @@ final class CiiInvoiceReader
                 itemStandardIdScheme: $this->attribute($domxPath, 'ram:SpecifiedTradeProduct/ram:GlobalID', 'schemeID', $domElement),
                 itemClassifications: $this->itemClassifications($domxPath, $domElement),
                 attributes: $this->itemAttributes($domxPath, $domElement),
+                originCountryCode: $this->value($domxPath, 'ram:SpecifiedTradeProduct/ram:OriginTradeCountry/ram:ID', $domElement),
             );
         }
 

@@ -78,5 +78,6 @@ function makeInvoice(mixed ...$overrides): Invoice
         taxPointDate: $pick('taxPointDate', null),
         attachments: $pick('attachments', []),
         precedingInvoiceReferences: $pick('precedingInvoiceReferences', []),
+        amountCurrencyCodes: $pick('amountCurrencyCodes', []),
     );
 }

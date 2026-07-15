@@ -70,7 +70,31 @@ final class UblInvoiceReader
             taxPointDate: $this->value($xpath, '/*/cbc:TaxPointDate'),
             attachments: $this->attachments($xpath),
             precedingInvoiceReferences: $this->precedingInvoiceReferences($xpath),
+            amountCurrencyCodes: $this->amountCurrencyCodes($xpath),
         );
+    }
+
+    /**
+     * Every distinct @currencyID used on an amount (BR-CL-03).
+     *
+     * @return list<string>
+     */
+    private function amountCurrencyCodes(DOMXPath $domxPath): array
+    {
+        $codes = [];
+        $list = $domxPath->query('//@currencyID');
+
+        if ($list !== false) {
+            foreach ($list as $attributeNode) {
+                $value = mb_trim($attributeNode->nodeValue ?? '');
+
+                if ($value !== '') {
+                    $codes[$value] = true;
+                }
+            }
+        }
+
+        return array_keys($codes);
     }
 
     /**
@@ -85,6 +109,8 @@ final class UblInvoiceReader
                 reference: $this->value($domxPath, 'cbc:ID', $domElement),
                 filename: $this->attribute($domxPath, 'cac:Attachment/cbc:EmbeddedDocumentBinaryObject', 'filename', $domElement),
                 mimeCode: $this->attribute($domxPath, 'cac:Attachment/cbc:EmbeddedDocumentBinaryObject', 'mimeCode', $domElement),
+                typeCode: $this->value($domxPath, 'cbc:DocumentTypeCode', $domElement),
+                scheme: $this->attribute($domxPath, 'cbc:ID', 'schemeID', $domElement),
             );
         }
 
@@ -119,9 +145,11 @@ final class UblInvoiceReader
         return new Party(
             name: $this->value($domxPath, '/*/cac:Delivery/cac:DeliveryParty/cac:PartyName/cbc:Name'),
             countryCode: $this->value($domxPath, 'cac:Country/cbc:IdentificationCode', $address),
+            identifier: $this->value($domxPath, '/*/cac:Delivery/cac:DeliveryLocation/cbc:ID'),
             street: $this->value($domxPath, 'cbc:StreetName', $address),
             city: $this->value($domxPath, 'cbc:CityName', $address),
             postCode: $this->value($domxPath, 'cbc:PostalZone', $address),
+            identifierScheme: $this->attribute($domxPath, '/*/cac:Delivery/cac:DeliveryLocation/cbc:ID', 'schemeID'),
         );
     }
 
@@ -201,6 +229,8 @@ final class UblInvoiceReader
             postCode: $this->value($domxPath, 'cac:PostalAddress/cbc:PostalZone', $node),
             electronicAddress: $this->value($domxPath, 'cbc:EndpointID', $node),
             electronicAddressScheme: $this->attribute($domxPath, 'cbc:EndpointID', 'schemeID', $node),
+            identifierScheme: $this->attribute($domxPath, 'cac:PartyIdentification/cbc:ID', 'schemeID', $node),
+            legalRegistrationIdScheme: $this->attribute($domxPath, 'cac:PartyLegalEntity/cbc:CompanyID', 'schemeID', $node),
         );
     }
 
@@ -270,6 +300,7 @@ final class UblInvoiceReader
                 itemStandardIdScheme: $this->attribute($domxPath, 'cac:Item/cac:StandardItemIdentification/cbc:ID', 'schemeID', $domElement),
                 itemClassifications: $this->itemClassifications($domxPath, $domElement),
                 attributes: $this->itemAttributes($domxPath, $domElement),
+                originCountryCode: $this->value($domxPath, 'cac:Item/cac:OriginCountry/cbc:IdentificationCode', $domElement),
             );
         }
 

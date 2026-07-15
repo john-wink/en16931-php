@@ -51,8 +51,19 @@ final class UblInvoiceReader
             notes: $this->notes($xpath),
             allowanceCharges: $this->allowanceCharges($xpath),
             paymentDueDate: $this->value($xpath, '/*/cbc:DueDate'),
-            paymentTerms: $this->value($xpath, '/*/cac:PaymentTerms/cbc:Note'),
+            paymentTerms: $this->rawValue($xpath, '/*/cac:PaymentTerms/cbc:Note'),
+            taxRepresentative: $this->taxRepresentative($xpath),
         );
+    }
+
+    /**
+     * The Seller tax representative party (BG-11) — null when the group is absent.
+     */
+    private function taxRepresentative(DOMXPath $domxPath): ?Party
+    {
+        return $this->node($domxPath, '/*/cac:TaxRepresentativeParty') instanceof DOMElement
+            ? $this->party($domxPath, '/*/cac:TaxRepresentativeParty')
+            : null;
     }
 
     private function xpath(string $xml): DOMXPath
@@ -93,6 +104,7 @@ final class UblInvoiceReader
             contactName: $this->value($domxPath, 'cac:Contact/cbc:Name', $node),
             contactPhone: $this->value($domxPath, 'cac:Contact/cbc:Telephone', $node),
             contactEmail: $this->value($domxPath, 'cac:Contact/cbc:ElectronicMail', $node),
+            taxRegistrationId: $this->value($domxPath, 'cac:PartyTaxScheme[cac:TaxScheme/cbc:ID!="VAT"]/cbc:CompanyID', $node),
         );
     }
 
@@ -221,6 +233,7 @@ final class UblInvoiceReader
                 taxCategory: $this->value($domxPath, 'cac:TaxCategory/cbc:ID', $domElement),
                 taxRate: $this->value($domxPath, 'cac:TaxCategory/cbc:Percent', $domElement),
                 reason: $this->value($domxPath, 'cbc:AllowanceChargeReason', $domElement),
+                reasonCode: $this->value($domxPath, 'cbc:AllowanceChargeReasonCode', $domElement),
             );
         }
 

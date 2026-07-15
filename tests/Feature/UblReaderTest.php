@@ -53,3 +53,18 @@ it('detects a tampered UBL total (BR-CO-15)', function (): void {
 
     expect(En16931Validator::xrechnung()->validate($tampered)->hasViolation('BR-CO-15'))->toBeTrue();
 });
+
+it('reads the tax representative, seller tax registration and allowance reason code', function (): void {
+    $invoice = (new UblInvoiceReader)->read(ublFixture('taxrep-ubl.xml'));
+
+    expect($invoice->seller->vatId)->toBe('DE123456789')
+        ->and($invoice->seller->taxRegistrationId)->toBe('123/456/7890')
+        ->and($invoice->taxRepresentative?->name)->toBe('Vertreter GmbH')
+        ->and($invoice->taxRepresentative?->vatId)->toBe('DE999999999')
+        ->and($invoice->taxRepresentative?->countryCode)->toBe('DE')
+        ->and($invoice->allowanceCharges[0]->reasonCode)->toBe('95');
+});
+
+it('leaves the tax representative null when BG-11 is absent', function (): void {
+    expect((new UblInvoiceReader)->read(ublFixture('valid-ubl.xml'))->taxRepresentative)->toBeNull();
+});

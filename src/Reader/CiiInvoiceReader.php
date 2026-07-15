@@ -53,8 +53,21 @@ final class CiiInvoiceReader
             notes: $this->notes($xpath),
             allowanceCharges: $this->allowanceCharges($xpath),
             paymentDueDate: $this->date($this->value($xpath, '//ram:SpecifiedTradePaymentTerms/ram:DueDateDateTime/udt:DateTimeString')),
-            paymentTerms: $this->value($xpath, '//ram:SpecifiedTradePaymentTerms/ram:Description'),
+            paymentTerms: $this->rawValue($xpath, '//ram:SpecifiedTradePaymentTerms/ram:Description'),
+            taxRepresentative: $this->taxRepresentative($xpath),
         );
+    }
+
+    /**
+     * The Seller tax representative party (BG-11) — null when the group is absent.
+     */
+    private function taxRepresentative(DOMXPath $domxPath): ?Party
+    {
+        $base = '//ram:ApplicableHeaderTradeAgreement/ram:SellerTaxRepresentativeTradeParty';
+
+        return $this->node($domxPath, $base) instanceof DOMElement
+            ? $this->party($domxPath, $base)
+            : null;
     }
 
     /**
@@ -73,6 +86,7 @@ final class CiiInvoiceReader
                 taxCategory: $this->value($domxPath, 'ram:CategoryTradeTax/ram:CategoryCode', $domElement),
                 taxRate: $this->value($domxPath, 'ram:CategoryTradeTax/ram:RateApplicablePercent', $domElement),
                 reason: $this->value($domxPath, 'ram:Reason', $domElement),
+                reasonCode: $this->value($domxPath, 'ram:ReasonCode', $domElement),
             );
         }
 
@@ -118,6 +132,7 @@ final class CiiInvoiceReader
             contactName: $this->value($domxPath, 'ram:DefinedTradeContact/ram:PersonName', $node),
             contactPhone: $this->value($domxPath, 'ram:DefinedTradeContact/ram:TelephoneUniversalCommunication/ram:CompleteNumber', $node),
             contactEmail: $this->value($domxPath, 'ram:DefinedTradeContact/ram:EmailURIUniversalCommunication/ram:URIID', $node),
+            taxRegistrationId: $this->value($domxPath, "ram:SpecifiedTaxRegistration/ram:ID[@schemeID='FC']", $node),
         );
     }
 

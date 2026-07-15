@@ -18,6 +18,7 @@ final readonly class Party
         public ?string $contactName = null,        // BT-41
         public ?string $contactPhone = null,       // BT-42
         public ?string $contactEmail = null,        // BT-43
+        public ?string $taxRegistrationId = null,  // BT-32 (seller tax registration, e.g. FC scheme)
     ) {}
 
     public function hasVatId(): bool

@@ -35,6 +35,7 @@ final readonly class Invoice
         public array $allowanceCharges = [],
         public ?string $paymentDueDate = null,  // BT-9
         public ?string $paymentTerms = null,    // BT-20
+        public ?Party $taxRepresentative = null, // BG-11 (BT-62 name / BT-63 vatId / BT-69 countryCode)
     ) {}
 
     public function hasCategory(string $category): bool

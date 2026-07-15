@@ -55,6 +55,24 @@ trait HandlesXmlNodes
         return $node instanceof DOMElement ? $this->text($node) : null;
     }
 
+    /**
+     * The untrimmed text of a node — for whitespace-sensitive fields like the
+     * payment terms (BT-20), where BR-DE-18 requires Skonto entries to end
+     * with a literal line break.
+     */
+    private function rawValue(DOMXPath $domxPath, string $query, ?DOMNode $domNode = null): ?string
+    {
+        $node = $this->node($domxPath, $query, $domNode);
+
+        if (! $node instanceof DOMElement) {
+            return null;
+        }
+
+        $text = $node->nodeValue ?? '';
+
+        return $text === '' ? null : $text;
+    }
+
     private function text(DOMElement $domElement): ?string
     {
         $text = mb_trim($domElement->nodeValue ?? '');

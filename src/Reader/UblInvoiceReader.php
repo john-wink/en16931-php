@@ -12,6 +12,7 @@ use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
 use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\Party;
+use JohnWink\En16931\Model\PaymentMeans;
 use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Model\Totals;
 use RuntimeException;
@@ -53,7 +54,31 @@ final class UblInvoiceReader
             paymentDueDate: $this->value($xpath, '/*/cbc:DueDate'),
             paymentTerms: $this->rawValue($xpath, '/*/cac:PaymentTerms/cbc:Note'),
             taxRepresentative: $this->taxRepresentative($xpath),
+            paymentMeans: $this->paymentMeans($xpath),
+            sepaCreditorId: $this->value($xpath, '/*/cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID[@schemeID="SEPA"] | /*/cac:PayeeParty/cac:PartyIdentification/cbc:ID[@schemeID="SEPA"]'),
         );
+    }
+
+    /**
+     * @return list<PaymentMeans>
+     */
+    private function paymentMeans(DOMXPath $domxPath): array
+    {
+        $result = [];
+
+        foreach ($this->nodes($domxPath, '/*/cac:PaymentMeans') as $domElement) {
+            $result[] = new PaymentMeans(
+                typeCode: $this->value($domxPath, 'cbc:PaymentMeansCode', $domElement),
+                accountId: $this->value($domxPath, 'cac:PayeeFinancialAccount/cbc:ID', $domElement),
+                hasCreditTransfer: $this->node($domxPath, 'cac:PayeeFinancialAccount', $domElement) instanceof DOMElement,
+                hasCardInformation: $this->node($domxPath, 'cac:CardAccount', $domElement) instanceof DOMElement,
+                cardNumber: $this->value($domxPath, 'cac:CardAccount/cbc:PrimaryAccountNumberID', $domElement),
+                hasDirectDebit: $this->node($domxPath, 'cac:PaymentMandate', $domElement) instanceof DOMElement,
+                debitedAccountId: $this->value($domxPath, 'cac:PaymentMandate/cac:PayerFinancialAccount/cbc:ID', $domElement),
+            );
+        }
+
+        return $result;
     }
 
     /**

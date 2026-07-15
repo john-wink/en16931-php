@@ -5,6 +5,7 @@ declare(strict_types=1);
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
 use JohnWink\En16931\Model\Party;
+use JohnWink\En16931\Model\PaymentMeans;
 use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Model\Totals;
 
@@ -65,5 +66,7 @@ function makeInvoice(mixed ...$overrides): Invoice
         paymentDueDate: $pick('paymentDueDate', '2026-02-15'),
         paymentTerms: $pick('paymentTerms', 'Zahlbar innerhalb von 30 Tagen.'),
         taxRepresentative: $pick('taxRepresentative', null),
+        paymentMeans: $pick('paymentMeans', [new PaymentMeans(typeCode: '30', accountId: 'DE02120300000000202051', hasCreditTransfer: true)]),
+        sepaCreditorId: $pick('sepaCreditorId', null),
     );
 }

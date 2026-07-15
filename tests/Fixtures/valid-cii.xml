@@ -82,6 +82,10 @@
         </ram:ApplicableHeaderTradeAgreement>
         <ram:ApplicableHeaderTradeSettlement>
             <ram:InvoiceCurrencyCode>EUR</ram:InvoiceCurrencyCode>
+            <ram:SpecifiedTradeSettlementPaymentMeans>
+                <ram:TypeCode>30</ram:TypeCode>
+                <ram:PayeePartyCreditorFinancialAccount><ram:IBANID>DE02120300000000202051</ram:IBANID></ram:PayeePartyCreditorFinancialAccount>
+            </ram:SpecifiedTradeSettlementPaymentMeans>
             <ram:SpecifiedTradePaymentTerms>
                 <ram:Description>Zahlbar innerhalb von 30 Tagen.</ram:Description>
             </ram:SpecifiedTradePaymentTerms>

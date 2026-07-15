@@ -36,6 +36,9 @@ final readonly class Invoice
         public ?string $paymentDueDate = null,  // BT-9
         public ?string $paymentTerms = null,    // BT-20
         public ?Party $taxRepresentative = null, // BG-11 (BT-62 name / BT-63 vatId / BT-69 countryCode)
+        /** @var list<PaymentMeans> */
+        public array $paymentMeans = [],        // BG-16
+        public ?string $sepaCreditorId = null,  // BT-90 bank assigned creditor identifier
     ) {}
 
     public function hasCategory(string $category): bool

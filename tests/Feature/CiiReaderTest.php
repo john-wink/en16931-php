@@ -72,3 +72,13 @@ it('reads the postal address and electronic address of a party', function (): vo
         ->and($invoice->seller->electronicAddress)->toBe('DE123456789')
         ->and($invoice->seller->electronicAddressScheme)->toBe('9930');
 });
+
+it('reads the payment means from CII', function (): void {
+    $invoice = (new CiiInvoiceReader)->read(ciiFixture('valid-cii.xml'));
+
+    expect($invoice->paymentMeans)->toHaveCount(1)
+        ->and($invoice->paymentMeans[0]->typeCode)->toBe('30')
+        ->and($invoice->paymentMeans[0]->accountId)->toBe('DE02120300000000202051')
+        ->and($invoice->paymentMeans[0]->hasCreditTransfer)->toBeTrue()
+        ->and($invoice->paymentMeans[0]->hasDirectDebit)->toBeFalse();
+});

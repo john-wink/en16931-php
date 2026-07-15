@@ -12,6 +12,7 @@ use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
 use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\Party;
+use JohnWink\En16931\Model\PaymentMeans;
 use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Model\Totals;
 use RuntimeException;
@@ -55,7 +56,38 @@ final class CiiInvoiceReader
             paymentDueDate: $this->date($this->value($xpath, '//ram:SpecifiedTradePaymentTerms/ram:DueDateDateTime/udt:DateTimeString')),
             paymentTerms: $this->rawValue($xpath, '//ram:SpecifiedTradePaymentTerms/ram:Description'),
             taxRepresentative: $this->taxRepresentative($xpath),
+            paymentMeans: $this->paymentMeans($xpath),
+            sepaCreditorId: $this->value($xpath, '//ram:ApplicableHeaderTradeSettlement/ram:CreditorReferenceID'),
         );
+    }
+
+    /**
+     * BG-16. In CII the direct debit group (BG-19) is spread across the
+     * settlement: the mandate reference (BT-89) lives in the payment terms,
+     * the debited account (BT-91) inside the payment means.
+     *
+     * @return list<PaymentMeans>
+     */
+    private function paymentMeans(DOMXPath $domxPath): array
+    {
+        $hasMandate = $this->node($domxPath, '//ram:SpecifiedTradePaymentTerms/ram:DirectDebitMandateID') instanceof DOMElement;
+        $result = [];
+
+        foreach ($this->nodes($domxPath, '//ram:ApplicableHeaderTradeSettlement/ram:SpecifiedTradeSettlementPaymentMeans') as $domElement) {
+            $debtorAccount = $this->node($domxPath, 'ram:PayerPartyDebtorFinancialAccount', $domElement);
+
+            $result[] = new PaymentMeans(
+                typeCode: $this->value($domxPath, 'ram:TypeCode', $domElement),
+                accountId: $this->value($domxPath, 'ram:PayeePartyCreditorFinancialAccount/ram:IBANID | ram:PayeePartyCreditorFinancialAccount/ram:ProprietaryID', $domElement),
+                hasCreditTransfer: $this->node($domxPath, 'ram:PayeePartyCreditorFinancialAccount', $domElement) instanceof DOMElement,
+                hasCardInformation: $this->node($domxPath, 'ram:ApplicableTradeSettlementFinancialCard', $domElement) instanceof DOMElement,
+                cardNumber: $this->value($domxPath, 'ram:ApplicableTradeSettlementFinancialCard/ram:ID', $domElement),
+                hasDirectDebit: $hasMandate || $debtorAccount instanceof DOMElement,
+                debitedAccountId: $this->value($domxPath, 'ram:PayerPartyDebtorFinancialAccount/ram:IBANID', $domElement),
+            );
+        }
+
+        return $result;
     }
 
     /**

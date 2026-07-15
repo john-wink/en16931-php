@@ -9,10 +9,10 @@
 
 | Rule group | ✅ | 🟡 | ❌ | Total |
 |---|--:|--:|--:|--:|
-| BR — core document & line rules | 38 | 0 | 20 | 58 |
+| BR — core document & line rules | 42 | 0 | 16 | 58 |
 | BR-CO — conditions & calculations | 16 | 0 | 7 | 23 |
 | BR-DEC — decimals | 14 | 0 | 7 | 21 |
-| BR-CL — code lists | 3 | 1 | 19 | 23 |
+| BR-CL — code lists | 4 | 1 | 18 | 23 |
 | BR-AE — Reverse charge | 10 | 0 | 0 | 10 |
 | BR-AF — IGIC (Canary Islands) | 9 | 0 | 1 | 10 |
 | BR-AG — IPSI (Ceuta/Melilla) | 9 | 0 | 1 | 10 |
@@ -23,9 +23,9 @@
 | BR-G — Export outside the EU | 10 | 0 | 0 | 10 |
 | BR-O — Not subject to VAT | 14 | 0 | 0 | 14 |
 | BR-B — Split payment (Italy) | 2 | 0 | 0 | 2 |
-| BR-DE — XRechnung CIUS | 11 | 0 | 30 | 41 |
+| BR-DE — XRechnung CIUS | 15 | 0 | 26 | 41 |
 | BR-DEX — XRechnung Extension | 0 | 0 | 14 | 14 |
-| **Total** | **176** | **1** | **101** | **278** |
+| **Total** | **185** | **1** | **92** | **278** |
 
 ## BR — core document & line rules
 
@@ -38,9 +38,9 @@
 | BR-05 | ✅ | fatal | An Invoice shall have an Invoice currency code (BT-5). |  |
 | BR-06 | ✅ | fatal | An Invoice shall contain the Seller name (BT-27). |  |
 | BR-07 | ✅ | fatal | An Invoice shall contain the Buyer name (BT-44). |  |
-| BR-08 | ❌ | fatal | An Invoice shall contain the Seller postal address. |  |
+| BR-08 | ✅ | fatal | An Invoice shall contain the Seller postal address. |  |
 | BR-09 | ✅ | fatal | The Seller postal address (BG-5) shall contain a Seller country code (BT-40). |  |
-| BR-10 | ❌ | fatal | An Invoice shall contain the Buyer postal address (BG-8). |  |
+| BR-10 | ✅ | fatal | An Invoice shall contain the Buyer postal address (BG-8). |  |
 | BR-11 | ✅ | fatal | The Buyer postal address shall contain a Buyer country code (BT-55). |  |
 | BR-12 | ✅ | fatal | An Invoice shall have the Sum of Invoice line net amount (BT-106). |  |
 | BR-13 | ✅ | fatal | An Invoice shall have the Invoice total amount without VAT (BT-109). |  |
@@ -85,8 +85,8 @@
 | BR-56 | ✅ | fatal | Each Seller tax representative party (BG-11) shall have a Seller tax representative VAT identifier (BT-63). |  |
 | BR-57 | ❌ | fatal | Each Deliver to address (BG-15) shall contain a Deliver to country code (BT-80). |  |
 | BR-61 | ❌ | fatal | If the Payment means type code (BT-81) means SEPA credit transfer, Local credit transfer or Non-SEPA international credit transfer, the Payment account identifier (BT-84) shall be present. |  |
-| BR-62 | ❌ | fatal | The Seller electronic address (BT-34) shall have a Scheme identifier. |  |
-| BR-63 | ❌ | fatal | The Buyer electronic address (BT-49) shall have a Scheme identifier. |  |
+| BR-62 | ✅ | fatal | The Seller electronic address (BT-34) shall have a Scheme identifier. |  |
+| BR-63 | ✅ | fatal | The Buyer electronic address (BT-49) shall have a Scheme identifier. |  |
 | BR-64 | ❌ | fatal | The Item standard identifier (BT-157) shall have a Scheme identifier. |  |
 | BR-65 | ❌ | fatal | The Item classification identifier (BT-158) shall have a Scheme identifier. |  |
 
@@ -169,7 +169,7 @@
 | BR-CL-22 | ❌ | fatal | Tax exemption reason code identifier scheme identifier MUST belong to the CEF VATEX code list |  |
 | BR-CL-23 | ❌ | fatal | Unit code MUST be coded according to the UN/ECE Recommendation 20 with Rec 21 extension |  |
 | BR-CL-24 | ❌ | fatal | For Mime code in attribute use MIMEMediaType. |  |
-| BR-CL-25 | ❌ | fatal | Endpoint identifier scheme identifier MUST belong to the CEF EAS code list |  |
+| BR-CL-25 | ✅ | fatal | Endpoint identifier scheme identifier MUST belong to the CEF EAS code list |  |
 | BR-CL-26 | ❌ | fatal | Delivery location identifier scheme identifier MUST belong to the ISO 6523 ICD code list |  |
 
 ## BR-AE — Reverse charge
@@ -326,13 +326,13 @@
 |---|:-:|---|---|---|
 | BR-DE-1 | ❌ | fatal | Eine Rechnung (INVOICE) muss Angaben zu "PAYMENT INSTRUCTIONS" (BG-16) enthalten. |  |
 | BR-DE-2 | ✅ | fatal | Die Gruppe "SELLER CONTACT" (BG-6) muss übermittelt werden. |  |
-| BR-DE-3 | ❌ | fatal | Das Element "Seller city" (BT-37) muss übermittelt werden. |  |
-| BR-DE-4 | ❌ | fatal | Das Element "Seller post code" (BT-38) muss übermittelt werden. |  |
+| BR-DE-3 | ✅ | fatal | Das Element "Seller city" (BT-37) muss übermittelt werden. |  |
+| BR-DE-4 | ✅ | fatal | Das Element "Seller post code" (BT-38) muss übermittelt werden. |  |
 | BR-DE-5 | ✅ | fatal | Das Element "Seller contact point" (BT-41) muss übermittelt werden. |  |
 | BR-DE-6 | ✅ | fatal | Das Element "Seller contact telephone number" (BT-42) muss übermittelt werden. |  |
 | BR-DE-7 | ✅ | fatal | Das Element "Seller contact email address" (BT-43) muss übermittelt werden. |  |
-| BR-DE-8 | ❌ | fatal | Das Element "Buyer city" (BT-52) muss übermittelt werden. |  |
-| BR-DE-9 | ❌ | fatal | Das Element "Buyer post code" (BT-53) muss übermittelt werden. |  |
+| BR-DE-8 | ✅ | fatal | Das Element "Buyer city" (BT-52) muss übermittelt werden. |  |
+| BR-DE-9 | ✅ | fatal | Das Element "Buyer post code" (BT-53) muss übermittelt werden. |  |
 | BR-DE-10 | ❌ | fatal | Das Element "Deliver to city" (BT-77) muss übermittelt werden, wenn die Gruppe "DELIVER TO ADDRESS" (BG-15) übermittelt wird. |  |
 | BR-DE-11 | ❌ | fatal | Das Element "Deliver to post code" (BT-78) muss übermittelt werden, wenn die Gruppe "DELIVER TO ADDRESS" (BG-15) übermittelt wird. |  |
 | BR-DE-14 | ❌ | fatal | Das Element "VAT category rate" (BT-119) muss übermittelt werden. |  |

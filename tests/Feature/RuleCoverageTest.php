@@ -514,3 +514,33 @@ it('requires a zero rate on export and intra-community lines (BR-G-05, BR-IC-05)
     expect($export->hasViolation('BR-G-05'))->toBeTrue()
         ->and($intraCommunity->hasViolation('BR-IC-05'))->toBeTrue();
 });
+
+// ---- Schritt 2: Adressen & elektronische Adressen ----
+
+it('flags missing postal addresses (BR-08, BR-10)', function (): void {
+    $result = core()->validateModel(makeInvoice(
+        seller: new Party(name: 'S', vatId: 'DE123456789'),
+        buyer: new Party(name: 'B', vatId: 'DE987654321'),
+    ));
+
+    expect($result->hasViolation('BR-08'))->toBeTrue()
+        ->and($result->hasViolation('BR-10'))->toBeTrue()
+        ->and(core()->validateModel(makeInvoice())->hasViolation('BR-08'))->toBeFalse();
+});
+
+it('requires a scheme on electronic addresses (BR-62, BR-63)', function (): void {
+    $seller = core()->validateModel(makeInvoice(seller: new Party(name: 'S', countryCode: 'DE', vatId: 'DE123456789', electronicAddress: 'seller@example.org')));
+    $buyer = core()->validateModel(makeInvoice(buyer: new Party(name: 'B', countryCode: 'DE', vatId: 'DE987654321', electronicAddress: 'buyer@example.org')));
+
+    expect($seller->hasViolation('BR-62'))->toBeTrue()
+        ->and($buyer->hasViolation('BR-63'))->toBeTrue()
+        ->and($seller->hasViolation('BR-63'))->toBeFalse();
+});
+
+it('validates the electronic address scheme against the EAS list (BR-CL-25)', function (): void {
+    $invalid = core()->validateModel(makeInvoice(seller: new Party(name: 'S', countryCode: 'DE', vatId: 'DE123456789', electronicAddress: 'x', electronicAddressScheme: '9999')));
+    $valid = core()->validateModel(makeInvoice(seller: new Party(name: 'S', countryCode: 'DE', vatId: 'DE123456789', electronicAddress: 'x', electronicAddressScheme: 'EM')));
+
+    expect($invalid->hasViolation('BR-CL-25'))->toBeTrue()
+        ->and($valid->hasViolation('BR-CL-25'))->toBeFalse();
+});

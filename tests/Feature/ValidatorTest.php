@@ -162,3 +162,28 @@ it('warns about a malformed contact email (BR-DE-28)', function (): void {
     expect(xr()->validateModel($invoice)->hasViolation('BR-DE-28'))->toBeTrue()
         ->and(xr()->validateModel(makeInvoice())->hasViolation('BR-DE-28'))->toBeFalse();
 });
+
+it('requires city and post code in present addresses under XRechnung (BR-DE-3/4/8/9)', function (): void {
+    $invoice = makeInvoice(
+        seller: new Party(name: 'S', countryCode: 'DE', vatId: 'DE123456789', contactName: 'Max', contactPhone: '+49 30 000000', contactEmail: 'billing@seller.de'),
+        buyer: new Party(name: 'B', countryCode: 'DE', vatId: 'DE987654321'),
+    );
+
+    $result = xr()->validateModel($invoice);
+
+    expect($result->hasViolation('BR-DE-3'))->toBeTrue()
+        ->and($result->hasViolation('BR-DE-4'))->toBeTrue()
+        ->and($result->hasViolation('BR-DE-8'))->toBeTrue()
+        ->and($result->hasViolation('BR-DE-9'))->toBeTrue()
+        ->and(en()->validateModel($invoice)->hasViolation('BR-DE-3'))->toBeFalse();
+});
+
+it('does not require a city when no address group is present at all (BR-DE-3)', function (): void {
+    // Without any postal address BR-08 owns the failure; BR-DE-3 must stay silent.
+    $invoice = makeInvoice(seller: new Party(name: 'S', vatId: 'DE123456789', contactName: 'Max', contactPhone: '+49 30 000000', contactEmail: 'billing@seller.de'));
+
+    $result = xr()->validateModel($invoice);
+
+    expect($result->hasViolation('BR-DE-3'))->toBeFalse()
+        ->and($result->hasViolation('BR-08'))->toBeTrue();
+});

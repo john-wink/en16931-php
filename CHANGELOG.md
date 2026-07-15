@@ -10,6 +10,12 @@ Pre-1.0: the public API may still change between minor versions.
 
 ### Added
 
+- Postal addresses and electronic addresses: BR-08/BR-10 (address groups),
+  BR-62/BR-63 (electronic address scheme required), BR-CL-25 (EAS code list)
+  and the XRechnung address rules BR-DE-3/4/8/9 (city + post code). The model
+  gains street/city/post code and the electronic address incl. scheme id per
+  party, parsed from both CII and UBL.
+
 - ~70 additional rules: document allowance/charge mandatory fields (BR-31..38),
   the breakdown rate (BR-48), VAT-id country prefixes (BR-CO-09), per-category
   VAT identification (BR-*-02/-03/-04 for S/Z/E/AE/K/G/O/L/M), the

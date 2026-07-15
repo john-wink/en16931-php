@@ -78,8 +78,12 @@ final class RuleSets
             new PresenceRule('BR-05', 'BT-5', 'An Invoice shall have an Invoice currency code (BT-5).', static fn (Invoice $invoice): bool => self::filled($invoice->currency)),
             new PresenceRule('BR-06', 'BT-27', 'An Invoice shall contain the Seller name (BT-27).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->name)),
             new PresenceRule('BR-07', 'BT-44', 'An Invoice shall contain the Buyer name (BT-44).', static fn (Invoice $invoice): bool => self::filled($invoice->buyer->name)),
+            new PresenceRule('BR-08', 'BG-5', 'An Invoice shall contain the Seller postal address (BG-5).', static fn (Invoice $invoice): bool => $invoice->seller->hasPostalAddress()),
             new PresenceRule('BR-09', 'BT-40', 'The Seller postal address shall contain a country code (BT-40).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->countryCode)),
+            new PresenceRule('BR-10', 'BG-8', 'An Invoice shall contain the Buyer postal address (BG-8).', static fn (Invoice $invoice): bool => $invoice->buyer->hasPostalAddress()),
             new PresenceRule('BR-11', 'BT-55', 'The Buyer postal address shall contain a country code (BT-55).', static fn (Invoice $invoice): bool => self::filled($invoice->buyer->countryCode)),
+            new ConditionalRule('BR-62', 'BT-34', 'The Seller electronic address (BT-34) shall have a scheme identifier.', static fn (Invoice $invoice): bool => $invoice->seller->electronicAddress !== null, static fn (Invoice $invoice): bool => $invoice->seller->electronicAddressScheme !== null),
+            new ConditionalRule('BR-63', 'BT-49', 'The Buyer electronic address (BT-49) shall have a scheme identifier.', static fn (Invoice $invoice): bool => $invoice->buyer->electronicAddress !== null, static fn (Invoice $invoice): bool => $invoice->buyer->electronicAddressScheme !== null),
             new PresenceRule('BR-16', 'BG-25', 'An Invoice shall have at least one Invoice line (BG-25).', static fn (Invoice $invoice): bool => $invoice->lines !== []),
             new PresenceRule('BR-12', 'BT-106', 'An Invoice shall have the Sum of Invoice line net amount (BT-106).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->lineTotal)),
             new PresenceRule('BR-13', 'BT-109', 'An Invoice shall have the Invoice total amount without VAT (BT-109).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->taxBasisTotal)),
@@ -134,6 +138,8 @@ final class RuleSets
             new CodeListRule('BR-CL-14', 'BT-40', 'The Seller country code (BT-40) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->seller->countryCode, CountryCodes::CODES),
             new CodeListRule('BR-CL-14', 'BT-55', 'The Buyer country code (BT-55) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->buyer->countryCode, CountryCodes::CODES),
             new CodeListRule('BR-CL-14', 'BT-69', 'The Tax representative country code (BT-69) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->taxRepresentative?->countryCode, CountryCodes::CODES),
+            new CodeListRule('BR-CL-25', 'BT-34', 'The Seller electronic address scheme (BT-34) shall be from the EAS code list', static fn (Invoice $invoice): ?string => $invoice->seller->electronicAddressScheme, CodeLists::ELECTRONIC_ADDRESS_SCHEMES),
+            new CodeListRule('BR-CL-25', 'BT-49', 'The Buyer electronic address scheme (BT-49) shall be from the EAS code list', static fn (Invoice $invoice): ?string => $invoice->buyer->electronicAddressScheme, CodeLists::ELECTRONIC_ADDRESS_SCHEMES),
 
             // BR-CL-17 covers every VAT category code field: BT-151 is checked
             // as a line rule above; BT-118 / BT-95 / BT-102 here.
@@ -164,6 +170,10 @@ final class RuleSets
         return [
             new PresenceRule('BR-DE-15', 'BT-10', 'An XRechnung shall contain the Buyer reference / Leitweg-ID (BT-10).', static fn (Invoice $invoice): bool => self::filled($invoice->buyerReference)),
             new PresenceRule('BR-DE-2', 'BG-6', 'An XRechnung shall contain the Seller contact group (BG-6).', static fn (Invoice $invoice): bool => self::hasSellerContact($invoice)),
+            new ConditionalRule('BR-DE-3', 'BT-37', 'The Seller postal address shall contain a city (BT-37).', static fn (Invoice $invoice): bool => $invoice->seller->hasPostalAddress(), static fn (Invoice $invoice): bool => self::filled($invoice->seller->city)),
+            new ConditionalRule('BR-DE-4', 'BT-38', 'The Seller postal address shall contain a post code (BT-38).', static fn (Invoice $invoice): bool => $invoice->seller->hasPostalAddress(), static fn (Invoice $invoice): bool => self::filled($invoice->seller->postCode)),
+            new ConditionalRule('BR-DE-8', 'BT-52', 'The Buyer postal address shall contain a city (BT-52).', static fn (Invoice $invoice): bool => $invoice->buyer->hasPostalAddress(), static fn (Invoice $invoice): bool => self::filled($invoice->buyer->city)),
+            new ConditionalRule('BR-DE-9', 'BT-53', 'The Buyer postal address shall contain a post code (BT-53).', static fn (Invoice $invoice): bool => $invoice->buyer->hasPostalAddress(), static fn (Invoice $invoice): bool => self::filled($invoice->buyer->postCode)),
             new PresenceRule('BR-DE-5', 'BT-41', 'An XRechnung shall contain the Seller contact point (BT-41).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactName)),
             new PresenceRule('BR-DE-6', 'BT-42', 'An XRechnung shall contain the Seller contact telephone number (BT-42).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactPhone)),
             new PresenceRule('BR-DE-7', 'BT-43', 'An XRechnung shall contain the Seller contact email address (BT-43).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactEmail)),

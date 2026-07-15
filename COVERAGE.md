@@ -5,7 +5,19 @@
 
 **Legend:** ✅ implemented · 🟡 partial / deviating (see note) · ❌ not implemented yet
 
-## Summary
+## Validation pipeline
+
+Validation runs the three stages the official KoSIT validator applies — natively in PHP, no Java:
+
+| Stage | Checks | Rules | Status |
+|---|---|--:|:-:|
+| 1 — XSD schema | Structure of UBL 2.1 Invoice/CreditNote & CII D16B | — | ✅ bundled |
+| 2 — Syntax rules | UBL-CR/SR & CII-SR/DT code-list, cardinality & datatype restrictions | 1276 | ✅ 1276 / 1276 |
+| 3 — Business rules | EN 16931 core + XRechnung CIUS/Extension | 274 | ✅ 274 / 274 |
+
+Stage 2 breakdown: **UBL-CR 679, UBL-SR 50, CII-SR 450, CII-DT 97**. Evaluated directly against the DOM by `SchematronEngine` from `resources/syntax-rules.json` — proven against the KoSIT validator over the full official instance suite (0 false positives).
+
+## Business rules
 
 | Rule group | ✅ | 🟡 | ❌ | Total |
 |---|--:|--:|--:|--:|
@@ -26,6 +38,8 @@
 | BR-DE — XRechnung CIUS | 32 | 0 | 0 | 32 |
 | BR-DEX — XRechnung Extension | 15 | 0 | 0 | 15 |
 | **Total** | **274** | **0** | **0** | **274** |
+
+The per-rule matrix below covers stage 3 (the EN 16931 business rules). Stages 1 and 2 are covered wholesale — the XSD schemas and every syntax rule — and summarised above.
 
 ## BR — core document & line rules
 

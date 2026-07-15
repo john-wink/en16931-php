@@ -12,7 +12,7 @@
 | BR — core document & line rules | 58 | 0 | 0 | 58 |
 | BR-CO — conditions & calculations | 23 | 0 | 0 | 23 |
 | BR-DEC — decimals | 21 | 0 | 0 | 21 |
-| BR-CL — code lists | 7 | 0 | 16 | 23 |
+| BR-CL — code lists | 23 | 0 | 0 | 23 |
 | BR-AE — Reverse charge | 10 | 0 | 0 | 10 |
 | BR-AF — IGIC (Canary Islands) | 9 | 0 | 1 | 10 |
 | BR-AG — IPSI (Ceuta/Melilla) | 9 | 0 | 1 | 10 |
@@ -25,7 +25,7 @@
 | BR-B — Split payment (Italy) | 2 | 0 | 0 | 2 |
 | BR-DE — XRechnung CIUS | 31 | 0 | 10 | 41 |
 | BR-DEX — XRechnung Extension | 0 | 0 | 14 | 14 |
-| **Total** | **236** | **0** | **42** | **278** |
+| **Total** | **252** | **0** | **26** | **278** |
 
 ## BR — core document & line rules
 
@@ -150,27 +150,27 @@
 |---|:-:|---|---|---|
 | BR-CL-01 | ✅ | fatal | The document type code MUST be coded by the invoice and credit note related code lists of UNTDID 1001. |  |
 | BR-CL-03 | ✅ | fatal | currencyID MUST be coded using ISO code list 4217 alpha-3 |  |
-| BR-CL-04 | ❌ | fatal | Invoice currency code MUST be coded using ISO code list 4217 alpha-3 |  |
-| BR-CL-05 | ❌ | fatal | Tax currency code MUST be coded using ISO code list 4217 alpha-3 |  |
-| BR-CL-06 | ❌ | fatal | Value added tax point date code MUST be coded using a restriction of UNTDID 2005. |  |
-| BR-CL-07 | ❌ | fatal | Object identifier identification scheme identifier MUST be coded using a restriction of UNTDID 1153. |  |
-| BR-CL-08 | ❌ | fatal | Invoiced note subject code shall be coded using UNCL4451 |  |
-| BR-CL-10 | ❌ | fatal | Any identifier identification scheme identifier MUST be coded using one of the ISO 6523 ICD list. |  |
-| BR-CL-11 | ❌ | fatal | Any registration identifier identification scheme identifier MUST be coded using one of the ISO 6523 ICD list. |  |
-| BR-CL-13 | ❌ | fatal | Item classification identifier identification scheme identifier MUST be coded using one of the UNTDID 7143 list. |  |
+| BR-CL-04 | ✅ | fatal | Invoice currency code MUST be coded using ISO code list 4217 alpha-3 |  |
+| BR-CL-05 | ✅ | fatal | Tax currency code MUST be coded using ISO code list 4217 alpha-3 |  |
+| BR-CL-06 | ✅ | fatal | Value added tax point date code MUST be coded using a restriction of UNTDID 2005. |  |
+| BR-CL-07 | ✅ | fatal | Object identifier identification scheme identifier MUST be coded using a restriction of UNTDID 1153. |  |
+| BR-CL-08 | ✅ | fatal | Invoiced note subject code shall be coded using UNCL4451 |  |
+| BR-CL-10 | ✅ | fatal | Any identifier identification scheme identifier MUST be coded using one of the ISO 6523 ICD list. | Severity: warning (KoSIT scenario downgrade); the official list additionally allows the SEPA identifier. |
+| BR-CL-11 | ✅ | fatal | Any registration identifier identification scheme identifier MUST be coded using one of the ISO 6523 ICD list. | Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check. |
+| BR-CL-13 | ✅ | fatal | Item classification identifier identification scheme identifier MUST be coded using one of the UNTDID 7143 list. |  |
 | BR-CL-14 | ✅ | fatal | Country codes in an invoice MUST be coded using ISO code list 3166-1 |  |
-| BR-CL-15 | ❌ | fatal | Country codes in an invoice MUST be coded using ISO code list 3166-1 |  |
+| BR-CL-15 | ✅ | fatal | Country codes in an invoice MUST be coded using ISO code list 3166-1 |  |
 | BR-CL-16 | ✅ | fatal | Payment means in an invoice MUST be coded using UNCL4461 code list |  |
 | BR-CL-17 | ✅ | fatal | Invoice tax categories MUST be coded using UNCL5305 code list |  |
-| BR-CL-18 | ❌ | fatal | Invoice tax categories MUST be coded using UNCL5305 code list |  |
-| BR-CL-19 | ❌ | fatal | Coded allowance reasons MUST belong to the UNCL 5189 code list |  |
-| BR-CL-20 | ❌ | fatal | Coded charge reasons MUST belong to the UNCL 7161 code list |  |
-| BR-CL-21 | ❌ | fatal | Item standard identifier scheme identifier MUST belong to the ISO 6523 ICD code list |  |
-| BR-CL-22 | ❌ | fatal | Tax exemption reason code identifier scheme identifier MUST belong to the CEF VATEX code list |  |
-| BR-CL-23 | ❌ | fatal | Unit code MUST be coded according to the UN/ECE Recommendation 20 with Rec 21 extension |  |
-| BR-CL-24 | ✅ | fatal | For Mime code in attribute use MIMEMediaType. |  |
-| BR-CL-25 | ✅ | fatal | Endpoint identifier scheme identifier MUST belong to the CEF EAS code list |  |
-| BR-CL-26 | ❌ | fatal | Delivery location identifier scheme identifier MUST belong to the ISO 6523 ICD code list |  |
+| BR-CL-18 | ✅ | fatal | Invoice tax categories MUST be coded using UNCL5305 code list |  |
+| BR-CL-19 | ✅ | fatal | Coded allowance reasons MUST belong to the UNCL 5189 code list |  |
+| BR-CL-20 | ✅ | fatal | Coded charge reasons MUST belong to the UNCL 7161 code list |  |
+| BR-CL-21 | ✅ | fatal | Item standard identifier scheme identifier MUST belong to the ISO 6523 ICD code list | Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check. |
+| BR-CL-22 | ✅ | fatal | Tax exemption reason code identifier scheme identifier MUST belong to the CEF VATEX code list |  |
+| BR-CL-23 | ✅ | fatal | Unit code MUST be coded according to the UN/ECE Recommendation 20 with Rec 21 extension | Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check. |
+| BR-CL-24 | ✅ | fatal | For Mime code in attribute use MIMEMediaType. | Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check. |
+| BR-CL-25 | ✅ | fatal | Endpoint identifier scheme identifier MUST belong to the CEF EAS code list | Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check. |
+| BR-CL-26 | ✅ | fatal | Delivery location identifier scheme identifier MUST belong to the ISO 6523 ICD code list | Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check. |
 
 ## BR-AE — Reverse charge
 

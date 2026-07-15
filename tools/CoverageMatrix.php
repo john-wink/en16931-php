@@ -53,6 +53,13 @@ final class CoverageMatrix
      */
     private const array NOTES = [
         'BR-CO-16' => 'Severity: warning — the KoSIT/XRechnung configuration treats BR-CO-16 as informational; the pure EN 16931 artefacts flag it fatal.',
+        'BR-CL-10' => 'Severity: warning (KoSIT scenario downgrade); the official list additionally allows the SEPA identifier.',
+        'BR-CL-11' => 'Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check.',
+        'BR-CL-21' => 'Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check.',
+        'BR-CL-23' => 'Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check.',
+        'BR-CL-24' => 'Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check.',
+        'BR-CL-25' => 'Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check.',
+        'BR-CL-26' => 'Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check.',
         'BR-CO-17' => 'Stricter than official: exact equality required, the official artefacts allow a ±0.01 rounding tolerance.',
         'BR-S-08' => 'Grouped per (category, rate) for every category; officially only S splits per rate — equivalent in practice since the other categories carry rate 0.',
         'BR-Z-08' => 'Grouped per (category, rate) for every category; officially only S splits per rate — equivalent in practice since the other categories carry rate 0.',

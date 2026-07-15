@@ -8,6 +8,8 @@ Pre-1.0: the public API may still change between minor versions.
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-07-15
+
 ### Added
 
 - **Full KoSIT rule coverage (274 / 274).** The coverage reference is now built
@@ -158,4 +160,5 @@ Initial pre-release.
   only as a dev/CI oracle): zero false positives on the 72-instance XRechnung
   test suite, plus matching verdicts on a negative corpus.
 
+[0.2.0]: https://github.com/john-wink/en16931-php/releases/tag/v0.2.0
 [0.1.0]: https://github.com/john-wink/en16931-php/releases/tag/v0.1.0

@@ -33,5 +33,7 @@ final readonly class InvoiceLine
         /** @var list<ItemAttribute> */
         public array $attributes = [],               // BG-32
         public ?string $originCountryCode = null,    // BT-159
+        /** @var list<SubInvoiceLine> */
+        public array $subLines = [],                 // BG-DEX-01 (XRechnung extension)
     ) {}
 }

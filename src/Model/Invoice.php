@@ -53,6 +53,10 @@ final readonly class Invoice
         public array $precedingInvoiceReferences = [], // BG-3 (BT-25 per entry)
         /** @var list<string> */
         public array $amountCurrencyCodes = [],      // every @currencyID used on amounts (BR-CL-03)
+        public ?string $contractReference = null,    // BT-12
+        public ?string $tenderReference = null,      // BT-17
+        /** @var list<ThirdPartyPayment> */
+        public array $thirdPartyPayments = [],       // BG-DEX-09 (XRechnung extension)
     ) {}
 
     public function hasCategory(string $category): bool

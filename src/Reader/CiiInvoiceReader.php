@@ -72,6 +72,8 @@ final class CiiInvoiceReader
             attachments: $this->attachments($xpath),
             precedingInvoiceReferences: $this->precedingInvoiceReferences($xpath),
             amountCurrencyCodes: $this->amountCurrencyCodes($xpath),
+            contractReference: $this->value($xpath, '//ram:ApplicableHeaderTradeAgreement/ram:ContractReferencedDocument/ram:IssuerAssignedID'),
+            tenderReference: $this->value($xpath, '//ram:ApplicableHeaderTradeAgreement/ram:AdditionalReferencedDocument[ram:TypeCode="50"]/ram:IssuerAssignedID'),
         );
     }
 
@@ -115,6 +117,7 @@ final class CiiInvoiceReader
                 mimeCode: $this->attribute($domxPath, 'ram:AttachmentBinaryObject', 'mimeCode', $domElement),
                 typeCode: $this->value($domxPath, 'ram:TypeCode', $domElement),
                 scheme: $this->value($domxPath, 'ram:ReferenceTypeCode', $domElement),
+                externalUri: $this->value($domxPath, 'ram:URIID', $domElement),
             );
         }
 

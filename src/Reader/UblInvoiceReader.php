@@ -16,7 +16,9 @@ use JohnWink\En16931\Model\ItemClassification;
 use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\PaymentMeans;
+use JohnWink\En16931\Model\SubInvoiceLine;
 use JohnWink\En16931\Model\TaxSubtotal;
+use JohnWink\En16931\Model\ThirdPartyPayment;
 use JohnWink\En16931\Model\Totals;
 use RuntimeException;
 
@@ -71,7 +73,50 @@ final class UblInvoiceReader
             attachments: $this->attachments($xpath),
             precedingInvoiceReferences: $this->precedingInvoiceReferences($xpath),
             amountCurrencyCodes: $this->amountCurrencyCodes($xpath),
+            contractReference: $this->value($xpath, '/*/cac:ContractDocumentReference/cbc:ID'),
+            tenderReference: $this->value($xpath, '/*/cac:OriginatorDocumentReference/cbc:ID'),
+            thirdPartyPayments: $this->thirdPartyPayments($xpath),
         );
+    }
+
+    /**
+     * BG-DEX-09 (XRechnung extension): prepaid third party payments.
+     *
+     * @return list<ThirdPartyPayment>
+     */
+    private function thirdPartyPayments(DOMXPath $domxPath): array
+    {
+        $payments = [];
+
+        foreach ($this->nodes($domxPath, '/*/cac:PrepaidPayment') as $domElement) {
+            $payments[] = new ThirdPartyPayment(
+                id: $this->value($domxPath, 'cbc:ID', $domElement),
+                amount: $this->value($domxPath, 'cbc:PaidAmount', $domElement),
+                description: $this->value($domxPath, 'cbc:InstructionID', $domElement),
+                currency: $this->attribute($domxPath, 'cbc:PaidAmount', 'currencyID', $domElement),
+            );
+        }
+
+        return $payments;
+    }
+
+    /**
+     * BG-DEX-01 (XRechnung extension): sub invoice lines of one line.
+     *
+     * @return list<SubInvoiceLine>
+     */
+    private function subLines(DOMXPath $domxPath, DOMElement $domElement): array
+    {
+        $subLines = [];
+
+        foreach ($this->nodes($domxPath, 'cac:SubInvoiceLine', $domElement) as $node) {
+            $subLines[] = new SubInvoiceLine(
+                netAmount: $this->value($domxPath, 'cbc:LineExtensionAmount', $node),
+                vatCategoryCount: count($this->nodes($domxPath, 'cac:Item/cac:ClassifiedTaxCategory', $node)),
+            );
+        }
+
+        return $subLines;
     }
 
     /**
@@ -111,6 +156,7 @@ final class UblInvoiceReader
                 mimeCode: $this->attribute($domxPath, 'cac:Attachment/cbc:EmbeddedDocumentBinaryObject', 'mimeCode', $domElement),
                 typeCode: $this->value($domxPath, 'cbc:DocumentTypeCode', $domElement),
                 scheme: $this->attribute($domxPath, 'cbc:ID', 'schemeID', $domElement),
+                externalUri: $this->value($domxPath, 'cac:Attachment/cac:ExternalReference/cbc:URI', $domElement),
             );
         }
 
@@ -301,6 +347,7 @@ final class UblInvoiceReader
                 itemClassifications: $this->itemClassifications($domxPath, $domElement),
                 attributes: $this->itemAttributes($domxPath, $domElement),
                 originCountryCode: $this->value($domxPath, 'cac:Item/cac:OriginCountry/cbc:IdentificationCode', $domElement),
+                subLines: $this->subLines($domxPath, $domElement),
             );
         }
 

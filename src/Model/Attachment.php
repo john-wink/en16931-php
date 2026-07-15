@@ -16,5 +16,6 @@ final readonly class Attachment
         public ?string $mimeCode = null,  // BT-125 @mimeCode of the embedded binary
         public ?string $typeCode = null,  // document type code (130 = invoiced object, BT-18)
         public ?string $scheme = null,    // BT-18-1 reference scheme (@schemeID)
+        public ?string $externalUri = null, // BT-124 external document location
     ) {}
 }

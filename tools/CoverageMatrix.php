@@ -32,9 +32,20 @@ final class CoverageMatrix
      * @var array<string, string>
      */
     private const array PARTIAL = [
-        'BR-AE-02' => 'Simplified: requires the Seller VAT identifier (BT-31) only; officially BT-31, BT-32 or the tax representative VAT identifier (BT-63) qualify — BT-32/BT-63 are not modelled yet.',
-        'BR-AE-03' => 'Simplified: checks the Buyer VAT identifier for any AE usage; officially -03 is the document-allowance trigger (the buyer check for AE lines belongs to BR-AE-02).',
-        'BR-CL-14' => 'Checked for the seller (BT-40) and buyer (BT-55) country only; BT-69 (tax representative) and BT-80 (deliver-to) are not modelled yet.',
+        'BR-CL-14' => 'Checked for the seller (BT-40), buyer (BT-55) and tax representative (BT-69) countries; BT-80 (deliver-to) is not modelled yet.',
+    ];
+
+    /**
+     * Rules whose official assert is `true()` — not machine-checkable, so
+     * there is nothing to implement (✅ + note).
+     *
+     * @var array<string, string>
+     */
+    private const array NOT_ENFORCEABLE = [
+        'BR-CO-05' => 'Official assert is `true()` — not machine-checkable; trivially satisfied.',
+        'BR-CO-06' => 'Official assert is `true()` — not machine-checkable; trivially satisfied.',
+        'BR-CO-07' => 'Official assert is `true()` — not machine-checkable; trivially satisfied.',
+        'BR-CO-08' => 'Official assert is `true()` — not machine-checkable; trivially satisfied.',
     ];
 
     /**
@@ -200,6 +211,10 @@ final class CoverageMatrix
     {
         if (isset(self::FORCED_OPEN[$id])) {
             return ['❌', self::FORCED_OPEN[$id]];
+        }
+
+        if (isset(self::NOT_ENFORCEABLE[$id])) {
+            return ['✅', self::NOT_ENFORCEABLE[$id]];
         }
 
         if (isset(self::PARTIAL[$id])) {

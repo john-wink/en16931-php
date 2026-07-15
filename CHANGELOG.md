@@ -10,6 +10,15 @@ Pre-1.0: the public API may still change between minor versions.
 
 ### Added
 
+- The remaining code lists: BR-CL-03 (amount currency attributes), BR-CL-05
+  (tax currency), BR-CL-06 (tax point date code), BR-CL-07 (UNTDID 1153),
+  BR-CL-08 (UNTDID 4451 note subjects), BR-CL-10/11/21/26 (ISO 6523 ICD, with
+  the SEPA extra on BR-CL-10), BR-CL-13 (UNTDID 7143), BR-CL-15 (origin
+  country), BR-CL-19/20 (UNTDID 5189/7161 reason codes), BR-CL-22 (VATEX,
+  case-insensitive) and BR-CL-23 (UN/ECE Rec 20+21, ~2100 unit codes). The
+  code lists are generated from the official Schematron; BR-CL-10/11/21/23/
+  24/25/26 carry warning severity, mirroring the KoSIT scenario downgrades.
+
 - Documents & line details: attachments (BG-24 — BR-52, BR-CL-24 MIME list,
   BR-DE-22 unique filenames), preceding invoices (BG-3 — BR-55, BR-DE-26),
   payee (BG-10 — BR-17), tax representative address (BR-19), BT-111 (BR-53,
@@ -83,6 +92,10 @@ Pre-1.0: the public API may still change between minor versions.
 - The document-level charge decimal rule reports the official id **BR-DEC-05**
   (BT-99) — it was mislabelled as BR-DEC-02, which officially covers the
   allowance base amount (BT-93) and is now implemented as such.
+- The invoice currency rule (BT-5) reports the official id **BR-CL-04** (the
+  real BR-CL-03 covers every amount's currency attribute and is now
+  implemented as such), and the line VAT category rule (BT-151) reports
+  **BR-CL-18** (BR-CL-17 covers BT-95/102/118 only).
 
 ## [0.1.0] - 2026-07-11
 

@@ -8,6 +8,7 @@ use Closure;
 use JohnWink\En16931\Contracts\Rule;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
+use JohnWink\En16931\Severity;
 use JohnWink\En16931\Violation;
 
 /**
@@ -23,6 +24,7 @@ final readonly class LineRule implements Rule
         private string $flag,
         private string $message,
         private Closure $ok,
+        private Severity $severity = Severity::Fatal,
     ) {}
 
     public function id(): string
@@ -36,7 +38,7 @@ final readonly class LineRule implements Rule
 
         foreach ($invoice->lines as $line) {
             if (! ($this->ok)($line)) {
-                $violations[] = Violation::fatal($this->id, $this->message, $this->flag);
+                $violations[] = new Violation($this->id, $this->severity, $this->message, $this->flag);
             }
         }
 

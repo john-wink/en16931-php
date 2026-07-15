@@ -16,8 +16,8 @@ it('flags a missing specification identifier (BR-01)', function (): void {
     expect(core()->validateModel(makeInvoice(customizationId: null))->hasViolation('BR-01'))->toBeTrue();
 });
 
-it('flags an invalid currency code (BR-CL-03)', function (): void {
-    expect(core()->validateModel(makeInvoice(currency: 'ZZZ'))->hasViolation('BR-CL-03'))->toBeTrue();
+it('flags an invalid currency code (BR-CL-04)', function (): void {
+    expect(core()->validateModel(makeInvoice(currency: 'ZZZ'))->hasViolation('BR-CL-04'))->toBeTrue();
 });
 
 it('accepts a real ISO currency', function (): void {
@@ -748,4 +748,116 @@ it('checks decimals on base amounts and line allowances (BR-DEC-02/05/06/24/25/2
         ->and($line->hasViolation('BR-DEC-25'))->toBeTrue()
         ->and($line->hasViolation('BR-DEC-27'))->toBeTrue()
         ->and($line->hasViolation('BR-DEC-28'))->toBeTrue();
+});
+
+// ---- Schritt 6: Codelisten ----
+
+it('validates amount currency attributes (BR-CL-03) and the tax currency (BR-CL-05)', function (): void {
+    $badAmountCurrency = core()->validateModel(makeInvoice(amountCurrencyCodes: ['EUR', 'FOO']));
+    $badTaxCurrency = core()->validateModel(makeInvoice(taxCurrency: 'ZZZ', totals: new JohnWink\En16931\Model\Totals(
+        lineTotal: '100.00', taxBasisTotal: '100.00', taxTotal: '19.00', grandTotal: '119.00',
+        paidAmount: '0.00', payableAmount: '119.00', taxTotalAccounting: '19.00',
+    )));
+
+    expect($badAmountCurrency->hasViolation('BR-CL-03'))->toBeTrue()
+        ->and(core()->validateModel(makeInvoice(amountCurrencyCodes: ['EUR']))->hasViolation('BR-CL-03'))->toBeFalse()
+        ->and($badTaxCurrency->hasViolation('BR-CL-05'))->toBeTrue();
+});
+
+it('reports an invalid invoice currency under the official id BR-CL-04', function (): void {
+    $result = core()->validateModel(makeInvoice(currency: 'ZZZ'));
+
+    expect($result->hasViolation('BR-CL-04'))->toBeTrue()
+        ->and($result->hasViolation('BR-CL-03'))->toBeFalse();
+});
+
+it('reports an invalid line VAT category under the official id BR-CL-18', function (): void {
+    $result = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
+        id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62',
+        taxCategory: 'XX', taxRate: '19.00',
+    )]));
+
+    expect($result->hasViolation('BR-CL-18'))->toBeTrue();
+});
+
+it('validates the tax point date code (BR-CL-06)', function (): void {
+    expect(core()->validateModel(makeInvoice(hasInvoicingPeriod: true, taxPointDateCode: '99'))->hasViolation('BR-CL-06'))->toBeTrue()
+        ->and(core()->validateModel(makeInvoice(hasInvoicingPeriod: true, taxPointDateCode: '35'))->hasViolation('BR-CL-06'))->toBeFalse();
+});
+
+it('validates object identifier schemes (BR-CL-07) and note subject codes (BR-CL-08)', function (): void {
+    $badScheme = core()->validateModel(makeInvoice(attachments: [new JohnWink\En16931\Model\Attachment(reference: 'OBJ-1', typeCode: '130', scheme: 'ZZ9')]));
+    $badNote = core()->validateModel(makeInvoice(notes: ['#XY9#Hinweistext']));
+
+    expect($badScheme->hasViolation('BR-CL-07'))->toBeTrue()
+        ->and($badNote->hasViolation('BR-CL-08'))->toBeTrue()
+        ->and(core()->validateModel(makeInvoice(notes: ['Hinweis ohne Code']))->hasViolation('BR-CL-08'))->toBeFalse();
+});
+
+it('validates party identification schemes (BR-CL-10, BR-CL-11)', function (): void {
+    $badIdScheme = core()->validateModel(makeInvoice(seller: new Party(name: 'S', countryCode: 'DE', vatId: 'DE123456789', identifier: 'X', identifierScheme: '9999')));
+    $badLegalScheme = core()->validateModel(makeInvoice(buyer: new Party(name: 'B', countryCode: 'DE', vatId: 'DE987654321', legalRegistrationId: 'HRB 1', legalRegistrationIdScheme: '9999')));
+
+    expect($badIdScheme->hasViolation('BR-CL-10'))->toBeTrue()
+        ->and($badLegalScheme->hasViolation('BR-CL-11'))->toBeTrue();
+});
+
+it('validates item classification and standard identifier schemes (BR-CL-13, BR-CL-21) and origin country (BR-CL-15)', function (): void {
+    $line = new InvoiceLine(
+        id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62',
+        taxCategory: 'S', taxRate: '19.00',
+        itemStandardId: '4012345001235', itemStandardIdScheme: '9999',
+        itemClassifications: [new JohnWink\En16931\Model\ItemClassification(code: '10201000', scheme: 'XYZ1')],
+        originCountryCode: 'X1',
+    );
+
+    $result = core()->validateModel(makeInvoice(lines: [$line]));
+
+    expect($result->hasViolation('BR-CL-13'))->toBeTrue()
+        ->and($result->hasViolation('BR-CL-21'))->toBeTrue()
+        ->and($result->hasViolation('BR-CL-15'))->toBeTrue();
+});
+
+it('validates allowance and charge reason codes (BR-CL-19, BR-CL-20)', function (): void {
+    $document = core()->validateModel(makeInvoice(allowanceCharges: [
+        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00', reasonCode: '999'),
+        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: true, amount: '5.00', taxCategory: 'S', taxRate: '19.00', reasonCode: '999'),
+    ]));
+    $valid = core()->validateModel(makeInvoice(allowanceCharges: [
+        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00', reasonCode: '95'),
+    ]));
+
+    expect($document->hasViolation('BR-CL-19'))->toBeTrue()
+        ->and($document->hasViolation('BR-CL-20'))->toBeTrue()
+        ->and($valid->hasViolation('BR-CL-19'))->toBeFalse();
+});
+
+it('validates exemption reason codes case-insensitively (BR-CL-22)', function (): void {
+    $bad = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
+        category: 'E', rate: '0.00', taxableAmount: '100.00', taxAmount: '0.00', exemptionReasonCode: 'VATEX-EU-999',
+    )]));
+    $lowercase = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
+        category: 'E', rate: '0.00', taxableAmount: '100.00', taxAmount: '0.00', exemptionReasonCode: 'vatex-eu-132',
+    )]));
+
+    expect($bad->hasViolation('BR-CL-22'))->toBeTrue()
+        ->and($lowercase->hasViolation('BR-CL-22'))->toBeFalse();
+});
+
+it('validates unit codes against UN/ECE Rec 20+21 (BR-CL-23)', function (): void {
+    $result = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
+        id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'XYZ9',
+        taxCategory: 'S', taxRate: '19.00',
+    )]));
+
+    expect($result->hasViolation('BR-CL-23'))->toBeTrue()
+        ->and(core()->validateModel(makeInvoice())->hasViolation('BR-CL-23'))->toBeFalse();
+});
+
+it('validates the delivery location scheme (BR-CL-26)', function (): void {
+    $result = core()->validateModel(makeInvoice(deliverTo: new Party(
+        city: 'Potsdam', postCode: '14467', countryCode: 'DE', identifier: 'LOC-1', identifierScheme: '9999',
+    )));
+
+    expect($result->hasViolation('BR-CL-26'))->toBeTrue();
 });

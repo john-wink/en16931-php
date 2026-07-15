@@ -7,6 +7,7 @@ namespace JohnWink\En16931\Rules;
 use Closure;
 use JohnWink\En16931\Contracts\Rule;
 use JohnWink\En16931\Model\Invoice;
+use JohnWink\En16931\Severity;
 use JohnWink\En16931\Violation;
 
 /**
@@ -25,6 +26,7 @@ final readonly class CodeListRule implements Rule
         private string $message,
         private Closure $value,
         private array $allowed,
+        private Severity $severity = Severity::Fatal,
     ) {}
 
     public function id(): string
@@ -40,6 +42,6 @@ final readonly class CodeListRule implements Rule
             return [];
         }
 
-        return [Violation::fatal($this->id, "{$this->message} [{$value}].", $this->flag)];
+        return [new Violation($this->id, $this->severity, "{$this->message} [{$value}].", $this->flag)];
     }
 }

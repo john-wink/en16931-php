@@ -7,6 +7,11 @@ namespace JohnWink\En16931;
 use JohnWink\En16931\CodeList\CodeLists;
 use JohnWink\En16931\CodeList\CountryCodes;
 use JohnWink\En16931\CodeList\CurrencyCodes;
+use JohnWink\En16931\CodeList\IcdSchemes;
+use JohnWink\En16931\CodeList\ItemClassificationSchemes;
+use JohnWink\En16931\CodeList\NoteSubjectCodes;
+use JohnWink\En16931\CodeList\ObjectSchemes;
+use JohnWink\En16931\CodeList\UnitCodes;
 use JohnWink\En16931\Contracts\Rule;
 use JohnWink\En16931\Model\Attachment;
 use JohnWink\En16931\Model\DocumentAllowanceCharge;
@@ -114,7 +119,7 @@ final class RuleSets
             new LineRule('BR-64', 'BT-157', 'The item standard identifier (BT-157) shall have a scheme identifier.', static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->itemStandardId === null || $invoiceLine->itemStandardIdScheme !== null),
             new LineRule('BR-65', 'BT-158', 'Each item classification identifier (BT-158) shall have a scheme identifier.', static fn (InvoiceLine $invoiceLine): bool => array_all($invoiceLine->itemClassifications, fn (ItemClassification $itemClassification): bool => $itemClassification->code === null || $itemClassification->scheme !== null)),
             new InvoiceRule('BR-CO-03', 'BT-7', 'The VAT point date (BT-7) and the VAT point date code (BT-8) are mutually exclusive.', static fn (Invoice $invoice): bool => ! self::filled($invoice->taxPointDate) || ! self::filled($invoice->taxPointDateCode)),
-            new InvoiceRule('BR-CL-24', 'BT-125', 'The attachment MIME code shall be from the MIMEMediaType list.', static fn (Invoice $invoice): bool => array_all($invoice->attachments, fn (Attachment $attachment): bool => $attachment->mimeCode === null || in_array($attachment->mimeCode, CodeLists::MIME_CODES, true))),
+            new InvoiceRule('BR-CL-24', 'BT-125', 'The attachment MIME code shall be from the MIMEMediaType list.', static fn (Invoice $invoice): bool => array_all($invoice->attachments, fn (Attachment $attachment): bool => $attachment->mimeCode === null || in_array($attachment->mimeCode, CodeLists::MIME_CODES, true)), Severity::Warning),
 
             // BR-CO-21..24 restate the reason requirements of BR-33/38/42/44
             // under their own ids — the official artefacts carry both.
@@ -140,7 +145,7 @@ final class RuleSets
 
             new LineRule('BR-27', 'BT-146', 'The item net price (BT-146) shall not be negative.', static fn (InvoiceLine $invoiceLine): bool => ! self::isNegative($invoiceLine->netPrice)),
             new LineRule('BR-S-05', 'BT-152', 'A Standard-rated line (S) shall have a VAT rate (BT-152) greater than zero.', static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->taxCategory !== 'S' || self::isPositive($invoiceLine->taxRate)),
-            new LineRule('BR-CL-17', 'BT-151', 'The line VAT category code (BT-151) shall be a valid UNCL5305 code.', static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->taxCategory === null || CodeLists::isVatCategory($invoiceLine->taxCategory)),
+            new LineRule('BR-CL-18', 'BT-151', 'The line VAT category code (BT-151) shall be a valid UNCL5305 code.', static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->taxCategory === null || CodeLists::isVatCategory($invoiceLine->taxCategory)),
 
             new CodeListRule('BR-CL-01', 'BT-3', 'The Invoice type code (BT-3) shall be a valid UNTDID 1001 code', static fn (Invoice $invoice): ?string => $invoice->typeCode, CodeLists::INVOICE_TYPES),
 
@@ -172,13 +177,37 @@ final class RuleSets
             new SubtotalRule('BR-AE-10', 'BT-120', 'A reverse-charge (AE) breakdown group shall have a VAT exemption reason (BT-120/BT-121).', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== 'AE' || self::hasExemptionReason($taxSubtotal)),
             new SubtotalRule('BR-48', 'BT-119', 'Each VAT breakdown group shall have a VAT category rate (BT-119), except for category O.', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category === 'O' || self::filled($taxSubtotal->rate)),
 
-            new CodeListRule('BR-CL-03', 'BT-5', 'The Invoice currency code (BT-5) shall be a valid ISO 4217 code', static fn (Invoice $invoice): ?string => $invoice->currency, CurrencyCodes::CODES),
+            new InvoiceRule('BR-CL-03', 'BT-5', 'Every currency identifier used on an amount shall be a valid ISO 4217 code.', static fn (Invoice $invoice): bool => array_all($invoice->amountCurrencyCodes, fn (string $code): bool => in_array($code, CurrencyCodes::CODES, true))),
+            new CodeListRule('BR-CL-04', 'BT-5', 'The Invoice currency code (BT-5) shall be a valid ISO 4217 code', static fn (Invoice $invoice): ?string => $invoice->currency, CurrencyCodes::CODES),
+            new CodeListRule('BR-CL-05', 'BT-6', 'The VAT accounting currency code (BT-6) shall be a valid ISO 4217 code', static fn (Invoice $invoice): ?string => $invoice->taxCurrency, CurrencyCodes::CODES),
+            new CodeListRule('BR-CL-06', 'BT-8', 'The VAT point date code (BT-8) shall be a valid UNTDID 2005 code', static fn (Invoice $invoice): ?string => $invoice->taxPointDateCode, CodeLists::TAX_POINT_DATE_CODES),
             new CodeListRule('BR-CL-14', 'BT-40', 'The Seller country code (BT-40) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->seller->countryCode, CountryCodes::CODES),
             new CodeListRule('BR-CL-14', 'BT-55', 'The Buyer country code (BT-55) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->buyer->countryCode, CountryCodes::CODES),
             new CodeListRule('BR-CL-14', 'BT-69', 'The Tax representative country code (BT-69) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->taxRepresentative?->countryCode, CountryCodes::CODES),
             new CodeListRule('BR-CL-14', 'BT-80', 'The Deliver-to country code (BT-80) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->deliverTo?->countryCode, CountryCodes::CODES),
-            new CodeListRule('BR-CL-25', 'BT-34', 'The Seller electronic address scheme (BT-34) shall be from the EAS code list', static fn (Invoice $invoice): ?string => $invoice->seller->electronicAddressScheme, CodeLists::ELECTRONIC_ADDRESS_SCHEMES),
-            new CodeListRule('BR-CL-25', 'BT-49', 'The Buyer electronic address scheme (BT-49) shall be from the EAS code list', static fn (Invoice $invoice): ?string => $invoice->buyer->electronicAddressScheme, CodeLists::ELECTRONIC_ADDRESS_SCHEMES),
+            new CodeListRule('BR-CL-25', 'BT-34', 'The Seller electronic address scheme (BT-34) shall be from the EAS code list', static fn (Invoice $invoice): ?string => $invoice->seller->electronicAddressScheme, CodeLists::ELECTRONIC_ADDRESS_SCHEMES, Severity::Warning),
+            new CodeListRule('BR-CL-25', 'BT-49', 'The Buyer electronic address scheme (BT-49) shall be from the EAS code list', static fn (Invoice $invoice): ?string => $invoice->buyer->electronicAddressScheme, CodeLists::ELECTRONIC_ADDRESS_SCHEMES, Severity::Warning),
+
+            // The KoSIT/XRechnung scenarios downgrade BR-CL-10/11/21/23/24/25/26
+            // to warning/information — mirrored here (same reasoning as BR-CO-16).
+            new InvoiceRule('BR-CL-07', 'BT-18', 'The object identifier scheme shall be a valid UNTDID 1153 code.', static fn (Invoice $invoice): bool => array_all($invoice->attachments, fn (Attachment $attachment): bool => $attachment->typeCode !== '130' || $attachment->scheme === null || in_array($attachment->scheme, ObjectSchemes::CODES, true))),
+            new InvoiceRule('BR-CL-08', 'BT-21', 'A coded invoice note subject (#XXX#) shall be a valid UNTDID 4451 code.', static fn (Invoice $invoice): bool => array_all($invoice->notes, fn (string $note): bool => self::noteSubjectCodeValid($note))),
+            new CodeListRule('BR-CL-10', 'BT-29', 'The Seller identifier scheme (BT-29) shall be from the ISO 6523 ICD list', static fn (Invoice $invoice): ?string => $invoice->seller->identifierScheme, [...IcdSchemes::CODES, 'SEPA'], Severity::Warning),
+            new CodeListRule('BR-CL-10', 'BT-46', 'The Buyer identifier scheme (BT-46) shall be from the ISO 6523 ICD list', static fn (Invoice $invoice): ?string => $invoice->buyer->identifierScheme, [...IcdSchemes::CODES, 'SEPA'], Severity::Warning),
+            new CodeListRule('BR-CL-10', 'BT-60', 'The Payee identifier scheme (BT-60) shall be from the ISO 6523 ICD list', static fn (Invoice $invoice): ?string => $invoice->payee?->identifierScheme, [...IcdSchemes::CODES, 'SEPA'], Severity::Warning),
+            new CodeListRule('BR-CL-11', 'BT-30', 'The Seller legal registration scheme (BT-30) shall be from the ISO 6523 ICD list', static fn (Invoice $invoice): ?string => $invoice->seller->legalRegistrationIdScheme, IcdSchemes::CODES, Severity::Warning),
+            new CodeListRule('BR-CL-11', 'BT-47', 'The Buyer legal registration scheme (BT-47) shall be from the ISO 6523 ICD list', static fn (Invoice $invoice): ?string => $invoice->buyer->legalRegistrationIdScheme, IcdSchemes::CODES, Severity::Warning),
+            new CodeListRule('BR-CL-11', 'BT-61', 'The Payee legal registration scheme (BT-61) shall be from the ISO 6523 ICD list', static fn (Invoice $invoice): ?string => $invoice->payee?->legalRegistrationIdScheme, IcdSchemes::CODES, Severity::Warning),
+            new LineRule('BR-CL-13', 'BT-158', 'The item classification scheme shall be a valid UNTDID 7143 code.', static fn (InvoiceLine $invoiceLine): bool => array_all($invoiceLine->itemClassifications, fn (ItemClassification $itemClassification): bool => $itemClassification->scheme === null || in_array($itemClassification->scheme, ItemClassificationSchemes::CODES, true))),
+            new LineRule('BR-CL-15', 'BT-159', 'The item country of origin (BT-159) shall be a valid ISO 3166-1 code.', static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->originCountryCode === null || $invoiceLine->originCountryCode === 'XI' || in_array($invoiceLine->originCountryCode, CountryCodes::CODES, true)),
+            new AllowanceRule('BR-CL-19', 'BT-98', 'A coded allowance reason (BT-98) shall be a valid UNTDID 5189 code.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->reasonCode === null || in_array($documentAllowanceCharge->reasonCode, CodeLists::ALLOWANCE_REASON_CODES, true), charges: false),
+            new AllowanceRule('BR-CL-20', 'BT-105', 'A coded charge reason (BT-105) shall be a valid UNTDID 7161 code.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->reasonCode === null || in_array($documentAllowanceCharge->reasonCode, CodeLists::CHARGE_REASON_CODES, true), charges: true),
+            new LineAllowanceRule('BR-CL-19', 'BT-140', 'A coded line allowance reason (BT-140) shall be a valid UNTDID 5189 code.', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => $lineAllowanceCharge->isCharge || $lineAllowanceCharge->reasonCode === null || in_array($lineAllowanceCharge->reasonCode, CodeLists::ALLOWANCE_REASON_CODES, true)),
+            new LineAllowanceRule('BR-CL-20', 'BT-145', 'A coded line charge reason (BT-145) shall be a valid UNTDID 7161 code.', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => ! $lineAllowanceCharge->isCharge || $lineAllowanceCharge->reasonCode === null || in_array($lineAllowanceCharge->reasonCode, CodeLists::CHARGE_REASON_CODES, true)),
+            new LineRule('BR-CL-21', 'BT-157', 'The item standard identifier scheme (BT-157) shall be from the ISO 6523 ICD list.', static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->itemStandardIdScheme === null || in_array($invoiceLine->itemStandardIdScheme, IcdSchemes::CODES, true), Severity::Warning),
+            new SubtotalRule('BR-CL-22', 'BT-121', 'The VAT exemption reason code (BT-121) shall be a valid VATEX code.', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->exemptionReasonCode === null || in_array(mb_strtoupper(mb_trim($taxSubtotal->exemptionReasonCode)), CodeLists::VATEX_CODES, true)),
+            new LineRule('BR-CL-23', 'BT-130', 'The unit of measure code (BT-130) shall be a valid UN/ECE Rec 20/21 code.', static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->unitCode === null || in_array($invoiceLine->unitCode, UnitCodes::CODES, true), Severity::Warning),
+            new CodeListRule('BR-CL-26', 'BT-71', 'The delivery location scheme (BT-71) shall be from the ISO 6523 ICD list', static fn (Invoice $invoice): ?string => $invoice->deliverTo?->identifierScheme, IcdSchemes::CODES, Severity::Warning),
 
             // BR-CL-17 covers every VAT category code field: BT-151 is checked
             // as a line rule above; BT-118 / BT-95 / BT-102 here.
@@ -645,6 +674,23 @@ final class RuleSets
         }
 
         return bcmod($numeric, '97') === '1';
+    }
+
+    /**
+     * BR-CL-08: a note starting with a #XXX# subject prefix must carry a
+     * three-letter UNTDID 4451 code between the first two hash marks.
+     */
+    private static function noteSubjectCodeValid(string $note): bool
+    {
+        if (! str_contains($note, '#')) {
+            return true;
+        }
+
+        $afterFirst = substr($note, (int) strpos($note, '#') + 1);
+        $secondHash = strpos($afterFirst, '#');
+        $code = $secondHash === false ? '' : substr($afterFirst, 0, $secondHash);
+
+        return strlen($code) === 3 && in_array($code, NoteSubjectCodes::CODES, true);
     }
 
     private static function hasSellerContact(Invoice $invoice): bool

@@ -58,6 +58,9 @@
                     </ram:EmailURIUniversalCommunication>
                 </ram:DefinedTradeContact>
                 <ram:PostalTradeAddress>
+                    <ram:PostcodeCode>10115</ram:PostcodeCode>
+                    <ram:LineOne>Musterstraße 1</ram:LineOne>
+                    <ram:CityName>Berlin</ram:CityName>
                     <ram:CountryID>DE</ram:CountryID>
                 </ram:PostalTradeAddress>
                 <ram:SpecifiedTaxRegistration>
@@ -67,6 +70,9 @@
             <ram:BuyerTradeParty>
                 <ram:Name>Buyer AG</ram:Name>
                 <ram:PostalTradeAddress>
+                    <ram:PostcodeCode>10115</ram:PostcodeCode>
+                    <ram:LineOne>Musterstraße 1</ram:LineOne>
+                    <ram:CityName>Berlin</ram:CityName>
                     <ram:CountryID>DE</ram:CountryID>
                 </ram:PostalTradeAddress>
                 <ram:SpecifiedTaxRegistration>

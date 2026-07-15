@@ -68,3 +68,13 @@ it('reads the tax representative, seller tax registration and allowance reason c
 it('leaves the tax representative null when BG-11 is absent', function (): void {
     expect((new UblInvoiceReader)->read(ublFixture('valid-ubl.xml'))->taxRepresentative)->toBeNull();
 });
+
+it('reads the postal address and electronic address of a party', function (): void {
+    $invoice = (new UblInvoiceReader)->read(ublFixture('taxrep-ubl.xml'));
+
+    expect($invoice->seller->street)->toBe('Musterstraße 1')
+        ->and($invoice->seller->city)->toBe('Berlin')
+        ->and($invoice->seller->postCode)->toBe('10115')
+        ->and($invoice->seller->electronicAddress)->toBe('DE123456789')
+        ->and($invoice->seller->electronicAddressScheme)->toBe('9930');
+});

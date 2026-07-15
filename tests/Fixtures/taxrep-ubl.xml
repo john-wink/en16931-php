@@ -5,6 +5,13 @@
     <cbc:ID>TR-1</cbc:ID>
     <cac:AccountingSupplierParty>
         <cac:Party>
+            <cbc:EndpointID schemeID="9930">DE123456789</cbc:EndpointID>
+            <cac:PostalAddress>
+                <cbc:StreetName>Musterstraße 1</cbc:StreetName>
+                <cbc:CityName>Berlin</cbc:CityName>
+                <cbc:PostalZone>10115</cbc:PostalZone>
+                <cac:Country><cbc:IdentificationCode>DE</cbc:IdentificationCode></cac:Country>
+            </cac:PostalAddress>
             <cac:PartyTaxScheme>
                 <cbc:CompanyID>DE123456789</cbc:CompanyID>
                 <cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme>

@@ -105,6 +105,11 @@ final class UblInvoiceReader
             contactPhone: $this->value($domxPath, 'cac:Contact/cbc:Telephone', $node),
             contactEmail: $this->value($domxPath, 'cac:Contact/cbc:ElectronicMail', $node),
             taxRegistrationId: $this->value($domxPath, 'cac:PartyTaxScheme[cac:TaxScheme/cbc:ID!="VAT"]/cbc:CompanyID', $node),
+            street: $this->value($domxPath, 'cac:PostalAddress/cbc:StreetName', $node),
+            city: $this->value($domxPath, 'cac:PostalAddress/cbc:CityName', $node),
+            postCode: $this->value($domxPath, 'cac:PostalAddress/cbc:PostalZone', $node),
+            electronicAddress: $this->value($domxPath, 'cbc:EndpointID', $node),
+            electronicAddressScheme: $this->attribute($domxPath, 'cbc:EndpointID', 'schemeID', $node),
         );
     }
 

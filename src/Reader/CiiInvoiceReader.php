@@ -133,6 +133,11 @@ final class CiiInvoiceReader
             contactPhone: $this->value($domxPath, 'ram:DefinedTradeContact/ram:TelephoneUniversalCommunication/ram:CompleteNumber', $node),
             contactEmail: $this->value($domxPath, 'ram:DefinedTradeContact/ram:EmailURIUniversalCommunication/ram:URIID', $node),
             taxRegistrationId: $this->value($domxPath, "ram:SpecifiedTaxRegistration/ram:ID[@schemeID='FC']", $node),
+            street: $this->value($domxPath, 'ram:PostalTradeAddress/ram:LineOne', $node),
+            city: $this->value($domxPath, 'ram:PostalTradeAddress/ram:CityName', $node),
+            postCode: $this->value($domxPath, 'ram:PostalTradeAddress/ram:PostcodeCode', $node),
+            electronicAddress: $this->value($domxPath, 'ram:URIUniversalCommunication/ram:URIID', $node),
+            electronicAddressScheme: $this->attribute($domxPath, 'ram:URIUniversalCommunication/ram:URIID', 'schemeID', $node),
         );
     }
 

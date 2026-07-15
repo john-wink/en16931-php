@@ -9,6 +9,15 @@
     <rsm:SupplyChainTradeTransaction>
         <ram:ApplicableHeaderTradeAgreement>
             <ram:SellerTradeParty>
+                <ram:PostalTradeAddress>
+                    <ram:PostcodeCode>10115</ram:PostcodeCode>
+                    <ram:LineOne>Musterstraße 1</ram:LineOne>
+                    <ram:CityName>Berlin</ram:CityName>
+                    <ram:CountryID>DE</ram:CountryID>
+                </ram:PostalTradeAddress>
+                <ram:URIUniversalCommunication>
+                    <ram:URIID schemeID="9930">DE123456789</ram:URIID>
+                </ram:URIUniversalCommunication>
                 <ram:SpecifiedTaxRegistration>
                     <ram:ID schemeID="VA">DE123456789</ram:ID>
                 </ram:SpecifiedTaxRegistration>

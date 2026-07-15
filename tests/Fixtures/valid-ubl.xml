@@ -13,6 +13,9 @@
     <cac:AccountingSupplierParty>
         <cac:Party>
             <cac:PostalAddress>
+                <cbc:StreetName>Musterstraße 1</cbc:StreetName>
+                <cbc:CityName>Berlin</cbc:CityName>
+                <cbc:PostalZone>10115</cbc:PostalZone>
                 <cac:Country><cbc:IdentificationCode>DE</cbc:IdentificationCode></cac:Country>
             </cac:PostalAddress>
             <cac:PartyTaxScheme>
@@ -30,6 +33,9 @@
     <cac:AccountingCustomerParty>
         <cac:Party>
             <cac:PostalAddress>
+                <cbc:StreetName>Musterstraße 1</cbc:StreetName>
+                <cbc:CityName>Berlin</cbc:CityName>
+                <cbc:PostalZone>10115</cbc:PostalZone>
                 <cac:Country><cbc:IdentificationCode>DE</cbc:IdentificationCode></cac:Country>
             </cac:PostalAddress>
             <cac:PartyTaxScheme>

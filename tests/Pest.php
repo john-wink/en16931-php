@@ -32,8 +32,10 @@ function makeInvoice(mixed ...$overrides): Invoice
             contactName: 'Max Muster',
             contactPhone: '+49 30 000000',
             contactEmail: 'billing@seller.de',
+            city: 'Berlin',
+            postCode: '10115',
         )),
-        buyer: $pick('buyer', new Party(name: 'Buyer AG', countryCode: 'DE', vatId: 'DE987654321')),
+        buyer: $pick('buyer', new Party(name: 'Buyer AG', countryCode: 'DE', vatId: 'DE987654321', city: 'Hamburg', postCode: '20095')),
         totals: $pick('totals', new Totals(
             lineTotal: '100.00',
             taxBasisTotal: '100.00',

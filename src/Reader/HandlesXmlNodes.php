@@ -73,6 +73,17 @@ trait HandlesXmlNodes
         return $text === '' ? null : $text;
     }
 
+    /**
+     * The value of an attribute on the first matched node — null when the node
+     * or the attribute is absent (an empty attribute stays an empty string).
+     */
+    private function attribute(DOMXPath $domxPath, string $query, string $name, ?DOMNode $domNode = null): ?string
+    {
+        $node = $this->node($domxPath, $query, $domNode);
+
+        return $node instanceof DOMElement && $node->hasAttribute($name) ? $node->getAttribute($name) : null;
+    }
+
     private function text(DOMElement $domElement): ?string
     {
         $text = mb_trim($domElement->nodeValue ?? '');

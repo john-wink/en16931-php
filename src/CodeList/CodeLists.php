@@ -45,6 +45,17 @@ final class CodeLists
     public const array VAT_PREFIX_EXTRAS = ['EL', 'XI'];
 
     /**
+     * The MIME codes BR-CL-24 allows for embedded attachments (BT-125).
+     *
+     * @var list<string>
+     */
+    public const array MIME_CODES = [
+        'application/pdf', 'image/png', 'image/jpeg', 'text/csv',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.oasis.opendocument.spreadsheet',
+    ];
+
+    /**
      * The UNTDID 4461 payment means codes BR-CL-16 allows for BT-81, per the
      * EN 16931 validation artefacts.
      *

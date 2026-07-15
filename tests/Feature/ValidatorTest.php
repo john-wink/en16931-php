@@ -255,3 +255,22 @@ it('recommends delivery date or period information (BR-DE-TMP-32)', function ():
         ->and($without->isValid())->toBeTrue()
         ->and(xr()->validateModel(makeInvoice())->hasViolation('BR-DE-TMP-32'))->toBeFalse();
 });
+
+it('requires unique attachment filenames (BR-DE-22)', function (): void {
+    $duplicate = xr()->validateModel(makeInvoice(attachments: [
+        new JohnWink\En16931\Model\Attachment(reference: 'DOC-1', filename: 'a.pdf', mimeCode: 'application/pdf'),
+        new JohnWink\En16931\Model\Attachment(reference: 'DOC-2', filename: 'a.pdf', mimeCode: 'application/pdf'),
+    ]));
+
+    expect($duplicate->hasViolation('BR-DE-22'))->toBeTrue()
+        ->and(xr()->validateModel(makeInvoice())->hasViolation('BR-DE-22'))->toBeFalse();
+});
+
+it('recommends a preceding invoice on corrected invoices (BR-DE-26)', function (): void {
+    $corrected = xr()->validateModel(makeInvoice(typeCode: '384'));
+    $withReference = xr()->validateModel(makeInvoice(typeCode: '384', precedingInvoiceReferences: ['R-2025-9']));
+
+    expect($corrected->hasViolation('BR-DE-26'))->toBeTrue()
+        ->and($corrected->isValid())->toBeTrue()
+        ->and($withReference->hasViolation('BR-DE-26'))->toBeFalse();
+});

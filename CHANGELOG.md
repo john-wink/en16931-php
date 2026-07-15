@@ -10,6 +10,16 @@ Pre-1.0: the public API may still change between minor versions.
 
 ### Added
 
+- Documents & line details: attachments (BG-24 — BR-52, BR-CL-24 MIME list,
+  BR-DE-22 unique filenames), preceding invoices (BG-3 — BR-55, BR-DE-26),
+  payee (BG-10 — BR-17), tax representative address (BR-19), BT-111 (BR-53,
+  BR-DEC-15), gross price (BR-28), item identifiers and attributes (BR-54,
+  BR-64, BR-65), tax point date exclusivity (BR-CO-03), the BR-CO-21..24
+  reason restatements and the base-amount decimal rules (BR-DEC-02/06/25/28)
+  plus BR-DEC-05/24/27. Model and both readers gained attachments, preceding
+  invoice references, payee, BT-7, BT-111, BT-148, item details and
+  allowance/charge base amounts.
+
 - Delivery & periods (BG-13/14/15, BG-26): BR-29/30 (period ordering),
   BR-CO-19/20 (period content), BR-57 (deliver-to country), BR-IC-11/12
   (intra-community delivery info), BR-DE-10/11 (deliver-to city + post code)
@@ -70,6 +80,9 @@ Pre-1.0: the public API may still change between minor versions.
 - The Leitweg-ID rule (BT-10) reports the official id **BR-DE-15** — it was
   mislabelled as BR-DE-1 (which officially requires PAYMENT INSTRUCTIONS,
   BG-16, and remains open).
+- The document-level charge decimal rule reports the official id **BR-DEC-05**
+  (BT-99) — it was mislabelled as BR-DEC-02, which officially covers the
+  allowance base amount (BT-93) and is now implemented as such.
 
 ## [0.1.0] - 2026-07-11
 

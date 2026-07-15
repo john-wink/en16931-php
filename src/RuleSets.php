@@ -8,9 +8,12 @@ use JohnWink\En16931\CodeList\CodeLists;
 use JohnWink\En16931\CodeList\CountryCodes;
 use JohnWink\En16931\CodeList\CurrencyCodes;
 use JohnWink\En16931\Contracts\Rule;
+use JohnWink\En16931\Model\Attachment;
 use JohnWink\En16931\Model\DocumentAllowanceCharge;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
+use JohnWink\En16931\Model\ItemAttribute;
+use JohnWink\En16931\Model\ItemClassification;
 use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\PaymentMeans;
@@ -100,6 +103,25 @@ final class RuleSets
             new ConditionalRule('BR-57', 'BT-80', 'Each deliver-to address (BG-15) shall contain a country code (BT-80).', static fn (Invoice $invoice): bool => $invoice->deliverTo instanceof Party, static fn (Invoice $invoice): bool => self::filled($invoice->deliverTo?->countryCode)),
             new ConditionalRule('BR-IC-11', 'BT-72', 'An intra-community invoice (K) shall contain the actual delivery date (BT-72) or the invoicing period (BG-14).', static fn (Invoice $invoice): bool => self::subtotalHasCategory($invoice, 'K'), static fn (Invoice $invoice): bool => self::filled($invoice->actualDeliveryDate) || self::filled($invoice->invoicingPeriodStart) || self::filled($invoice->invoicingPeriodEnd) || self::filled($invoice->taxPointDateCode)),
             new ConditionalRule('BR-IC-12', 'BT-80', 'An intra-community invoice (K) shall contain the deliver-to country code (BT-80).', static fn (Invoice $invoice): bool => self::subtotalHasCategory($invoice, 'K'), static fn (Invoice $invoice): bool => self::filled($invoice->deliverTo?->countryCode)),
+
+            new ConditionalRule('BR-17', 'BT-59', 'The Payee name (BT-59) shall be provided and differ from the Seller (BG-4).', static fn (Invoice $invoice): bool => $invoice->payee instanceof Party, static fn (Invoice $invoice): bool => self::payeeDiffersFromSeller($invoice)),
+            new ConditionalRule('BR-19', 'BG-12', 'The Seller tax representative postal address (BG-12) shall be provided when a tax representative party (BG-11) is present.', static fn (Invoice $invoice): bool => $invoice->taxRepresentative instanceof Party, static fn (Invoice $invoice): bool => $invoice->taxRepresentative?->hasPostalAddress() ?? false),
+            new LineRule('BR-28', 'BT-148', 'The item gross price (BT-148) shall not be negative.', static fn (InvoiceLine $invoiceLine): bool => ! self::isNegative($invoiceLine->grossPrice)),
+            new InvoiceRule('BR-52', 'BT-122', 'Each additional supporting document (BG-24) shall contain a supporting document reference (BT-122).', static fn (Invoice $invoice): bool => array_all($invoice->attachments, fn (Attachment $attachment): bool => self::filled($attachment->reference))),
+            new ConditionalRule('BR-53', 'BT-111', 'When the VAT accounting currency code (BT-6) is present, the invoice total VAT amount in accounting currency (BT-111) shall be provided.', static fn (Invoice $invoice): bool => self::filled($invoice->taxCurrency), static fn (Invoice $invoice): bool => self::filled($invoice->totals->taxTotalAccounting)),
+            new LineRule('BR-54', 'BG-32', 'Each item attribute (BG-32) shall contain a name (BT-160) and a value (BT-161).', static fn (InvoiceLine $invoiceLine): bool => array_all($invoiceLine->attributes, fn (ItemAttribute $itemAttribute): bool => self::filled($itemAttribute->name) && self::filled($itemAttribute->value))),
+            new InvoiceRule('BR-55', 'BT-25', 'Each preceding invoice reference (BG-3) shall contain the preceding invoice number (BT-25).', static fn (Invoice $invoice): bool => array_all($invoice->precedingInvoiceReferences, fn (?string $reference): bool => self::filled($reference))),
+            new LineRule('BR-64', 'BT-157', 'The item standard identifier (BT-157) shall have a scheme identifier.', static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->itemStandardId === null || $invoiceLine->itemStandardIdScheme !== null),
+            new LineRule('BR-65', 'BT-158', 'Each item classification identifier (BT-158) shall have a scheme identifier.', static fn (InvoiceLine $invoiceLine): bool => array_all($invoiceLine->itemClassifications, fn (ItemClassification $itemClassification): bool => $itemClassification->code === null || $itemClassification->scheme !== null)),
+            new InvoiceRule('BR-CO-03', 'BT-7', 'The VAT point date (BT-7) and the VAT point date code (BT-8) are mutually exclusive.', static fn (Invoice $invoice): bool => ! self::filled($invoice->taxPointDate) || ! self::filled($invoice->taxPointDateCode)),
+            new InvoiceRule('BR-CL-24', 'BT-125', 'The attachment MIME code shall be from the MIMEMediaType list.', static fn (Invoice $invoice): bool => array_all($invoice->attachments, fn (Attachment $attachment): bool => $attachment->mimeCode === null || in_array($attachment->mimeCode, CodeLists::MIME_CODES, true))),
+
+            // BR-CO-21..24 restate the reason requirements of BR-33/38/42/44
+            // under their own ids — the official artefacts carry both.
+            new AllowanceRule('BR-CO-21', 'BT-97', 'Each document level allowance shall contain a reason (BT-97) or a reason code (BT-98).', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => self::filled($documentAllowanceCharge->reason) || self::filled($documentAllowanceCharge->reasonCode), charges: false),
+            new AllowanceRule('BR-CO-22', 'BT-104', 'Each document level charge shall contain a reason (BT-104) or a reason code (BT-105).', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => self::filled($documentAllowanceCharge->reason) || self::filled($documentAllowanceCharge->reasonCode), charges: true),
+            new LineAllowanceRule('BR-CO-23', 'BT-139', 'Each line allowance shall contain a reason (BT-139) or a reason code (BT-140).', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => $lineAllowanceCharge->isCharge || self::filled($lineAllowanceCharge->reason) || self::filled($lineAllowanceCharge->reasonCode)),
+            new LineAllowanceRule('BR-CO-24', 'BT-144', 'Each line charge shall contain a reason (BT-144) or a reason code (BT-145).', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => ! $lineAllowanceCharge->isCharge || self::filled($lineAllowanceCharge->reason) || self::filled($lineAllowanceCharge->reasonCode)),
             new PresenceRule('BR-16', 'BG-25', 'An Invoice shall have at least one Invoice line (BG-25).', static fn (Invoice $invoice): bool => $invoice->lines !== []),
             new PresenceRule('BR-12', 'BT-106', 'An Invoice shall have the Sum of Invoice line net amount (BT-106).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->lineTotal)),
             new PresenceRule('BR-13', 'BT-109', 'An Invoice shall have the Invoice total amount without VAT (BT-109).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->taxBasisTotal)),
@@ -213,6 +235,8 @@ final class RuleSets
             new PaymentMeansRule('BR-DE-24-b', 'BT-81', 'A card payment (code 48/54/55) shall not carry the credit transfer or direct debit groups (BG-17/BG-19).', static fn (PaymentMeans $paymentMeans): bool => ! in_array(mb_trim((string) $paymentMeans->typeCode), ['48', '54', '55'], true) || (! $paymentMeans->hasCreditTransfer && ! $paymentMeans->hasDirectDebit)),
             new PaymentMeansRule('BR-DE-25-a', 'BT-81', 'A direct debit (code 59) shall carry the DIRECT DEBIT group (BG-19).', static fn (PaymentMeans $paymentMeans): bool => mb_trim((string) $paymentMeans->typeCode) !== '59' || $paymentMeans->hasDirectDebit),
             new PaymentMeansRule('BR-DE-25-b', 'BT-81', 'A direct debit (code 59) shall not carry the credit transfer or card groups (BG-17/BG-18).', static fn (PaymentMeans $paymentMeans): bool => mb_trim((string) $paymentMeans->typeCode) !== '59' || (! $paymentMeans->hasCreditTransfer && ! $paymentMeans->hasCardInformation)),
+            new InvoiceRule('BR-DE-22', 'BT-125', 'The filenames of all embedded attachments shall be unique.', static fn (Invoice $invoice): bool => self::attachmentFilenamesUnique($invoice)),
+            new InvoiceRule('BR-DE-26', 'BT-3', 'A corrected invoice (type code 384) should reference the preceding invoice (BG-3).', static fn (Invoice $invoice): bool => $invoice->typeCode !== '384' || $invoice->precedingInvoiceReferences !== [], Severity::Warning),
             new InvoiceRule('BR-DE-30', 'BT-90', 'A direct debit (BG-19) requires the bank assigned creditor identifier (BT-90).', static fn (Invoice $invoice): bool => ! self::hasDirectDebitGroup($invoice) || self::filled($invoice->sepaCreditorId)),
             new InvoiceRule('BR-DE-31', 'BT-91', 'A direct debit (BG-19) requires the debited account identifier (BT-91).', static fn (Invoice $invoice): bool => ! self::hasDirectDebitGroup($invoice) || array_any($invoice->paymentMeans, fn (PaymentMeans $paymentMeans): bool => self::filled($paymentMeans->debitedAccountId))),
         ];
@@ -295,7 +319,14 @@ final class RuleSets
             new SubtotalRule('BR-DEC-19', 'BT-116', 'The VAT category taxable amount (BT-116) shall not have more than two decimals.', static fn (TaxSubtotal $taxSubtotal): bool => self::maxTwoDecimals($taxSubtotal->taxableAmount)),
             new SubtotalRule('BR-DEC-20', 'BT-117', 'The VAT category tax amount (BT-117) shall not have more than two decimals.', static fn (TaxSubtotal $taxSubtotal): bool => self::maxTwoDecimals($taxSubtotal->taxAmount)),
             new AllowanceRule('BR-DEC-01', 'BT-92', 'A document-level allowance amount (BT-92) shall not have more than two decimals.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => self::maxTwoDecimals($documentAllowanceCharge->amount), charges: false),
-            new AllowanceRule('BR-DEC-02', 'BT-99', 'A document-level charge amount (BT-99) shall not have more than two decimals.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => self::maxTwoDecimals($documentAllowanceCharge->amount), charges: true),
+            new AllowanceRule('BR-DEC-02', 'BT-93', 'A document-level allowance base amount (BT-93) shall not have more than two decimals.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => self::maxTwoDecimals($documentAllowanceCharge->baseAmount), charges: false),
+            new AllowanceRule('BR-DEC-05', 'BT-99', 'A document-level charge amount (BT-99) shall not have more than two decimals.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => self::maxTwoDecimals($documentAllowanceCharge->amount), charges: true),
+            new AllowanceRule('BR-DEC-06', 'BT-100', 'A document-level charge base amount (BT-100) shall not have more than two decimals.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => self::maxTwoDecimals($documentAllowanceCharge->baseAmount), charges: true),
+            new InvoiceRule('BR-DEC-15', 'BT-111', 'The invoice total VAT amount in accounting currency (BT-111) shall not have more than two decimals.', static fn (Invoice $invoice): bool => self::maxTwoDecimals($invoice->totals->taxTotalAccounting)),
+            new LineAllowanceRule('BR-DEC-24', 'BT-136', 'A line allowance amount (BT-136) shall not have more than two decimals.', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => $lineAllowanceCharge->isCharge || self::maxTwoDecimals($lineAllowanceCharge->amount)),
+            new LineAllowanceRule('BR-DEC-25', 'BT-137', 'A line allowance base amount (BT-137) shall not have more than two decimals.', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => $lineAllowanceCharge->isCharge || self::maxTwoDecimals($lineAllowanceCharge->baseAmount)),
+            new LineAllowanceRule('BR-DEC-27', 'BT-141', 'A line charge amount (BT-141) shall not have more than two decimals.', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => ! $lineAllowanceCharge->isCharge || self::maxTwoDecimals($lineAllowanceCharge->amount)),
+            new LineAllowanceRule('BR-DEC-28', 'BT-142', 'A line charge base amount (BT-142) shall not have more than two decimals.', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => ! $lineAllowanceCharge->isCharge || self::maxTwoDecimals($lineAllowanceCharge->baseAmount)),
         ];
     }
 
@@ -553,6 +584,41 @@ final class RuleSets
         }
 
         return $end >= $start;
+    }
+
+    /**
+     * BR-17: the payee needs a name that differs from the seller, and its
+     * identifier (when both are present) must differ too.
+     */
+    private static function payeeDiffersFromSeller(Invoice $invoice): bool
+    {
+        $payee = $invoice->payee;
+
+        if (! $payee instanceof Party || ! self::filled($payee->name)) {
+            return false;
+        }
+
+        if ($payee->name === $invoice->seller->name) {
+            return false;
+        }
+
+        return $payee->identifier === null || $invoice->seller->identifier === null || $payee->identifier !== $invoice->seller->identifier;
+    }
+
+    /**
+     * BR-DE-22: every present attachment filename must be unique.
+     */
+    private static function attachmentFilenamesUnique(Invoice $invoice): bool
+    {
+        $filenames = [];
+
+        foreach ($invoice->attachments as $attachment) {
+            if ($attachment->filename !== null) {
+                $filenames[] = $attachment->filename;
+            }
+        }
+
+        return count($filenames) === count(array_unique($filenames));
     }
 
     private static function hasDirectDebitGroup(Invoice $invoice): bool

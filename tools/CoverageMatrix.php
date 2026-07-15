@@ -31,9 +31,7 @@ final class CoverageMatrix
      *
      * @var array<string, string>
      */
-    private const array PARTIAL = [
-        'BR-CL-14' => 'Checked for the seller (BT-40), buyer (BT-55) and tax representative (BT-69) countries; BT-80 (deliver-to) is not modelled yet.',
-    ];
+    private const array PARTIAL = [];
 
     /**
      * Rules whose official assert is `true()` — not machine-checkable, so

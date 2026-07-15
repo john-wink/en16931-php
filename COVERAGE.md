@@ -9,23 +9,23 @@
 
 | Rule group | ✅ | 🟡 | ❌ | Total |
 |---|--:|--:|--:|--:|
-| BR — core document & line rules | 46 | 0 | 12 | 58 |
-| BR-CO — conditions & calculations | 16 | 0 | 7 | 23 |
+| BR — core document & line rules | 49 | 0 | 9 | 58 |
+| BR-CO — conditions & calculations | 18 | 0 | 5 | 23 |
 | BR-DEC — decimals | 14 | 0 | 7 | 21 |
-| BR-CL — code lists | 5 | 1 | 17 | 23 |
+| BR-CL — code lists | 6 | 0 | 17 | 23 |
 | BR-AE — Reverse charge | 10 | 0 | 0 | 10 |
 | BR-AF — IGIC (Canary Islands) | 9 | 0 | 1 | 10 |
 | BR-AG — IPSI (Ceuta/Melilla) | 9 | 0 | 1 | 10 |
-| BR-IC — Intra-community supply | 10 | 0 | 2 | 12 |
+| BR-IC — Intra-community supply | 12 | 0 | 0 | 12 |
 | BR-S — Standard rated | 10 | 0 | 0 | 10 |
 | BR-Z — Zero rated | 10 | 0 | 0 | 10 |
 | BR-E — Exempt from VAT | 10 | 0 | 0 | 10 |
 | BR-G — Export outside the EU | 10 | 0 | 0 | 10 |
 | BR-O — Not subject to VAT | 14 | 0 | 0 | 14 |
 | BR-B — Split payment (Italy) | 2 | 0 | 0 | 2 |
-| BR-DE — XRechnung CIUS | 26 | 0 | 15 | 41 |
+| BR-DE — XRechnung CIUS | 29 | 0 | 12 | 41 |
 | BR-DEX — XRechnung Extension | 0 | 0 | 14 | 14 |
-| **Total** | **201** | **1** | **76** | **278** |
+| **Total** | **212** | **0** | **66** | **278** |
 
 ## BR — core document & line rules
 
@@ -59,8 +59,8 @@
 | BR-26 | ✅ | fatal | Each Invoice line (BG-25) shall contain the Item net price (BT-146). |  |
 | BR-27 | ✅ | fatal | The Item net price (BT-146) shall NOT be negative. |  |
 | BR-28 | ❌ | fatal | The Item gross price (BT-148) shall NOT be negative. |  |
-| BR-29 | ❌ | fatal | If both Invoicing period start date (BT-73) and Invoicing period end date (BT-74) are given then the Invoicing period end date (BT-74) shall be later or equal to the Invoicing period start date (BT-73). |  |
-| BR-30 | ❌ | fatal | If both Invoice line period start date (BT-134) and Invoice line period end date (BT-135) are given then the Invoice line period end date (BT-135) shall be later or equal to the Invoice line period start date (BT-134). |  |
+| BR-29 | ✅ | fatal | If both Invoicing period start date (BT-73) and Invoicing period end date (BT-74) are given then the Invoicing period end date (BT-74) shall be later or equal to the Invoicing period start date (BT-73). |  |
+| BR-30 | ✅ | fatal | If both Invoice line period start date (BT-134) and Invoice line period end date (BT-135) are given then the Invoice line period end date (BT-135) shall be later or equal to the Invoice line period start date (BT-134). |  |
 | BR-31 | ✅ | fatal | Each Document level allowance (BG-20) shall have a Document level allowance amount (BT-92). |  |
 | BR-32 | ✅ | fatal | Each Document level allowance (BG-20) shall have a Document level allowance VAT category code (BT-95). |  |
 | BR-33 | ✅ | fatal | Each Document level allowance (BG-20) shall have a Document level allowance reason (BT-97) or a Document level allowance reason code (BT-98). |  |
@@ -83,7 +83,7 @@
 | BR-54 | ❌ | fatal | Each Item attribute (BG-32) shall contain an Item attribute name (BT-160) and an Item attribute value (BT-161). |  |
 | BR-55 | ❌ | fatal | Each Preceding Invoice reference (BG-3) shall contain a Preceding Invoice reference (BT-25). |  |
 | BR-56 | ✅ | fatal | Each Seller tax representative party (BG-11) shall have a Seller tax representative VAT identifier (BT-63). |  |
-| BR-57 | ❌ | fatal | Each Deliver to address (BG-15) shall contain a Deliver to country code (BT-80). |  |
+| BR-57 | ✅ | fatal | Each Deliver to address (BG-15) shall contain a Deliver to country code (BT-80). |  |
 | BR-61 | ✅ | fatal | If the Payment means type code (BT-81) means SEPA credit transfer, Local credit transfer or Non-SEPA international credit transfer, the Payment account identifier (BT-84) shall be present. |  |
 | BR-62 | ✅ | fatal | The Seller electronic address (BT-34) shall have a Scheme identifier. |  |
 | BR-63 | ✅ | fatal | The Buyer electronic address (BT-49) shall have a Scheme identifier. |  |
@@ -110,8 +110,8 @@
 | BR-CO-16 | ✅ | fatal | Amount due for payment (BT-115) = Invoice total amount with VAT (BT-112) -Paid amount (BT-113) +Rounding amount (BT-114). | Severity: warning — the KoSIT/XRechnung configuration treats BR-CO-16 as informational; the pure EN 16931 artefacts flag it fatal. |
 | BR-CO-17 | ✅ | fatal | VAT category tax amount (BT-117) = VAT category taxable amount (BT-116) x (VAT category rate (BT-119) / 100), rounded to two decimals. | Stricter than official: exact equality required, the official artefacts allow a ±0.01 rounding tolerance. |
 | BR-CO-18 | ✅ | fatal | An Invoice shall at least have one VAT breakdown group (BG-23). |  |
-| BR-CO-19 | ❌ | fatal | If Invoicing period (BG-14) is used, the Invoicing period start date (BT-73) or the Invoicing period end date (BT-74) shall be filled, or both. |  |
-| BR-CO-20 | ❌ | fatal | If Invoice line period (BG-26) is used, the Invoice line period start date (BT-134) or the Invoice line period end date (BT-135) shall be filled, or both. |  |
+| BR-CO-19 | ✅ | fatal | If Invoicing period (BG-14) is used, the Invoicing period start date (BT-73) or the Invoicing period end date (BT-74) shall be filled, or both. |  |
+| BR-CO-20 | ✅ | fatal | If Invoice line period (BG-26) is used, the Invoice line period start date (BT-134) or the Invoice line period end date (BT-135) shall be filled, or both. |  |
 | BR-CO-21 | ❌ | fatal | Each Document level allowance (BG-20) shall contain a Document level allowance reason (BT-97) or a Document level allowance reason code (BT-98), or both. |  |
 | BR-CO-22 | ❌ | fatal | Each Document level charge (BG-21) shall contain a Document level charge reason (BT-104) or a Document level charge reason code (BT-105), or both. |  |
 | BR-CO-23 | ❌ | fatal | Each Invoice line allowance (BG-27) shall contain an Invoice line allowance reason (BT-139) or an Invoice line allowance reason code (BT-140), or both. |  |
@@ -158,7 +158,7 @@
 | BR-CL-10 | ❌ | fatal | Any identifier identification scheme identifier MUST be coded using one of the ISO 6523 ICD list. |  |
 | BR-CL-11 | ❌ | fatal | Any registration identifier identification scheme identifier MUST be coded using one of the ISO 6523 ICD list. |  |
 | BR-CL-13 | ❌ | fatal | Item classification identifier identification scheme identifier MUST be coded using one of the UNTDID 7143 list. |  |
-| BR-CL-14 | 🟡 | fatal | Country codes in an invoice MUST be coded using ISO code list 3166-1 | Checked for the seller (BT-40), buyer (BT-55) and tax representative (BT-69) countries; BT-80 (deliver-to) is not modelled yet. |
+| BR-CL-14 | ✅ | fatal | Country codes in an invoice MUST be coded using ISO code list 3166-1 |  |
 | BR-CL-15 | ❌ | fatal | Country codes in an invoice MUST be coded using ISO code list 3166-1 |  |
 | BR-CL-16 | ✅ | fatal | Payment means in an invoice MUST be coded using UNCL4461 code list |  |
 | BR-CL-17 | ✅ | fatal | Invoice tax categories MUST be coded using UNCL5305 code list |  |
@@ -231,8 +231,8 @@
 | BR-IC-08 | ✅ | fatal | In a VAT breakdown (BG-23) where the VAT category code (BT-118) is "Intra-community supply" the VAT category taxable amount (BT-116) shall equal the sum of Invoice line net amounts (BT-131) minus the sum of Document level allowance amounts (BT-92) plus the sum of Document level charge amounts (BT-99) where the VAT category codes (BT-151, BT-95, BT-102) are "Intra-community supply". | Grouped per (category, rate) for every category; officially only S splits per rate — equivalent in practice since the other categories carry rate 0. |
 | BR-IC-09 | ✅ | fatal | The VAT category tax amount (BT-117) in a VAT breakdown (BG-23) where the VAT category code (BT-118) is "Intra-community supply" shall be 0 (zero). | A missing BT-117 passes (presence is owned by BR-46). |
 | BR-IC-10 | ✅ | fatal | A VAT breakdown (BG-23) with the VAT Category code (BT-118) "Intra-community supply" shall have a VAT exemption reason code (BT-121), meaning "Intra-community supply" or the VAT exemption reason text (BT-120) "Intra-community supply" (or the equivalent standard text in another language). |  |
-| BR-IC-11 | ❌ | fatal | In an Invoice with a VAT breakdown (BG-23) where the VAT category code (BT-118) is "Intra-community supply" the Actual delivery date (BT-72) or the Invoicing period (BG-14) shall not be blank. |  |
-| BR-IC-12 | ❌ | fatal | In an Invoice with a VAT breakdown (BG-23) where the VAT category code (BT-118) is "Intra-community supply" the Deliver to country code (BT-80) shall not be blank. |  |
+| BR-IC-11 | ✅ | fatal | In an Invoice with a VAT breakdown (BG-23) where the VAT category code (BT-118) is "Intra-community supply" the Actual delivery date (BT-72) or the Invoicing period (BG-14) shall not be blank. |  |
+| BR-IC-12 | ✅ | fatal | In an Invoice with a VAT breakdown (BG-23) where the VAT category code (BT-118) is "Intra-community supply" the Deliver to country code (BT-80) shall not be blank. |  |
 
 ## BR-S — Standard rated
 
@@ -333,8 +333,8 @@
 | BR-DE-7 | ✅ | fatal | Das Element "Seller contact email address" (BT-43) muss übermittelt werden. |  |
 | BR-DE-8 | ✅ | fatal | Das Element "Buyer city" (BT-52) muss übermittelt werden. |  |
 | BR-DE-9 | ✅ | fatal | Das Element "Buyer post code" (BT-53) muss übermittelt werden. |  |
-| BR-DE-10 | ❌ | fatal | Das Element "Deliver to city" (BT-77) muss übermittelt werden, wenn die Gruppe "DELIVER TO ADDRESS" (BG-15) übermittelt wird. |  |
-| BR-DE-11 | ❌ | fatal | Das Element "Deliver to post code" (BT-78) muss übermittelt werden, wenn die Gruppe "DELIVER TO ADDRESS" (BG-15) übermittelt wird. |  |
+| BR-DE-10 | ✅ | fatal | Das Element "Deliver to city" (BT-77) muss übermittelt werden, wenn die Gruppe "DELIVER TO ADDRESS" (BG-15) übermittelt wird. |  |
+| BR-DE-11 | ✅ | fatal | Das Element "Deliver to post code" (BT-78) muss übermittelt werden, wenn die Gruppe "DELIVER TO ADDRESS" (BG-15) übermittelt wird. |  |
 | BR-DE-14 | ❌ | fatal | Das Element "VAT category rate" (BT-119) muss übermittelt werden. |  |
 | BR-DE-15 | ✅ | fatal | Das Element "Buyer reference" (BT-10) muss übermittelt werden. |  |
 | BR-DE-16 | ✅ | fatal | Wenn in einer Rechnung die Steuercodes S, Z, E, AE, K, G, L oder M verwendet werden, muss mindestens eines der Elemente "Seller VAT identifier" (BT-31), "Seller tax registration identifier" (BT-32) oder "SELLER TAX REPRESENTATIVE PARTY" (BG-11) übermittelt werden. |  |
@@ -362,7 +362,7 @@
 | BR-DE-CVD-05 | ❌ | fatal | Wenn innerhalb von ITEM ATTRIBUTES (BG-32) der "Item attribute name" (BT-160) den Wert 'cva' hat, muss der "Item attribute value" (BT-161) einen der zulässigen Werte enthalten. |  |
 | BR-DE-CVD-06-a | ❌ | fatal | Wenn der Scheme identifier von "Item classification identifier" (BT-158) mit dem Wert 'CVD' angegeben ist, muss in derselben Rechnungszeile genau ein "Item attribute name" (BT-160) mit dem Wert 'cva' vorhanden sein. |  |
 | BR-DE-CVD-06-b | ❌ | fatal | Wenn "Item attribute name" (BT-160) mit dem Wert 'cva' angegeben ist, muss in derselben Rechnungszeile genau ein "Item classification identifier" (BT-158) mit dem Scheme identifier 'CVD' vorhanden sein. |  |
-| BR-DE-TMP-32 | ❌ | information | Eine Rechnung sollte zur Angabe des Liefer-/Leistungsdatums entweder BT-72 "Actual delivery date", BG-14 "Invoicing period" oder in jeder Rechnungsposition BG-26 "Invoice line period" enthalten. |  |
+| BR-DE-TMP-32 | ✅ | information | Eine Rechnung sollte zur Angabe des Liefer-/Leistungsdatums entweder BT-72 "Actual delivery date", BG-14 "Invoicing period" oder in jeder Rechnungsposition BG-26 "Invoice line period" enthalten. |  |
 | BR-TMP-2 | ❌ | warning | BT-124 "External document location" muss eine absolute URL mit gültigem Schema enthalten. |  |
 | BR-TMP-CVD-01 | ❌ | fatal | Das Bildungsschema für "Item classification identifier" (BT-158) ist aus der Codeliste UNTDID 7143 zu wählen. |  |
 

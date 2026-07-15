@@ -92,6 +92,14 @@ final class RuleSets
             new PaymentMeansRule('BR-51', 'BT-87', 'An invoice should never include a full card primary account number (BT-87) — at most 10 characters.', static fn (PaymentMeans $paymentMeans): bool => $paymentMeans->cardNumber === null || mb_strlen(mb_trim($paymentMeans->cardNumber)) <= 10, Severity::Warning),
             new PaymentMeansRule('BR-61', 'BT-84', 'A credit transfer (payment means code 30 or 58) shall carry a payment account identifier (BT-84).', static fn (PaymentMeans $paymentMeans): bool => ! in_array(mb_trim((string) $paymentMeans->typeCode), ['30', '58'], true) || $paymentMeans->accountId !== null),
             new PaymentMeansRule('BR-CL-16', 'BT-81', 'The payment means type code (BT-81) shall be a valid UNTDID 4461 code.', static fn (PaymentMeans $paymentMeans): bool => $paymentMeans->typeCode === null || in_array($paymentMeans->typeCode, CodeLists::PAYMENT_MEANS_CODES, true)),
+
+            new InvoiceRule('BR-29', 'BT-73', 'When both invoicing period dates are given, the end date (BT-74) shall not precede the start date (BT-73).', static fn (Invoice $invoice): bool => self::periodOrdered($invoice->invoicingPeriodStart, $invoice->invoicingPeriodEnd)),
+            new LineRule('BR-30', 'BT-134', 'When both line period dates are given, the end date (BT-135) shall not precede the start date (BT-134).', static fn (InvoiceLine $invoiceLine): bool => self::periodOrdered($invoiceLine->periodStart, $invoiceLine->periodEnd)),
+            new ConditionalRule('BR-CO-19', 'BG-14', 'A used invoicing period (BG-14) shall have a start date (BT-73), an end date (BT-74) or a description code (BT-8).', static fn (Invoice $invoice): bool => $invoice->hasInvoicingPeriod, static fn (Invoice $invoice): bool => self::filled($invoice->invoicingPeriodStart) || self::filled($invoice->invoicingPeriodEnd) || self::filled($invoice->taxPointDateCode)),
+            new LineRule('BR-CO-20', 'BG-26', 'A used line period (BG-26) shall have a start date (BT-134) or an end date (BT-135).', static fn (InvoiceLine $invoiceLine): bool => ! $invoiceLine->hasPeriod || self::filled($invoiceLine->periodStart) || self::filled($invoiceLine->periodEnd)),
+            new ConditionalRule('BR-57', 'BT-80', 'Each deliver-to address (BG-15) shall contain a country code (BT-80).', static fn (Invoice $invoice): bool => $invoice->deliverTo instanceof Party, static fn (Invoice $invoice): bool => self::filled($invoice->deliverTo?->countryCode)),
+            new ConditionalRule('BR-IC-11', 'BT-72', 'An intra-community invoice (K) shall contain the actual delivery date (BT-72) or the invoicing period (BG-14).', static fn (Invoice $invoice): bool => self::subtotalHasCategory($invoice, 'K'), static fn (Invoice $invoice): bool => self::filled($invoice->actualDeliveryDate) || self::filled($invoice->invoicingPeriodStart) || self::filled($invoice->invoicingPeriodEnd) || self::filled($invoice->taxPointDateCode)),
+            new ConditionalRule('BR-IC-12', 'BT-80', 'An intra-community invoice (K) shall contain the deliver-to country code (BT-80).', static fn (Invoice $invoice): bool => self::subtotalHasCategory($invoice, 'K'), static fn (Invoice $invoice): bool => self::filled($invoice->deliverTo?->countryCode)),
             new PresenceRule('BR-16', 'BG-25', 'An Invoice shall have at least one Invoice line (BG-25).', static fn (Invoice $invoice): bool => $invoice->lines !== []),
             new PresenceRule('BR-12', 'BT-106', 'An Invoice shall have the Sum of Invoice line net amount (BT-106).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->lineTotal)),
             new PresenceRule('BR-13', 'BT-109', 'An Invoice shall have the Invoice total amount without VAT (BT-109).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->taxBasisTotal)),
@@ -146,6 +154,7 @@ final class RuleSets
             new CodeListRule('BR-CL-14', 'BT-40', 'The Seller country code (BT-40) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->seller->countryCode, CountryCodes::CODES),
             new CodeListRule('BR-CL-14', 'BT-55', 'The Buyer country code (BT-55) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->buyer->countryCode, CountryCodes::CODES),
             new CodeListRule('BR-CL-14', 'BT-69', 'The Tax representative country code (BT-69) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->taxRepresentative?->countryCode, CountryCodes::CODES),
+            new CodeListRule('BR-CL-14', 'BT-80', 'The Deliver-to country code (BT-80) shall be a valid ISO 3166-1 code', static fn (Invoice $invoice): ?string => $invoice->deliverTo?->countryCode, CountryCodes::CODES),
             new CodeListRule('BR-CL-25', 'BT-34', 'The Seller electronic address scheme (BT-34) shall be from the EAS code list', static fn (Invoice $invoice): ?string => $invoice->seller->electronicAddressScheme, CodeLists::ELECTRONIC_ADDRESS_SCHEMES),
             new CodeListRule('BR-CL-25', 'BT-49', 'The Buyer electronic address scheme (BT-49) shall be from the EAS code list', static fn (Invoice $invoice): ?string => $invoice->buyer->electronicAddressScheme, CodeLists::ELECTRONIC_ADDRESS_SCHEMES),
 
@@ -183,6 +192,9 @@ final class RuleSets
             new ConditionalRule('BR-DE-4', 'BT-38', 'The Seller postal address shall contain a post code (BT-38).', static fn (Invoice $invoice): bool => $invoice->seller->hasPostalAddress(), static fn (Invoice $invoice): bool => self::filled($invoice->seller->postCode)),
             new ConditionalRule('BR-DE-8', 'BT-52', 'The Buyer postal address shall contain a city (BT-52).', static fn (Invoice $invoice): bool => $invoice->buyer->hasPostalAddress(), static fn (Invoice $invoice): bool => self::filled($invoice->buyer->city)),
             new ConditionalRule('BR-DE-9', 'BT-53', 'The Buyer postal address shall contain a post code (BT-53).', static fn (Invoice $invoice): bool => $invoice->buyer->hasPostalAddress(), static fn (Invoice $invoice): bool => self::filled($invoice->buyer->postCode)),
+            new ConditionalRule('BR-DE-10', 'BT-77', 'The deliver-to address shall contain a city (BT-77).', static fn (Invoice $invoice): bool => $invoice->deliverTo instanceof Party, static fn (Invoice $invoice): bool => self::filled($invoice->deliverTo?->city)),
+            new ConditionalRule('BR-DE-11', 'BT-78', 'The deliver-to address shall contain a post code (BT-78).', static fn (Invoice $invoice): bool => $invoice->deliverTo instanceof Party, static fn (Invoice $invoice): bool => self::filled($invoice->deliverTo?->postCode)),
+            new InvoiceRule('BR-DE-TMP-32', 'BT-72', 'An invoice should contain the actual delivery date (BT-72), an invoicing period (BG-14) or a period on every line (BG-26).', static fn (Invoice $invoice): bool => self::filled($invoice->actualDeliveryDate) || $invoice->hasInvoicingPeriod || array_all($invoice->lines, fn (InvoiceLine $invoiceLine): bool => $invoiceLine->hasPeriod), Severity::Warning),
             new PresenceRule('BR-DE-5', 'BT-41', 'An XRechnung shall contain the Seller contact point (BT-41).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactName)),
             new PresenceRule('BR-DE-6', 'BT-42', 'An XRechnung shall contain the Seller contact telephone number (BT-42).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactPhone)),
             new PresenceRule('BR-DE-7', 'BT-43', 'An XRechnung shall contain the Seller contact email address (BT-43).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactEmail)),
@@ -523,6 +535,24 @@ final class RuleSets
     private static function usesAnyVatCategoryOf(Invoice $invoice, array $categories): bool
     {
         return array_any($categories, fn (string $category): bool => self::usesCategory($invoice, $category));
+    }
+
+    /**
+     * BR-29/BR-30: when both period dates are present (as normalized Y-m-d),
+     * the end shall not precede the start. Anything unparseable passes — date
+     * syntax is schema territory.
+     */
+    private static function periodOrdered(?string $start, ?string $end): bool
+    {
+        if ($start === null || $end === null) {
+            return true;
+        }
+
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $start) !== 1 || preg_match('/^\d{4}-\d{2}-\d{2}$/', $end) !== 1) {
+            return true;
+        }
+
+        return $end >= $start;
     }
 
     private static function hasDirectDebitGroup(Invoice $invoice): bool

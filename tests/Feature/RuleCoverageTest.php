@@ -572,3 +572,59 @@ it('warns about a full card primary account number (BR-51)', function (): void {
     expect($full->hasViolation('BR-51'))->toBeTrue()
         ->and($truncated->hasViolation('BR-51'))->toBeFalse();
 });
+
+// ---- Schritt 4: Lieferung & Zeiträume ----
+
+it('flags an invoicing period ending before it starts (BR-29)', function (): void {
+    $inverted = core()->validateModel(makeInvoice(hasInvoicingPeriod: true, invoicingPeriodStart: '2026-02-01', invoicingPeriodEnd: '2026-01-01'));
+    $ordered = core()->validateModel(makeInvoice(hasInvoicingPeriod: true, invoicingPeriodStart: '2026-01-01', invoicingPeriodEnd: '2026-01-31'));
+
+    expect($inverted->hasViolation('BR-29'))->toBeTrue()
+        ->and($ordered->hasViolation('BR-29'))->toBeFalse();
+});
+
+it('flags a line period ending before it starts (BR-30) and an empty one (BR-CO-20)', function (): void {
+    $line = static fn (?string $start, ?string $end): InvoiceLine => new InvoiceLine(
+        id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62',
+        taxCategory: 'S', taxRate: '19.00', hasPeriod: true, periodStart: $start, periodEnd: $end,
+    );
+
+    $inverted = core()->validateModel(makeInvoice(lines: [$line('2026-02-01', '2026-01-01')]));
+    $empty = core()->validateModel(makeInvoice(lines: [$line(null, null)]));
+
+    expect($inverted->hasViolation('BR-30'))->toBeTrue()
+        ->and($empty->hasViolation('BR-CO-20'))->toBeTrue();
+});
+
+it('flags an empty invoicing period (BR-CO-19) but accepts a lone description code', function (): void {
+    $empty = core()->validateModel(makeInvoice(hasInvoicingPeriod: true));
+    $codeOnly = core()->validateModel(makeInvoice(hasInvoicingPeriod: true, taxPointDateCode: '35'));
+
+    expect($empty->hasViolation('BR-CO-19'))->toBeTrue()
+        ->and($codeOnly->hasViolation('BR-CO-19'))->toBeFalse();
+});
+
+it('requires a country on the deliver-to address (BR-57) from ISO 3166 (BR-CL-14)', function (): void {
+    $missing = core()->validateModel(makeInvoice(deliverTo: new Party(city: 'Potsdam', postCode: '14467')));
+    $invalid = core()->validateModel(makeInvoice(deliverTo: new Party(city: 'Potsdam', postCode: '14467', countryCode: 'XX')));
+
+    expect($missing->hasViolation('BR-57'))->toBeTrue()
+        ->and($invalid->hasViolation('BR-CL-14'))->toBeTrue();
+});
+
+it('requires delivery information on intra-community invoices (BR-IC-11, BR-IC-12)', function (): void {
+    $line = new InvoiceLine(id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'K', taxRate: '0.00');
+    $subtotal = new TaxSubtotal(category: 'K', rate: '0.00', taxableAmount: '100.00', taxAmount: '0.00', exemptionReason: 'Intra-community supply');
+
+    $bare = core()->validateModel(makeInvoice(lines: [$line], taxSubtotals: [$subtotal], actualDeliveryDate: null));
+    $complete = core()->validateModel(makeInvoice(
+        lines: [$line],
+        taxSubtotals: [$subtotal],
+        deliverTo: new Party(city: 'Wien', postCode: '1010', countryCode: 'AT'),
+    ));
+
+    expect($bare->hasViolation('BR-IC-11'))->toBeTrue()
+        ->and($bare->hasViolation('BR-IC-12'))->toBeTrue()
+        ->and($complete->hasViolation('BR-IC-11'))->toBeFalse()
+        ->and($complete->hasViolation('BR-IC-12'))->toBeFalse();
+});

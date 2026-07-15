@@ -239,3 +239,19 @@ it('checks the IBAN of SEPA transfers and debits (BR-DE-19, BR-DE-20)', function
         ->and($goodTransferIban->hasViolation('BR-DE-19'))->toBeFalse()
         ->and($badDebitIban->hasViolation('BR-DE-20'))->toBeTrue();
 });
+
+it('requires city and post code on the deliver-to address under XRechnung (BR-DE-10/11)', function (): void {
+    $result = xr()->validateModel(makeInvoice(deliverTo: new Party(countryCode: 'DE')));
+
+    expect($result->hasViolation('BR-DE-10'))->toBeTrue()
+        ->and($result->hasViolation('BR-DE-11'))->toBeTrue()
+        ->and(xr()->validateModel(makeInvoice())->hasViolation('BR-DE-10'))->toBeFalse();
+});
+
+it('recommends delivery date or period information (BR-DE-TMP-32)', function (): void {
+    $without = xr()->validateModel(makeInvoice(actualDeliveryDate: null));
+
+    expect($without->hasViolation('BR-DE-TMP-32'))->toBeTrue()
+        ->and($without->isValid())->toBeTrue()
+        ->and(xr()->validateModel(makeInvoice())->hasViolation('BR-DE-TMP-32'))->toBeFalse();
+});

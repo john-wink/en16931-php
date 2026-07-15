@@ -10,6 +10,14 @@ Pre-1.0: the public API may still change between minor versions.
 
 ### Added
 
+- Delivery & periods (BG-13/14/15, BG-26): BR-29/30 (period ordering),
+  BR-CO-19/20 (period content), BR-57 (deliver-to country), BR-IC-11/12
+  (intra-community delivery info), BR-DE-10/11 (deliver-to city + post code)
+  and BR-DE-TMP-32 (delivery date/period recommendation). BR-CL-14 now covers
+  all four country fields (BT-40/55/69/80). The model gains the invoicing and
+  line periods, the actual delivery date (BT-72), BT-8 and the deliver-to
+  address (BG-15), parsed from both CII and UBL.
+
 - Payment instructions (BG-16..19): BR-49/50/51/61 and BR-CL-16 (UNTDID 4461),
   plus the XRechnung payment rules — BR-DE-1 (payment instructions mandatory),
   BR-DE-23/24/25 a+b (payment-code group consistency), BR-DE-30/31 (direct

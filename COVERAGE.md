@@ -9,10 +9,10 @@
 
 | Rule group | ✅ | 🟡 | ❌ | Total |
 |---|--:|--:|--:|--:|
-| BR — core document & line rules | 49 | 0 | 9 | 58 |
-| BR-CO — conditions & calculations | 18 | 0 | 5 | 23 |
-| BR-DEC — decimals | 14 | 0 | 7 | 21 |
-| BR-CL — code lists | 6 | 0 | 17 | 23 |
+| BR — core document & line rules | 58 | 0 | 0 | 58 |
+| BR-CO — conditions & calculations | 23 | 0 | 0 | 23 |
+| BR-DEC — decimals | 21 | 0 | 0 | 21 |
+| BR-CL — code lists | 7 | 0 | 16 | 23 |
 | BR-AE — Reverse charge | 10 | 0 | 0 | 10 |
 | BR-AF — IGIC (Canary Islands) | 9 | 0 | 1 | 10 |
 | BR-AG — IPSI (Ceuta/Melilla) | 9 | 0 | 1 | 10 |
@@ -23,9 +23,9 @@
 | BR-G — Export outside the EU | 10 | 0 | 0 | 10 |
 | BR-O — Not subject to VAT | 14 | 0 | 0 | 14 |
 | BR-B — Split payment (Italy) | 2 | 0 | 0 | 2 |
-| BR-DE — XRechnung CIUS | 29 | 0 | 12 | 41 |
+| BR-DE — XRechnung CIUS | 31 | 0 | 10 | 41 |
 | BR-DEX — XRechnung Extension | 0 | 0 | 14 | 14 |
-| **Total** | **212** | **0** | **66** | **278** |
+| **Total** | **236** | **0** | **42** | **278** |
 
 ## BR — core document & line rules
 
@@ -47,9 +47,9 @@
 | BR-14 | ✅ | fatal | An Invoice shall have the Invoice total amount with VAT (BT-112). |  |
 | BR-15 | ✅ | fatal | An Invoice shall have the Amount due for payment (BT-115). |  |
 | BR-16 | ✅ | fatal | An Invoice shall have at least one Invoice line (BG-25) |  |
-| BR-17 | ❌ | fatal | The Payee name (BT-59) shall be provided in the Invoice, if the Payee (BG-10) is different from the Seller (BG-4) |  |
+| BR-17 | ✅ | fatal | The Payee name (BT-59) shall be provided in the Invoice, if the Payee (BG-10) is different from the Seller (BG-4) |  |
 | BR-18 | ✅ | fatal | The Seller tax representative name (BT-62) shall be provided in the Invoice, if the Seller (BG-4) has a Seller tax representative party (BG-11) |  |
-| BR-19 | ❌ | fatal | The Seller tax representative postal address (BG-12) shall be provided in the Invoice, if the Seller (BG-4) has a Seller tax representative party (BG-11). |  |
+| BR-19 | ✅ | fatal | The Seller tax representative postal address (BG-12) shall be provided in the Invoice, if the Seller (BG-4) has a Seller tax representative party (BG-11). |  |
 | BR-20 | ✅ | fatal | The Seller tax representative postal address (BG-12) shall contain a Tax representative country code (BT-69), if the Seller (BG-4) has a Seller tax representative party (BG-11). |  |
 | BR-21 | ✅ | fatal | Each Invoice line (BG-25) shall have an Invoice line identifier (BT-126). |  |
 | BR-22 | ✅ | fatal | Each Invoice line (BG-25) shall have an Invoiced quantity (BT-129). |  |
@@ -58,7 +58,7 @@
 | BR-25 | ✅ | fatal | Each Invoice line (BG-25) shall contain the Item name (BT-153). |  |
 | BR-26 | ✅ | fatal | Each Invoice line (BG-25) shall contain the Item net price (BT-146). |  |
 | BR-27 | ✅ | fatal | The Item net price (BT-146) shall NOT be negative. |  |
-| BR-28 | ❌ | fatal | The Item gross price (BT-148) shall NOT be negative. |  |
+| BR-28 | ✅ | fatal | The Item gross price (BT-148) shall NOT be negative. |  |
 | BR-29 | ✅ | fatal | If both Invoicing period start date (BT-73) and Invoicing period end date (BT-74) are given then the Invoicing period end date (BT-74) shall be later or equal to the Invoicing period start date (BT-73). |  |
 | BR-30 | ✅ | fatal | If both Invoice line period start date (BT-134) and Invoice line period end date (BT-135) are given then the Invoice line period end date (BT-135) shall be later or equal to the Invoice line period start date (BT-134). |  |
 | BR-31 | ✅ | fatal | Each Document level allowance (BG-20) shall have a Document level allowance amount (BT-92). |  |
@@ -78,23 +78,23 @@
 | BR-49 | ✅ | fatal | A Payment instruction (BG-16) shall specify the Payment means type code (BT-81). |  |
 | BR-50 | ✅ | fatal | A Payment account identifier (BT-84) shall be present if Credit transfer (BG-17) information is provided in the Invoice. |  |
 | BR-51 | ✅ | warning | In accordance with card payments security standards an invoice should never include a full card primary account number (BT-87). At the moment PCI Security Standards Council has defined that the first 6 digits and last 4 digits are the maximum number of digits to be shown. |  |
-| BR-52 | ❌ | fatal | Each Additional supporting document (BG-24) shall contain a Supporting document reference (BT-122). |  |
-| BR-53 | ❌ | fatal | If the VAT accounting currency code (BT-6) is present, then the Invoice total VAT amount in accounting currency (BT-111) shall be provided. |  |
-| BR-54 | ❌ | fatal | Each Item attribute (BG-32) shall contain an Item attribute name (BT-160) and an Item attribute value (BT-161). |  |
-| BR-55 | ❌ | fatal | Each Preceding Invoice reference (BG-3) shall contain a Preceding Invoice reference (BT-25). |  |
+| BR-52 | ✅ | fatal | Each Additional supporting document (BG-24) shall contain a Supporting document reference (BT-122). |  |
+| BR-53 | ✅ | fatal | If the VAT accounting currency code (BT-6) is present, then the Invoice total VAT amount in accounting currency (BT-111) shall be provided. |  |
+| BR-54 | ✅ | fatal | Each Item attribute (BG-32) shall contain an Item attribute name (BT-160) and an Item attribute value (BT-161). |  |
+| BR-55 | ✅ | fatal | Each Preceding Invoice reference (BG-3) shall contain a Preceding Invoice reference (BT-25). |  |
 | BR-56 | ✅ | fatal | Each Seller tax representative party (BG-11) shall have a Seller tax representative VAT identifier (BT-63). |  |
 | BR-57 | ✅ | fatal | Each Deliver to address (BG-15) shall contain a Deliver to country code (BT-80). |  |
 | BR-61 | ✅ | fatal | If the Payment means type code (BT-81) means SEPA credit transfer, Local credit transfer or Non-SEPA international credit transfer, the Payment account identifier (BT-84) shall be present. |  |
 | BR-62 | ✅ | fatal | The Seller electronic address (BT-34) shall have a Scheme identifier. |  |
 | BR-63 | ✅ | fatal | The Buyer electronic address (BT-49) shall have a Scheme identifier. |  |
-| BR-64 | ❌ | fatal | The Item standard identifier (BT-157) shall have a Scheme identifier. |  |
-| BR-65 | ❌ | fatal | The Item classification identifier (BT-158) shall have a Scheme identifier. |  |
+| BR-64 | ✅ | fatal | The Item standard identifier (BT-157) shall have a Scheme identifier. |  |
+| BR-65 | ✅ | fatal | The Item classification identifier (BT-158) shall have a Scheme identifier. |  |
 
 ## BR-CO — conditions & calculations
 
 | Rule | Status | Flag | Official text | Note |
 |---|:-:|---|---|---|
-| BR-CO-03 | ❌ | fatal | Value added tax point date (BT-7) and Value added tax point date code (BT-8) are mutually exclusive. |  |
+| BR-CO-03 | ✅ | fatal | Value added tax point date (BT-7) and Value added tax point date code (BT-8) are mutually exclusive. |  |
 | BR-CO-04 | ✅ | fatal | Each Invoice line (BG-25) shall be categorized with an Invoiced item VAT category code (BT-151). |  |
 | BR-CO-05 | ✅ | fatal | Document level allowance reason code (BT-98) and Document level allowance reason (BT-97) shall indicate the same type of allowance. | Official assert is `true()` — not machine-checkable; trivially satisfied. |
 | BR-CO-06 | ✅ | fatal | Document level charge reason code (BT-105) and Document level charge reason (BT-104) shall indicate the same type of charge. | Official assert is `true()` — not machine-checkable; trivially satisfied. |
@@ -112,10 +112,10 @@
 | BR-CO-18 | ✅ | fatal | An Invoice shall at least have one VAT breakdown group (BG-23). |  |
 | BR-CO-19 | ✅ | fatal | If Invoicing period (BG-14) is used, the Invoicing period start date (BT-73) or the Invoicing period end date (BT-74) shall be filled, or both. |  |
 | BR-CO-20 | ✅ | fatal | If Invoice line period (BG-26) is used, the Invoice line period start date (BT-134) or the Invoice line period end date (BT-135) shall be filled, or both. |  |
-| BR-CO-21 | ❌ | fatal | Each Document level allowance (BG-20) shall contain a Document level allowance reason (BT-97) or a Document level allowance reason code (BT-98), or both. |  |
-| BR-CO-22 | ❌ | fatal | Each Document level charge (BG-21) shall contain a Document level charge reason (BT-104) or a Document level charge reason code (BT-105), or both. |  |
-| BR-CO-23 | ❌ | fatal | Each Invoice line allowance (BG-27) shall contain an Invoice line allowance reason (BT-139) or an Invoice line allowance reason code (BT-140), or both. |  |
-| BR-CO-24 | ❌ | fatal | Each Invoice line charge (BG-28) shall contain an Invoice line charge reason (BT-144) or an Invoice line charge reason code (BT-145), or both. |  |
+| BR-CO-21 | ✅ | fatal | Each Document level allowance (BG-20) shall contain a Document level allowance reason (BT-97) or a Document level allowance reason code (BT-98), or both. |  |
+| BR-CO-22 | ✅ | fatal | Each Document level charge (BG-21) shall contain a Document level charge reason (BT-104) or a Document level charge reason code (BT-105), or both. |  |
+| BR-CO-23 | ✅ | fatal | Each Invoice line allowance (BG-27) shall contain an Invoice line allowance reason (BT-139) or an Invoice line allowance reason code (BT-140), or both. |  |
+| BR-CO-24 | ✅ | fatal | Each Invoice line charge (BG-28) shall contain an Invoice line charge reason (BT-144) or an Invoice line charge reason code (BT-145), or both. |  |
 | BR-CO-26 | ✅ | fatal | In order for the buyer to automatically identify a supplier, the Seller identifier (BT-29), the Seller legal registration identifier (BT-30) and/or the Seller VAT identifier (BT-31) shall be present. |  |
 
 ## BR-DEC — decimals
@@ -124,25 +124,25 @@
 |---|:-:|---|---|---|
 | BR-DEC-01 | ✅ | fatal | The allowed maximum number of decimals for the Document level allowance amount (BT-92) is 2. |  |
 | BR-DEC-02 | ✅ | fatal | The allowed maximum number of decimals for the Document level allowance base amount (BT-93) is 2. |  |
-| BR-DEC-05 | ❌ | fatal | The allowed maximum number of decimals for the Document level charge amount (BT-99) is 2. |  |
-| BR-DEC-06 | ❌ | fatal | The allowed maximum number of decimals for the Document level charge base amount (BT-100) is 2. |  |
+| BR-DEC-05 | ✅ | fatal | The allowed maximum number of decimals for the Document level charge amount (BT-99) is 2. |  |
+| BR-DEC-06 | ✅ | fatal | The allowed maximum number of decimals for the Document level charge base amount (BT-100) is 2. |  |
 | BR-DEC-09 | ✅ | fatal | The allowed maximum number of decimals for the Sum of Invoice line net amount (BT-106) is 2. |  |
 | BR-DEC-10 | ✅ | fatal | The allowed maximum number of decimals for the Sum of allowanced on document level (BT-107) is 2. |  |
 | BR-DEC-11 | ✅ | fatal | The allowed maximum number of decimals for the Sum of charges on document level (BT-108) is 2. |  |
 | BR-DEC-12 | ✅ | fatal | The allowed maximum number of decimals for the Invoice total amount without VAT (BT-109) is 2. |  |
 | BR-DEC-13 | ✅ | fatal | The allowed maximum number of decimals for the Invoice total VAT amount (BT-110) is 2. |  |
 | BR-DEC-14 | ✅ | fatal | The allowed maximum number of decimals for the Invoice total amount with VAT (BT-112) is 2. |  |
-| BR-DEC-15 | ❌ | fatal | The allowed maximum number of decimals for the Invoice total VAT amount in accounting currency (BT-111) is 2. |  |
+| BR-DEC-15 | ✅ | fatal | The allowed maximum number of decimals for the Invoice total VAT amount in accounting currency (BT-111) is 2. |  |
 | BR-DEC-16 | ✅ | fatal | The allowed maximum number of decimals for the Paid amount (BT-113) is 2. |  |
 | BR-DEC-17 | ✅ | fatal | The allowed maximum number of decimals for the Rounding amount (BT-114) is 2. |  |
 | BR-DEC-18 | ✅ | fatal | The allowed maximum number of decimals for the Amount due for payment (BT-115) is 2. |  |
 | BR-DEC-19 | ✅ | fatal | The allowed maximum number of decimals for the VAT category taxable amount (BT-116) is 2. |  |
 | BR-DEC-20 | ✅ | fatal | The allowed maximum number of decimals for the VAT category tax amount (BT-117) is 2. |  |
 | BR-DEC-23 | ✅ | fatal | The allowed maximum number of decimals for the Invoice line net amount (BT-131) is 2. |  |
-| BR-DEC-24 | ❌ | fatal | The allowed maximum number of decimals for the Invoice line allowance amount (BT-136) is 2. |  |
-| BR-DEC-25 | ❌ | fatal | The allowed maximum number of decimals for the Invoice line allowance base amount (BT-137) is 2. |  |
-| BR-DEC-27 | ❌ | fatal | The allowed maximum number of decimals for the Invoice line charge amount (BT-141) is 2. |  |
-| BR-DEC-28 | ❌ | fatal | The allowed maximum number of decimals for the Invoice line charge base amount (BT-142) is 2. |  |
+| BR-DEC-24 | ✅ | fatal | The allowed maximum number of decimals for the Invoice line allowance amount (BT-136) is 2. |  |
+| BR-DEC-25 | ✅ | fatal | The allowed maximum number of decimals for the Invoice line allowance base amount (BT-137) is 2. |  |
+| BR-DEC-27 | ✅ | fatal | The allowed maximum number of decimals for the Invoice line charge amount (BT-141) is 2. |  |
+| BR-DEC-28 | ✅ | fatal | The allowed maximum number of decimals for the Invoice line charge base amount (BT-142) is 2. |  |
 
 ## BR-CL — code lists
 
@@ -168,7 +168,7 @@
 | BR-CL-21 | ❌ | fatal | Item standard identifier scheme identifier MUST belong to the ISO 6523 ICD code list |  |
 | BR-CL-22 | ❌ | fatal | Tax exemption reason code identifier scheme identifier MUST belong to the CEF VATEX code list |  |
 | BR-CL-23 | ❌ | fatal | Unit code MUST be coded according to the UN/ECE Recommendation 20 with Rec 21 extension |  |
-| BR-CL-24 | ❌ | fatal | For Mime code in attribute use MIMEMediaType. |  |
+| BR-CL-24 | ✅ | fatal | For Mime code in attribute use MIMEMediaType. |  |
 | BR-CL-25 | ✅ | fatal | Endpoint identifier scheme identifier MUST belong to the CEF EAS code list |  |
 | BR-CL-26 | ❌ | fatal | Delivery location identifier scheme identifier MUST belong to the ISO 6523 ICD code list |  |
 
@@ -343,14 +343,14 @@
 | BR-DE-19 | ✅ | warning | "Payment account identifier" (BT-84) soll eine korrekte IBAN enthalten, wenn in "Payment means type code" (BT-81) mit dem Code 58 SEPA als Zahlungsmittel gefordert wird. |  |
 | BR-DE-20 | ✅ | warning | "Debited account identifier" (BT-91) soll eine korrekte IBAN enthalten, wenn in "Payment means type code" (BT-81) mit dem Code 59 SEPA als Zahlungsmittel gefordert wird. |  |
 | BR-DE-21 | ✅ | warning | Das Element "Specification identifier" (BT-24) soll syntaktisch der Kennung des Standards XRechnung entsprechen. |  |
-| BR-DE-22 | ❌ | fatal | Das "filename"-Attribut aller "EmbeddedDocumentBinaryObject"-Elemente muss eindeutig sein |  |
+| BR-DE-22 | ✅ | fatal | Das "filename"-Attribut aller "EmbeddedDocumentBinaryObject"-Elemente muss eindeutig sein |  |
 | BR-DE-23-a | ✅ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Überweisungen enthält (30, 58), muss BG-17 "CREDIT TRANSFER" übermittelt werden. |  |
 | BR-DE-23-b | ✅ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Überweisungen enthält (30, 58), dürfen BG-18 und BG-19 nicht übermittelt werden. |  |
 | BR-DE-24-a | ✅ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Kartenzahlungen enthält (48, 54, 55), muss genau BG-18 "PAYMENT CARD INFORMATION" übermittelt werden. |  |
 | BR-DE-24-b | ✅ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Kartenzahlungen enthält (48, 54, 55), dürfen BG-17 und BG-19 nicht übermittelt werden. |  |
 | BR-DE-25-a | ✅ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Lastschriften enthält (59), muss genau BG-19 "DIRECT DEBIT" übermittelt werden. |  |
 | BR-DE-25-b | ✅ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Lastschriften enthält (59), dürfen BG-17 und BG-18 nicht übermittelt werden. |  |
-| BR-DE-26 | ❌ | warning | Wenn im Element "Invoice type code" (BT-3) der Code 384 (Corrected invoice) übergeben wird, soll PRECEDING INVOICE REFERENCE BG-3 mind. einmal vorhanden sein. |  |
+| BR-DE-26 | ✅ | warning | Wenn im Element "Invoice type code" (BT-3) der Code 384 (Corrected invoice) übergeben wird, soll PRECEDING INVOICE REFERENCE BG-3 mind. einmal vorhanden sein. |  |
 | BR-DE-27 | ✅ | warning | In BT-42 sollen mindestens drei Ziffern enthalten sein. |  |
 | BR-DE-28 | ✅ | warning | In BT-43 soll genau ein @-Zeichen enthalten sein, welches nicht von einem Leerzeichen, einem Punkt, aber mindestens zwei Zeichen auf beiden Seiten flankiert werden soll. Ein Punkt sollte nicht am Anfang oder am Ende stehen. |  |
 | BR-DE-30 | ✅ | fatal | Wenn "DIRECT DEBIT" BG-19 vorhanden ist, dann muss "Bank assigned creditor identifier" BT-90 übermittelt werden. |  |

@@ -22,7 +22,9 @@ use JohnWink\En16931\Model\ItemClassification;
 use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\PaymentMeans;
+use JohnWink\En16931\Model\SubInvoiceLine;
 use JohnWink\En16931\Model\TaxSubtotal;
+use JohnWink\En16931\Model\ThirdPartyPayment;
 use JohnWink\En16931\Rules\AllowanceRule;
 use JohnWink\En16931\Rules\CalculationRule;
 use JohnWink\En16931\Rules\CodeListRule;
@@ -58,9 +60,40 @@ final class RuleSets
      */
     private const array XRECHNUNG_SPECIFICATION_IDS = [
         self::XRECHNUNG_CIUS_ID,
-        self::XRECHNUNG_CIUS_ID.'#conformant#urn:xeinkauf.de:kosit:extension:xrechnung_3.0',
-        self::XRECHNUNG_CIUS_ID.'#compliant#urn:xeinkauf.de:kosit:xrechnung:cvd_0.9',
+        self::XRECHNUNG_EXTENSION_ID,
+        self::XRECHNUNG_CVD_ID,
     ];
+
+    /**
+     * The specification identifier of the XRechnung extension (BR-DEX-*).
+     */
+    private const string XRECHNUNG_EXTENSION_ID = self::XRECHNUNG_CIUS_ID.'#conformant#urn:xeinkauf.de:kosit:extension:xrechnung_3.0';
+
+    /**
+     * The specification identifier of the CVD profile (BR-DE-CVD-*).
+     */
+    private const string XRECHNUNG_CVD_ID = self::XRECHNUNG_CIUS_ID.'#compliant#urn:xeinkauf.de:kosit:xrechnung:cvd_0.9';
+
+    /**
+     * The DiGA scheme identifiers the extension additionally allows (BR-DEX-04..08).
+     *
+     * @var list<string>
+     */
+    private const array DIGA_SCHEME_CODES = ['XR01', 'XR02', 'XR03'];
+
+    /**
+     * BR-DE-CVD-04: the allowed vehicle categories for a CVD classification.
+     *
+     * @var list<string>
+     */
+    private const array CVD_VEHICLE_CATEGORIES = ['M1', 'M2', 'M3', 'N1', 'N2', 'N3'];
+
+    /**
+     * BR-DE-CVD-05: the allowed values of the "cva" item attribute.
+     *
+     * @var list<string>
+     */
+    private const array CVA_VALUES = ['clean', 'zero-emission', 'other'];
 
     /**
      * BR-DE-17: the UNTDID 1001 codes XRechnung recommends for BT-3.
@@ -268,6 +301,65 @@ final class RuleSets
             new InvoiceRule('BR-DE-26', 'BT-3', 'A corrected invoice (type code 384) should reference the preceding invoice (BG-3).', static fn (Invoice $invoice): bool => $invoice->typeCode !== '384' || $invoice->precedingInvoiceReferences !== [], Severity::Warning),
             new InvoiceRule('BR-DE-30', 'BT-90', 'A direct debit (BG-19) requires the bank assigned creditor identifier (BT-90).', static fn (Invoice $invoice): bool => ! self::hasDirectDebitGroup($invoice) || self::filled($invoice->sepaCreditorId)),
             new InvoiceRule('BR-DE-31', 'BT-91', 'A direct debit (BG-19) requires the debited account identifier (BT-91).', static fn (Invoice $invoice): bool => ! self::hasDirectDebitGroup($invoice) || array_any($invoice->paymentMeans, fn (PaymentMeans $paymentMeans): bool => self::filled($paymentMeans->debitedAccountId))),
+
+            new SubtotalRule('BR-DE-14', 'BT-119', 'Each VAT breakdown group shall carry the VAT category rate (BT-119).', static fn (TaxSubtotal $taxSubtotal): bool => self::filled($taxSubtotal->rate)),
+            new InvoiceRule('BR-TMP-2', 'BT-124', 'An external document location (BT-124) shall be a valid URL.', static fn (Invoice $invoice): bool => array_all($invoice->attachments, fn (Attachment $attachment): bool => $attachment->externalUri === null || preg_match('/^[a-zA-Z][a-zA-Z0-9+.\-]+:/', mb_trim($attachment->externalUri)) === 1), Severity::Warning),
+
+            ...self::extensionRules(),
+            ...self::cvdRules(),
+        ];
+    }
+
+    /**
+     * BR-DEX-*: the XRechnung extension rules — active only when the invoice
+     * declares the extension specification identifier (BT-24).
+     *
+     * @return list<Rule>
+     */
+    private static function extensionRules(): array
+    {
+        $extension = static fn (Invoice $invoice): bool => $invoice->customizationId === self::XRECHNUNG_EXTENSION_ID;
+        $partySchemes = [...IcdSchemes::CODES, ...self::DIGA_SCHEME_CODES];
+
+        return [
+            new InvoiceRule('BR-DEX-01', 'BT-125', 'Extension attachments may additionally use application/xml as MIME code.', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all($invoice->attachments, fn (Attachment $attachment): bool => $attachment->mimeCode === null || $attachment->mimeCode === 'application/xml' || in_array($attachment->mimeCode, CodeLists::MIME_CODES, true))),
+            new InvoiceRule('BR-DEX-02', 'BT-131', 'A line net amount should equal the sum of its sub invoice line net amounts.', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all($invoice->lines, fn (InvoiceLine $invoiceLine): bool => self::subLineSumMatches($invoiceLine)), Severity::Warning),
+            new InvoiceRule('BR-DEX-03', 'BG-DEX-06', 'Each sub invoice line shall contain exactly one sub line VAT information.', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all($invoice->lines, fn (InvoiceLine $invoiceLine): bool => array_all($invoiceLine->subLines, fn (SubInvoiceLine $subInvoiceLine): bool => $subInvoiceLine->vatCategoryCount === 1))),
+            new InvoiceRule('BR-DEX-04', 'BT-29', 'Extension party identifier schemes shall be ISO 6523 ICD, SEPA or DiGA codes.', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all([$invoice->seller->identifierScheme, $invoice->buyer->identifierScheme, $invoice->payee?->identifierScheme], fn (?string $scheme): bool => $scheme === null || $scheme === 'SEPA' || in_array($scheme, $partySchemes, true))),
+            new InvoiceRule('BR-DEX-05', 'BT-30', 'Extension legal registration schemes shall be ISO 6523 ICD or DiGA codes.', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all([$invoice->seller->legalRegistrationIdScheme, $invoice->buyer->legalRegistrationIdScheme, $invoice->payee?->legalRegistrationIdScheme], fn (?string $scheme): bool => $scheme === null || in_array($scheme, $partySchemes, true))),
+            new InvoiceRule('BR-DEX-06', 'BT-157', 'Extension item standard identifier schemes shall be ISO 6523 ICD or DiGA codes.', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all($invoice->lines, fn (InvoiceLine $invoiceLine): bool => $invoiceLine->itemStandardIdScheme === null || in_array($invoiceLine->itemStandardIdScheme, $partySchemes, true))),
+            new InvoiceRule('BR-DEX-07', 'BT-34', 'Extension electronic address schemes shall be EAS or DiGA codes.', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all([$invoice->seller->electronicAddressScheme, $invoice->buyer->electronicAddressScheme], fn (?string $scheme): bool => $scheme === null || in_array($scheme, [...CodeLists::ELECTRONIC_ADDRESS_SCHEMES, ...self::DIGA_SCHEME_CODES], true))),
+            new InvoiceRule('BR-DEX-08', 'BT-71', 'Extension delivery location schemes shall be ISO 6523 ICD or DiGA codes.', static fn (Invoice $invoice): bool => ! $extension($invoice) || $invoice->deliverTo?->identifierScheme === null || in_array($invoice->deliverTo->identifierScheme, $partySchemes, true)),
+            new InvoiceRule('BR-DEX-09', 'BT-115', 'The amount due (BT-115) shall equal BT-112 − BT-113 + BT-114 + the third party payment amounts.', static fn (Invoice $invoice): bool => ! $extension($invoice) || self::thirdPartyBalanced($invoice)),
+            new InvoiceRule('BR-DEX-10', 'BT-DEX-001', 'Each third party payment shall carry a payment type.', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all($invoice->thirdPartyPayments, fn (ThirdPartyPayment $thirdPartyPayment): bool => self::filled($thirdPartyPayment->id))),
+            new InvoiceRule('BR-DEX-11', 'BT-DEX-002', 'Each third party payment shall carry an amount.', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all($invoice->thirdPartyPayments, fn (ThirdPartyPayment $thirdPartyPayment): bool => self::filled($thirdPartyPayment->amount))),
+            new InvoiceRule('BR-DEX-12', 'BT-DEX-003', 'Each third party payment shall carry a description.', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all($invoice->thirdPartyPayments, fn (ThirdPartyPayment $thirdPartyPayment): bool => self::filled($thirdPartyPayment->description))),
+            new InvoiceRule('BR-DEX-13', 'BT-DEX-002', 'A third party payment amount shall not have more than two decimals.', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all($invoice->thirdPartyPayments, fn (ThirdPartyPayment $thirdPartyPayment): bool => self::maxTwoDecimals($thirdPartyPayment->amount))),
+            new InvoiceRule('BR-DEX-14', 'BT-DEX-002', 'A third party payment amount shall use the invoice currency (BT-5).', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all($invoice->thirdPartyPayments, fn (ThirdPartyPayment $thirdPartyPayment): bool => $thirdPartyPayment->currency !== null && $thirdPartyPayment->currency === $invoice->currency)),
+        ];
+    }
+
+    /**
+     * BR-DE-CVD-* / BR-TMP-CVD-01: the Clean Vehicles Directive profile —
+     * active only when the invoice declares the CVD specification identifier.
+     *
+     * @return list<Rule>
+     */
+    private static function cvdRules(): array
+    {
+        $cvd = static fn (Invoice $invoice): bool => $invoice->customizationId === self::XRECHNUNG_CVD_ID;
+        $cvdClassifications = static fn (InvoiceLine $invoiceLine): int => count(array_filter($invoiceLine->itemClassifications, fn (ItemClassification $itemClassification): bool => $itemClassification->scheme === 'CVD'));
+        $cvaAttributes = static fn (InvoiceLine $invoiceLine): int => count(array_filter($invoiceLine->attributes, fn (ItemAttribute $itemAttribute): bool => $itemAttribute->name === 'cva'));
+
+        return [
+            new InvoiceRule('BR-DE-CVD-01', 'BT-12', 'A CVD invoice shall carry the contract reference (BT-12).', static fn (Invoice $invoice): bool => ! $cvd($invoice) || self::filled($invoice->contractReference)),
+            new InvoiceRule('BR-DE-CVD-02', 'BT-17', 'A CVD invoice shall carry the tender or lot reference (BT-17).', static fn (Invoice $invoice): bool => ! $cvd($invoice) || self::filled($invoice->tenderReference)),
+            new InvoiceRule('BR-DE-CVD-03', 'BT-158', 'A CVD invoice shall contain at least one line with a CVD classification and a cva attribute.', static fn (Invoice $invoice): bool => ! $cvd($invoice) || array_any($invoice->lines, fn (InvoiceLine $invoiceLine): bool => $cvdClassifications($invoiceLine) > 0 && $cvaAttributes($invoiceLine) > 0)),
+            new InvoiceRule('BR-DE-CVD-04', 'BT-158', 'A CVD classification shall carry an allowed vehicle category.', static fn (Invoice $invoice): bool => ! $cvd($invoice) || array_all($invoice->lines, fn (InvoiceLine $invoiceLine): bool => array_all($invoiceLine->itemClassifications, fn (ItemClassification $itemClassification): bool => $itemClassification->scheme !== 'CVD' || in_array(mb_trim((string) $itemClassification->code), self::CVD_VEHICLE_CATEGORIES, true)))),
+            new InvoiceRule('BR-DE-CVD-05', 'BT-161', 'A cva item attribute shall carry an allowed value.', static fn (Invoice $invoice): bool => ! $cvd($invoice) || array_all($invoice->lines, fn (InvoiceLine $invoiceLine): bool => array_all($invoiceLine->attributes, fn (ItemAttribute $itemAttribute): bool => $itemAttribute->name !== 'cva' || in_array(mb_trim((string) $itemAttribute->value), self::CVA_VALUES, true)))),
+            new InvoiceRule('BR-DE-CVD-06-a', 'BT-158', 'A line with a CVD classification shall carry exactly one cva attribute.', static fn (Invoice $invoice): bool => ! $cvd($invoice) || array_all($invoice->lines, fn (InvoiceLine $invoiceLine): bool => $cvdClassifications($invoiceLine) === 0 || $cvaAttributes($invoiceLine) === 1)),
+            new InvoiceRule('BR-DE-CVD-06-b', 'BT-160', 'A line with a cva attribute shall carry exactly one CVD classification.', static fn (Invoice $invoice): bool => ! $cvd($invoice) || array_all($invoice->lines, fn (InvoiceLine $invoiceLine): bool => $cvaAttributes($invoiceLine) === 0 || $cvdClassifications($invoiceLine) === 1)),
+            new InvoiceRule('BR-TMP-CVD-01', 'BT-158', 'On a CVD invoice every classification scheme shall be UNTDID 7143 or CVD.', static fn (Invoice $invoice): bool => ! $cvd($invoice) || array_all($invoice->lines, fn (InvoiceLine $invoiceLine): bool => array_all($invoiceLine->itemClassifications, fn (ItemClassification $itemClassification): bool => $itemClassification->scheme === null || $itemClassification->scheme === 'CVD' || in_array($itemClassification->scheme, ItemClassificationSchemes::CODES, true)))),
         ];
     }
 
@@ -648,6 +740,55 @@ final class RuleSets
         }
 
         return count($filenames) === count(array_unique($filenames));
+    }
+
+    /**
+     * BR-DEX-02: when a line carries sub lines, its net amount must equal
+     * their sum (unparseable amounts pass — schema territory).
+     */
+    private static function subLineSumMatches(InvoiceLine $invoiceLine): bool
+    {
+        if ($invoiceLine->subLines === [] || ! Decimal::isNumeric($invoiceLine->netAmount)) {
+            return true;
+        }
+
+        $sum = '0';
+
+        foreach ($invoiceLine->subLines as $subLine) {
+            if (! Decimal::isNumeric($subLine->netAmount)) {
+                return true;
+            }
+
+            $sum = Decimal::add($sum, $subLine->netAmount);
+        }
+
+        return Decimal::equals($sum, $invoiceLine->netAmount);
+    }
+
+    /**
+     * BR-DEX-09: BT-115 − BT-114 must equal BT-112 − BT-113 plus the third
+     * party payment amounts (both sides rounded to two decimals).
+     */
+    private static function thirdPartyBalanced(Invoice $invoice): bool
+    {
+        $totals = $invoice->totals;
+
+        if (! Decimal::isNumeric($totals->payableAmount) || ! Decimal::isNumeric($totals->grandTotal)) {
+            return true;
+        }
+
+        $thirdParty = '0';
+
+        foreach ($invoice->thirdPartyPayments as $payment) {
+            if (Decimal::isNumeric($payment->amount)) {
+                $thirdParty = Decimal::add($thirdParty, $payment->amount);
+            }
+        }
+
+        $left = Decimal::round(Decimal::sub(self::amount($totals->payableAmount), self::amount($totals->roundingAmount)));
+        $right = Decimal::round(Decimal::add(Decimal::sub(self::amount($totals->grandTotal), self::amount($totals->paidAmount)), $thirdParty));
+
+        return Decimal::equals($left, $right);
     }
 
     private static function hasDirectDebitGroup(Invoice $invoice): bool

@@ -10,6 +10,16 @@ Pre-1.0: the public API may still change between minor versions.
 
 ### Added
 
+- Full rule coverage: the XRechnung **extension** (BR-DEX-01..14 — sub invoice
+  lines, third party payments, DiGA schemes, `application/xml` attachments)
+  and the **Clean Vehicles Directive** profile (BR-DE-CVD-01..06, BR-TMP-CVD-01),
+  plus BR-DE-14 (breakdown rate) and BR-TMP-2 (external document URL). These
+  are gated on the specification identifier (BT-24), so they stay silent unless
+  the extension / CVD profile is declared. New `ThirdPartyPayment` and
+  `SubInvoiceLine` models; contract/tender references (BT-12/BT-17) and item
+  origin country (BT-159) are now parsed. **All 278 official EN 16931 + KoSIT
+  XRechnung 2.5.0 business rules are now implemented.**
+
 - The remaining code lists: BR-CL-03 (amount currency attributes), BR-CL-05
   (tax currency), BR-CL-06 (tax point date code), BR-CL-07 (UNTDID 1153),
   BR-CL-08 (UNTDID 4451 note subjects), BR-CL-10/11/21/26 (ISO 6523 ICD, with

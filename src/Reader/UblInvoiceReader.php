@@ -56,6 +56,32 @@ final class UblInvoiceReader
             taxRepresentative: $this->taxRepresentative($xpath),
             paymentMeans: $this->paymentMeans($xpath),
             sepaCreditorId: $this->value($xpath, '/*/cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID[@schemeID="SEPA"] | /*/cac:PayeeParty/cac:PartyIdentification/cbc:ID[@schemeID="SEPA"]'),
+            hasInvoicingPeriod: $this->node($xpath, '/*/cac:InvoicePeriod') instanceof DOMElement,
+            invoicingPeriodStart: $this->value($xpath, '/*/cac:InvoicePeriod/cbc:StartDate'),
+            invoicingPeriodEnd: $this->value($xpath, '/*/cac:InvoicePeriod/cbc:EndDate'),
+            taxPointDateCode: $this->value($xpath, '/*/cac:InvoicePeriod/cbc:DescriptionCode'),
+            actualDeliveryDate: $this->value($xpath, '/*/cac:Delivery/cbc:ActualDeliveryDate'),
+            deliverTo: $this->deliverTo($xpath),
+        );
+    }
+
+    /**
+     * The deliver-to address (BG-15) — null when the address group is absent.
+     */
+    private function deliverTo(DOMXPath $domxPath): ?Party
+    {
+        $address = $this->node($domxPath, '/*/cac:Delivery/cac:DeliveryLocation/cac:Address');
+
+        if (! $address instanceof DOMElement) {
+            return null;
+        }
+
+        return new Party(
+            name: $this->value($domxPath, '/*/cac:Delivery/cac:DeliveryParty/cac:PartyName/cbc:Name'),
+            countryCode: $this->value($domxPath, 'cac:Country/cbc:IdentificationCode', $address),
+            street: $this->value($domxPath, 'cbc:StreetName', $address),
+            city: $this->value($domxPath, 'cbc:CityName', $address),
+            postCode: $this->value($domxPath, 'cbc:PostalZone', $address),
         );
     }
 
@@ -195,6 +221,9 @@ final class UblInvoiceReader
                 taxCategory: $this->value($domxPath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:ID', $domElement),
                 taxRate: $this->value($domxPath, 'cac:Item/cac:ClassifiedTaxCategory/cbc:Percent', $domElement),
                 allowanceCharges: $this->lineAllowanceCharges($domxPath, $domElement),
+                hasPeriod: $this->node($domxPath, 'cac:InvoicePeriod', $domElement) instanceof DOMElement,
+                periodStart: $this->value($domxPath, 'cac:InvoicePeriod/cbc:StartDate', $domElement),
+                periodEnd: $this->value($domxPath, 'cac:InvoicePeriod/cbc:EndDate', $domElement),
             );
         }
 

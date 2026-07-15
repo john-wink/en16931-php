@@ -58,6 +58,32 @@ final class CiiInvoiceReader
             taxRepresentative: $this->taxRepresentative($xpath),
             paymentMeans: $this->paymentMeans($xpath),
             sepaCreditorId: $this->value($xpath, '//ram:ApplicableHeaderTradeSettlement/ram:CreditorReferenceID'),
+            hasInvoicingPeriod: $this->node($xpath, '//ram:ApplicableHeaderTradeSettlement/ram:BillingSpecifiedPeriod') instanceof DOMElement,
+            invoicingPeriodStart: $this->date($this->value($xpath, '//ram:ApplicableHeaderTradeSettlement/ram:BillingSpecifiedPeriod/ram:StartDateTime/udt:DateTimeString')),
+            invoicingPeriodEnd: $this->date($this->value($xpath, '//ram:ApplicableHeaderTradeSettlement/ram:BillingSpecifiedPeriod/ram:EndDateTime/udt:DateTimeString')),
+            actualDeliveryDate: $this->date($this->value($xpath, '//ram:ApplicableHeaderTradeDelivery/ram:ActualDeliverySupplyChainEvent/ram:OccurrenceDateTime/udt:DateTimeString')),
+            deliverTo: $this->deliverTo($xpath),
+        );
+    }
+
+    /**
+     * The deliver-to address (BG-15) — in CII the group counts as present when
+     * the ShipToTradeParty carries a postal address.
+     */
+    private function deliverTo(DOMXPath $domxPath): ?Party
+    {
+        $address = $this->node($domxPath, '//ram:ApplicableHeaderTradeDelivery/ram:ShipToTradeParty/ram:PostalTradeAddress');
+
+        if (! $address instanceof DOMElement) {
+            return null;
+        }
+
+        return new Party(
+            name: $this->value($domxPath, '//ram:ApplicableHeaderTradeDelivery/ram:ShipToTradeParty/ram:Name'),
+            countryCode: $this->value($domxPath, 'ram:CountryID', $address),
+            street: $this->value($domxPath, 'ram:LineOne', $address),
+            city: $this->value($domxPath, 'ram:CityName', $address),
+            postCode: $this->value($domxPath, 'ram:PostcodeCode', $address),
         );
     }
 
@@ -230,6 +256,9 @@ final class CiiInvoiceReader
                 taxCategory: $this->value($domxPath, 'ram:SpecifiedLineTradeSettlement/ram:ApplicableTradeTax/ram:CategoryCode', $domElement),
                 taxRate: $this->value($domxPath, 'ram:SpecifiedLineTradeSettlement/ram:ApplicableTradeTax/ram:RateApplicablePercent', $domElement),
                 allowanceCharges: $this->lineAllowanceCharges($domxPath, $domElement),
+                hasPeriod: $this->node($domxPath, 'ram:SpecifiedLineTradeSettlement/ram:BillingSpecifiedPeriod', $domElement) instanceof DOMElement,
+                periodStart: $this->date($this->value($domxPath, 'ram:SpecifiedLineTradeSettlement/ram:BillingSpecifiedPeriod/ram:StartDateTime/udt:DateTimeString', $domElement)),
+                periodEnd: $this->date($this->value($domxPath, 'ram:SpecifiedLineTradeSettlement/ram:BillingSpecifiedPeriod/ram:EndDateTime/udt:DateTimeString', $domElement)),
             );
         }
 

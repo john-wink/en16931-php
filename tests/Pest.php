@@ -68,5 +68,11 @@ function makeInvoice(mixed ...$overrides): Invoice
         taxRepresentative: $pick('taxRepresentative', null),
         paymentMeans: $pick('paymentMeans', [new PaymentMeans(typeCode: '30', accountId: 'DE02120300000000202051', hasCreditTransfer: true)]),
         sepaCreditorId: $pick('sepaCreditorId', null),
+        hasInvoicingPeriod: $pick('hasInvoicingPeriod', false),
+        invoicingPeriodStart: $pick('invoicingPeriodStart', null),
+        invoicingPeriodEnd: $pick('invoicingPeriodEnd', null),
+        taxPointDateCode: $pick('taxPointDateCode', null),
+        actualDeliveryDate: $pick('actualDeliveryDate', '2026-01-20'),
+        deliverTo: $pick('deliverTo', null),
     );
 }

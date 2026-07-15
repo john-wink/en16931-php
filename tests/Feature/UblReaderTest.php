@@ -89,3 +89,15 @@ it('reads the payment means from UBL', function (): void {
         ->and($invoice->paymentMeans[0]->hasCardInformation)->toBeFalse()
         ->and($invoice->paymentMeans[0]->hasDirectDebit)->toBeFalse();
 });
+
+it('reads the invoicing period, delivery date and deliver-to address', function (): void {
+    $invoice = (new UblInvoiceReader)->read(ublFixture('taxrep-ubl.xml'));
+
+    expect($invoice->hasInvoicingPeriod)->toBeTrue()
+        ->and($invoice->invoicingPeriodStart)->toBe('2026-01-01')
+        ->and($invoice->invoicingPeriodEnd)->toBe('2026-01-31')
+        ->and($invoice->actualDeliveryDate)->toBe('2026-01-20')
+        ->and($invoice->deliverTo?->city)->toBe('Potsdam')
+        ->and($invoice->deliverTo?->postCode)->toBe('14467')
+        ->and($invoice->deliverTo?->countryCode)->toBe('DE');
+});

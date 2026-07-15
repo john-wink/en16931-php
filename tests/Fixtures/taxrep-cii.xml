@@ -35,7 +35,21 @@
                 </ram:SpecifiedTaxRegistration>
             </ram:SellerTaxRepresentativeTradeParty>
         </ram:ApplicableHeaderTradeAgreement>
+        <ram:ApplicableHeaderTradeDelivery>
+            <ram:ShipToTradeParty>
+                <ram:Name>Empfänger</ram:Name>
+                <ram:PostalTradeAddress>
+                    <ram:PostcodeCode>14467</ram:PostcodeCode>
+                    <ram:CityName>Potsdam</ram:CityName>
+                    <ram:CountryID>DE</ram:CountryID>
+                </ram:PostalTradeAddress>
+            </ram:ShipToTradeParty>
+        </ram:ApplicableHeaderTradeDelivery>
         <ram:ApplicableHeaderTradeSettlement>
+            <ram:BillingSpecifiedPeriod>
+                <ram:StartDateTime><udt:DateTimeString format="102">20260101</udt:DateTimeString></ram:StartDateTime>
+                <ram:EndDateTime><udt:DateTimeString format="102">20260131</udt:DateTimeString></ram:EndDateTime>
+            </ram:BillingSpecifiedPeriod>
             <ram:SpecifiedTradeAllowanceCharge>
                 <ram:ChargeIndicator><udt:Indicator>false</udt:Indicator></ram:ChargeIndicator>
                 <ram:ActualAmount>10.00</ram:ActualAmount>

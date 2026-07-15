@@ -39,6 +39,12 @@ final readonly class Invoice
         /** @var list<PaymentMeans> */
         public array $paymentMeans = [],        // BG-16
         public ?string $sepaCreditorId = null,  // BT-90 bank assigned creditor identifier
+        public bool $hasInvoicingPeriod = false, // BG-14 group present
+        public ?string $invoicingPeriodStart = null, // BT-73 (normalized to Y-m-d)
+        public ?string $invoicingPeriodEnd = null,   // BT-74 (normalized to Y-m-d)
+        public ?string $taxPointDateCode = null,     // BT-8 (UBL: InvoicePeriod/DescriptionCode)
+        public ?string $actualDeliveryDate = null,   // BT-72
+        public ?Party $deliverTo = null,             // BG-15 (BT-70 name / BT-75..80 address)
     ) {}
 
     public function hasCategory(string $category): bool

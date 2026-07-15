@@ -82,3 +82,14 @@ it('reads the payment means from CII', function (): void {
         ->and($invoice->paymentMeans[0]->hasCreditTransfer)->toBeTrue()
         ->and($invoice->paymentMeans[0]->hasDirectDebit)->toBeFalse();
 });
+
+it('reads the invoicing period, delivery date and deliver-to address', function (): void {
+    $invoice = (new CiiInvoiceReader)->read(ciiFixture('taxrep-cii.xml'));
+
+    expect($invoice->hasInvoicingPeriod)->toBeTrue()
+        ->and($invoice->invoicingPeriodStart)->toBe('2026-01-01')
+        ->and($invoice->invoicingPeriodEnd)->toBe('2026-01-31')
+        ->and($invoice->deliverTo?->name)->toBe('Empfänger')
+        ->and($invoice->deliverTo?->city)->toBe('Potsdam')
+        ->and($invoice->deliverTo?->countryCode)->toBe('DE');
+});

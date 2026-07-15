@@ -22,5 +22,8 @@ final readonly class InvoiceLine
         public ?string $taxCategory = null, // BT-151 line VAT category code
         public ?string $taxRate = null,     // BT-152 line VAT rate
         public array $allowanceCharges = [], // BG-27 / BG-28
+        public bool $hasPeriod = false,     // BG-26 group present
+        public ?string $periodStart = null, // BT-134 (normalized to Y-m-d)
+        public ?string $periodEnd = null,   // BT-135 (normalized to Y-m-d)
     ) {}
 }

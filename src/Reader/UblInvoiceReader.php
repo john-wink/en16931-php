@@ -7,9 +7,12 @@ namespace JohnWink\En16931\Reader;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
+use JohnWink\En16931\Model\Attachment;
 use JohnWink\En16931\Model\DocumentAllowanceCharge;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
+use JohnWink\En16931\Model\ItemAttribute;
+use JohnWink\En16931\Model\ItemClassification;
 use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\PaymentMeans;
@@ -35,18 +38,19 @@ final class UblInvoiceReader
         $xpath = $this->xpath($xml);
         $currency = $this->value($xpath, '/*/cbc:DocumentCurrencyCode');
         $taxTotal = $this->documentTaxTotal($xpath, $currency);
+        $taxCurrency = $this->value($xpath, '/*/cbc:TaxCurrencyCode');
 
         return new Invoice(
             number: $this->value($xpath, '/*/cbc:ID'),
             typeCode: $this->value($xpath, '/*/cbc:InvoiceTypeCode | /*/cbc:CreditNoteTypeCode'),
             issueDate: $this->value($xpath, '/*/cbc:IssueDate'),
             currency: $currency,
-            taxCurrency: $this->value($xpath, '/*/cbc:TaxCurrencyCode'),
+            taxCurrency: $taxCurrency,
             buyerReference: $this->value($xpath, '/*/cbc:BuyerReference'),
             customizationId: $this->value($xpath, '/*/cbc:CustomizationID'),
             seller: $this->party($xpath, '/*/cac:AccountingSupplierParty/cac:Party'),
             buyer: $this->party($xpath, '/*/cac:AccountingCustomerParty/cac:Party'),
-            totals: $this->totals($xpath, $taxTotal),
+            totals: $this->totals($xpath, $taxTotal, $taxCurrency),
             lines: $this->lines($xpath),
             taxSubtotals: $this->taxSubtotals($xpath, $taxTotal),
             notes: $this->notes($xpath),
@@ -62,7 +66,43 @@ final class UblInvoiceReader
             taxPointDateCode: $this->value($xpath, '/*/cac:InvoicePeriod/cbc:DescriptionCode'),
             actualDeliveryDate: $this->value($xpath, '/*/cac:Delivery/cbc:ActualDeliveryDate'),
             deliverTo: $this->deliverTo($xpath),
+            payee: $this->node($xpath, '/*/cac:PayeeParty') instanceof DOMElement ? $this->party($xpath, '/*/cac:PayeeParty') : null,
+            taxPointDate: $this->value($xpath, '/*/cbc:TaxPointDate'),
+            attachments: $this->attachments($xpath),
+            precedingInvoiceReferences: $this->precedingInvoiceReferences($xpath),
         );
+    }
+
+    /**
+     * @return list<Attachment>
+     */
+    private function attachments(DOMXPath $domxPath): array
+    {
+        $attachments = [];
+
+        foreach ($this->nodes($domxPath, '/*/cac:AdditionalDocumentReference') as $domElement) {
+            $attachments[] = new Attachment(
+                reference: $this->value($domxPath, 'cbc:ID', $domElement),
+                filename: $this->attribute($domxPath, 'cac:Attachment/cbc:EmbeddedDocumentBinaryObject', 'filename', $domElement),
+                mimeCode: $this->attribute($domxPath, 'cac:Attachment/cbc:EmbeddedDocumentBinaryObject', 'mimeCode', $domElement),
+            );
+        }
+
+        return $attachments;
+    }
+
+    /**
+     * @return list<string|null>
+     */
+    private function precedingInvoiceReferences(DOMXPath $domxPath): array
+    {
+        $references = [];
+
+        foreach ($this->nodes($domxPath, '/*/cac:BillingReference/cac:InvoiceDocumentReference') as $domElement) {
+            $references[] = $this->value($domxPath, 'cbc:ID', $domElement);
+        }
+
+        return $references;
     }
 
     /**
@@ -164,7 +204,7 @@ final class UblInvoiceReader
         );
     }
 
-    private function totals(DOMXPath $domxPath, ?DOMElement $domElement): Totals
+    private function totals(DOMXPath $domxPath, ?DOMElement $domElement, ?string $taxCurrency): Totals
     {
         $base = '/*/cac:LegalMonetaryTotal';
 
@@ -178,6 +218,7 @@ final class UblInvoiceReader
             paidAmount: $this->value($domxPath, "{$base}/cbc:PrepaidAmount"),
             roundingAmount: $this->value($domxPath, "{$base}/cbc:PayableRoundingAmount"),
             payableAmount: $this->value($domxPath, "{$base}/cbc:PayableAmount"),
+            taxTotalAccounting: $taxCurrency !== null ? $this->value($domxPath, "/*/cac:TaxTotal/cbc:TaxAmount[@currencyID=\"{$taxCurrency}\"]") : null,
         );
     }
 
@@ -224,6 +265,11 @@ final class UblInvoiceReader
                 hasPeriod: $this->node($domxPath, 'cac:InvoicePeriod', $domElement) instanceof DOMElement,
                 periodStart: $this->value($domxPath, 'cac:InvoicePeriod/cbc:StartDate', $domElement),
                 periodEnd: $this->value($domxPath, 'cac:InvoicePeriod/cbc:EndDate', $domElement),
+                grossPrice: $this->value($domxPath, 'cac:Price/cac:AllowanceCharge/cbc:BaseAmount', $domElement),
+                itemStandardId: $this->value($domxPath, 'cac:Item/cac:StandardItemIdentification/cbc:ID', $domElement),
+                itemStandardIdScheme: $this->attribute($domxPath, 'cac:Item/cac:StandardItemIdentification/cbc:ID', 'schemeID', $domElement),
+                itemClassifications: $this->itemClassifications($domxPath, $domElement),
+                attributes: $this->itemAttributes($domxPath, $domElement),
             );
         }
 
@@ -245,10 +291,45 @@ final class UblInvoiceReader
                 amount: $this->value($domxPath, 'cbc:Amount', $node),
                 reason: $this->value($domxPath, 'cbc:AllowanceChargeReason', $node),
                 reasonCode: $this->value($domxPath, 'cbc:AllowanceChargeReasonCode', $node),
+                baseAmount: $this->value($domxPath, 'cbc:BaseAmount', $node),
             );
         }
 
         return $result;
+    }
+
+    /**
+     * @return list<ItemClassification>
+     */
+    private function itemClassifications(DOMXPath $domxPath, DOMElement $domElement): array
+    {
+        $classifications = [];
+
+        foreach ($this->nodes($domxPath, 'cac:Item/cac:CommodityClassification/cbc:ItemClassificationCode', $domElement) as $node) {
+            $classifications[] = new ItemClassification(
+                code: $this->text($node),
+                scheme: $node->hasAttribute('listID') ? $node->getAttribute('listID') : null,
+            );
+        }
+
+        return $classifications;
+    }
+
+    /**
+     * @return list<ItemAttribute>
+     */
+    private function itemAttributes(DOMXPath $domxPath, DOMElement $domElement): array
+    {
+        $attributes = [];
+
+        foreach ($this->nodes($domxPath, 'cac:Item/cac:AdditionalItemProperty', $domElement) as $node) {
+            $attributes[] = new ItemAttribute(
+                name: $this->value($domxPath, 'cbc:Name', $node),
+                value: $this->value($domxPath, 'cbc:Value', $node),
+            );
+        }
+
+        return $attributes;
     }
 
     /**
@@ -293,6 +374,7 @@ final class UblInvoiceReader
                 taxRate: $this->value($domxPath, 'cac:TaxCategory/cbc:Percent', $domElement),
                 reason: $this->value($domxPath, 'cbc:AllowanceChargeReason', $domElement),
                 reasonCode: $this->value($domxPath, 'cbc:AllowanceChargeReasonCode', $domElement),
+                baseAmount: $this->value($domxPath, 'cbc:BaseAmount', $domElement),
             );
         }
 

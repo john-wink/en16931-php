@@ -101,3 +101,21 @@ it('reads the invoicing period, delivery date and deliver-to address', function 
         ->and($invoice->deliverTo?->postCode)->toBe('14467')
         ->and($invoice->deliverTo?->countryCode)->toBe('DE');
 });
+
+it('reads payee, attachments, preceding invoices and item details', function (): void {
+    $invoice = (new UblInvoiceReader)->read(ublFixture('taxrep-ubl.xml'));
+
+    expect($invoice->payee?->name)->toBe('Factoring AG')
+        ->and($invoice->taxPointDate)->toBe('2026-01-15')
+        ->and($invoice->attachments[0]->reference)->toBe('DOC-1')
+        ->and($invoice->attachments[0]->filename)->toBe('timesheet.pdf')
+        ->and($invoice->attachments[0]->mimeCode)->toBe('application/pdf')
+        ->and($invoice->precedingInvoiceReferences)->toBe(['R-2025-9'])
+        ->and($invoice->lines[0]->itemStandardId)->toBe('4012345001235')
+        ->and($invoice->lines[0]->itemStandardIdScheme)->toBe('0160')
+        ->and($invoice->lines[0]->itemClassifications[0]->scheme)->toBe('TST')
+        ->and($invoice->lines[0]->attributes[0]->name)->toBe('Farbe')
+        ->and($invoice->lines[0]->attributes[0]->value)->toBe('Blau')
+        ->and($invoice->lines[0]->grossPrice)->toBe('120.00')
+        ->and($invoice->lines[0]->allowanceCharges[0]->baseAmount)->toBe('105.00');
+});

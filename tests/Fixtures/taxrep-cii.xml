@@ -25,6 +25,11 @@
                     <ram:ID schemeID="FC">123/456/7890</ram:ID>
                 </ram:SpecifiedTaxRegistration>
             </ram:SellerTradeParty>
+            <ram:AdditionalReferencedDocument>
+                <ram:IssuerAssignedID>DOC-1</ram:IssuerAssignedID>
+                <ram:TypeCode>916</ram:TypeCode>
+                <ram:AttachmentBinaryObject mimeCode="application/pdf" filename="timesheet.pdf">UjBsR09EbGhjZ0dTQUxNQUFBUUNBRU1tQ1p0dU1GUXhEUzhi</ram:AttachmentBinaryObject>
+            </ram:AdditionalReferencedDocument>
             <ram:SellerTaxRepresentativeTradeParty>
                 <ram:Name>Vertreter GmbH</ram:Name>
                 <ram:PostalTradeAddress>
@@ -46,6 +51,12 @@
             </ram:ShipToTradeParty>
         </ram:ApplicableHeaderTradeDelivery>
         <ram:ApplicableHeaderTradeSettlement>
+            <ram:PayeeTradeParty>
+                <ram:Name>Factoring AG</ram:Name>
+            </ram:PayeeTradeParty>
+            <ram:InvoiceReferencedDocument>
+                <ram:IssuerAssignedID>R-2025-9</ram:IssuerAssignedID>
+            </ram:InvoiceReferencedDocument>
             <ram:BillingSpecifiedPeriod>
                 <ram:StartDateTime><udt:DateTimeString format="102">20260101</udt:DateTimeString></ram:StartDateTime>
                 <ram:EndDateTime><udt:DateTimeString format="102">20260131</udt:DateTimeString></ram:EndDateTime>

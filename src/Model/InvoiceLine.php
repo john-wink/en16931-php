@@ -25,5 +25,12 @@ final readonly class InvoiceLine
         public bool $hasPeriod = false,     // BG-26 group present
         public ?string $periodStart = null, // BT-134 (normalized to Y-m-d)
         public ?string $periodEnd = null,   // BT-135 (normalized to Y-m-d)
+        public ?string $grossPrice = null,  // BT-148 item gross price
+        public ?string $itemStandardId = null,       // BT-157
+        public ?string $itemStandardIdScheme = null, // BT-157-1 (@schemeID)
+        /** @var list<ItemClassification> */
+        public array $itemClassifications = [],      // BT-158
+        /** @var list<ItemAttribute> */
+        public array $attributes = [],               // BG-32
     ) {}
 }

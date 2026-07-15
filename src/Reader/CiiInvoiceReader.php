@@ -7,9 +7,12 @@ namespace JohnWink\En16931\Reader;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
+use JohnWink\En16931\Model\Attachment;
 use JohnWink\En16931\Model\DocumentAllowanceCharge;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
+use JohnWink\En16931\Model\ItemAttribute;
+use JohnWink\En16931\Model\ItemClassification;
 use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\PaymentMeans;
@@ -37,18 +40,19 @@ final class CiiInvoiceReader
         $xpath = $this->xpath($xml);
 
         $currency = $this->value($xpath, '//ram:ApplicableHeaderTradeSettlement/ram:InvoiceCurrencyCode');
+        $taxCurrency = $this->value($xpath, '//ram:ApplicableHeaderTradeSettlement/ram:TaxCurrencyCode');
 
         return new Invoice(
             number: $this->value($xpath, '/rsm:CrossIndustryInvoice/rsm:ExchangedDocument/ram:ID'),
             typeCode: $this->value($xpath, '/rsm:CrossIndustryInvoice/rsm:ExchangedDocument/ram:TypeCode'),
             issueDate: $this->date($this->value($xpath, '//rsm:ExchangedDocument/ram:IssueDateTime/udt:DateTimeString')),
             currency: $currency,
-            taxCurrency: $this->value($xpath, '//ram:ApplicableHeaderTradeSettlement/ram:TaxCurrencyCode'),
+            taxCurrency: $taxCurrency,
             buyerReference: $this->value($xpath, '//ram:ApplicableHeaderTradeAgreement/ram:BuyerReference'),
             customizationId: $this->value($xpath, '//ram:GuidelineSpecifiedDocumentContextParameter/ram:ID'),
             seller: $this->party($xpath, '//ram:ApplicableHeaderTradeAgreement/ram:SellerTradeParty'),
             buyer: $this->party($xpath, '//ram:ApplicableHeaderTradeAgreement/ram:BuyerTradeParty'),
-            totals: $this->totals($xpath, $currency),
+            totals: $this->totals($xpath, $currency, $taxCurrency),
             lines: $this->lines($xpath),
             taxSubtotals: $this->taxSubtotals($xpath),
             notes: $this->notes($xpath),
@@ -63,7 +67,45 @@ final class CiiInvoiceReader
             invoicingPeriodEnd: $this->date($this->value($xpath, '//ram:ApplicableHeaderTradeSettlement/ram:BillingSpecifiedPeriod/ram:EndDateTime/udt:DateTimeString')),
             actualDeliveryDate: $this->date($this->value($xpath, '//ram:ApplicableHeaderTradeDelivery/ram:ActualDeliverySupplyChainEvent/ram:OccurrenceDateTime/udt:DateTimeString')),
             deliverTo: $this->deliverTo($xpath),
+            payee: $this->node($xpath, '//ram:ApplicableHeaderTradeSettlement/ram:PayeeTradeParty') instanceof DOMElement ? $this->party($xpath, '//ram:ApplicableHeaderTradeSettlement/ram:PayeeTradeParty') : null,
+            taxPointDate: $this->date($this->value($xpath, '//ram:ApplicableHeaderTradeSettlement/ram:ApplicableTradeTax/ram:TaxPointDate/udt:DateString')),
+            attachments: $this->attachments($xpath),
+            precedingInvoiceReferences: $this->precedingInvoiceReferences($xpath),
         );
+    }
+
+    /**
+     * BG-24: additional referenced documents of type 916 (supporting documents).
+     *
+     * @return list<Attachment>
+     */
+    private function attachments(DOMXPath $domxPath): array
+    {
+        $attachments = [];
+
+        foreach ($this->nodes($domxPath, '//ram:ApplicableHeaderTradeAgreement/ram:AdditionalReferencedDocument[ram:TypeCode="916"]') as $domElement) {
+            $attachments[] = new Attachment(
+                reference: $this->value($domxPath, 'ram:IssuerAssignedID', $domElement),
+                filename: $this->attribute($domxPath, 'ram:AttachmentBinaryObject', 'filename', $domElement),
+                mimeCode: $this->attribute($domxPath, 'ram:AttachmentBinaryObject', 'mimeCode', $domElement),
+            );
+        }
+
+        return $attachments;
+    }
+
+    /**
+     * @return list<string|null>
+     */
+    private function precedingInvoiceReferences(DOMXPath $domxPath): array
+    {
+        $references = [];
+
+        foreach ($this->nodes($domxPath, '//ram:ApplicableHeaderTradeSettlement/ram:InvoiceReferencedDocument') as $domElement) {
+            $references[] = $this->value($domxPath, 'ram:IssuerAssignedID', $domElement);
+        }
+
+        return $references;
     }
 
     /**
@@ -145,6 +187,7 @@ final class CiiInvoiceReader
                 taxRate: $this->value($domxPath, 'ram:CategoryTradeTax/ram:RateApplicablePercent', $domElement),
                 reason: $this->value($domxPath, 'ram:Reason', $domElement),
                 reasonCode: $this->value($domxPath, 'ram:ReasonCode', $domElement),
+                baseAmount: $this->value($domxPath, 'ram:BasisAmount', $domElement),
             );
         }
 
@@ -199,7 +242,7 @@ final class CiiInvoiceReader
         );
     }
 
-    private function totals(DOMXPath $domxPath, ?string $currency): Totals
+    private function totals(DOMXPath $domxPath, ?string $currency, ?string $taxCurrency): Totals
     {
         $base = '//ram:SpecifiedTradeSettlementHeaderMonetarySummation';
 
@@ -213,6 +256,7 @@ final class CiiInvoiceReader
             paidAmount: $this->value($domxPath, "{$base}/ram:TotalPrepaidAmount"),
             roundingAmount: $this->value($domxPath, "{$base}/ram:RoundingAmount"),
             payableAmount: $this->value($domxPath, "{$base}/ram:DuePayableAmount"),
+            taxTotalAccounting: $taxCurrency !== null ? $this->value($domxPath, "{$base}/ram:TaxTotalAmount[@currencyID=\"{$taxCurrency}\"]") : null,
         );
     }
 
@@ -259,6 +303,11 @@ final class CiiInvoiceReader
                 hasPeriod: $this->node($domxPath, 'ram:SpecifiedLineTradeSettlement/ram:BillingSpecifiedPeriod', $domElement) instanceof DOMElement,
                 periodStart: $this->date($this->value($domxPath, 'ram:SpecifiedLineTradeSettlement/ram:BillingSpecifiedPeriod/ram:StartDateTime/udt:DateTimeString', $domElement)),
                 periodEnd: $this->date($this->value($domxPath, 'ram:SpecifiedLineTradeSettlement/ram:BillingSpecifiedPeriod/ram:EndDateTime/udt:DateTimeString', $domElement)),
+                grossPrice: $this->value($domxPath, 'ram:SpecifiedLineTradeAgreement/ram:GrossPriceProductTradePrice/ram:ChargeAmount', $domElement),
+                itemStandardId: $this->value($domxPath, 'ram:SpecifiedTradeProduct/ram:GlobalID', $domElement),
+                itemStandardIdScheme: $this->attribute($domxPath, 'ram:SpecifiedTradeProduct/ram:GlobalID', 'schemeID', $domElement),
+                itemClassifications: $this->itemClassifications($domxPath, $domElement),
+                attributes: $this->itemAttributes($domxPath, $domElement),
             );
         }
 
@@ -280,10 +329,45 @@ final class CiiInvoiceReader
                 amount: $this->value($domxPath, 'ram:ActualAmount', $node),
                 reason: $this->value($domxPath, 'ram:Reason', $node),
                 reasonCode: $this->value($domxPath, 'ram:ReasonCode', $node),
+                baseAmount: $this->value($domxPath, 'ram:BasisAmount', $node),
             );
         }
 
         return $result;
+    }
+
+    /**
+     * @return list<ItemClassification>
+     */
+    private function itemClassifications(DOMXPath $domxPath, DOMElement $domElement): array
+    {
+        $classifications = [];
+
+        foreach ($this->nodes($domxPath, 'ram:SpecifiedTradeProduct/ram:DesignatedProductClassification/ram:ClassCode', $domElement) as $node) {
+            $classifications[] = new ItemClassification(
+                code: $this->text($node),
+                scheme: $node->hasAttribute('listID') ? $node->getAttribute('listID') : null,
+            );
+        }
+
+        return $classifications;
+    }
+
+    /**
+     * @return list<ItemAttribute>
+     */
+    private function itemAttributes(DOMXPath $domxPath, DOMElement $domElement): array
+    {
+        $attributes = [];
+
+        foreach ($this->nodes($domxPath, 'ram:SpecifiedTradeProduct/ram:ApplicableProductCharacteristic', $domElement) as $node) {
+            $attributes[] = new ItemAttribute(
+                name: $this->value($domxPath, 'ram:Description', $node),
+                value: $this->value($domxPath, 'ram:Value', $node),
+            );
+        }
+
+        return $attributes;
     }
 
     /**

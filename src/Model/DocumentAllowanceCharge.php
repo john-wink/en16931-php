@@ -17,5 +17,6 @@ final readonly class DocumentAllowanceCharge
         public ?string $taxRate = null,       // BT-96 / BT-103
         public ?string $reason = null,        // BT-97 / BT-104
         public ?string $reasonCode = null,    // BT-98 / BT-105
+        public ?string $baseAmount = null,    // BT-93 / BT-100
     ) {}
 }

@@ -15,5 +15,6 @@ final readonly class LineAllowanceCharge
         public ?string $amount = null,      // BT-136 (allowance) / BT-141 (charge)
         public ?string $reason = null,      // BT-139 / BT-144
         public ?string $reasonCode = null,  // BT-140 / BT-145
+        public ?string $baseAmount = null,  // BT-137 / BT-142
     ) {}
 }

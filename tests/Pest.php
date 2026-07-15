@@ -74,5 +74,9 @@ function makeInvoice(mixed ...$overrides): Invoice
         taxPointDateCode: $pick('taxPointDateCode', null),
         actualDeliveryDate: $pick('actualDeliveryDate', '2026-01-20'),
         deliverTo: $pick('deliverTo', null),
+        payee: $pick('payee', null),
+        taxPointDate: $pick('taxPointDate', null),
+        attachments: $pick('attachments', []),
+        precedingInvoiceReferences: $pick('precedingInvoiceReferences', []),
     );
 }

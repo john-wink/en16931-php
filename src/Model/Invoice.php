@@ -45,6 +45,12 @@ final readonly class Invoice
         public ?string $taxPointDateCode = null,     // BT-8 (UBL: InvoicePeriod/DescriptionCode)
         public ?string $actualDeliveryDate = null,   // BT-72
         public ?Party $deliverTo = null,             // BG-15 (BT-70 name / BT-75..80 address)
+        public ?Party $payee = null,                 // BG-10 (BT-59 name / BT-60 id / BT-61 legal reg)
+        public ?string $taxPointDate = null,         // BT-7
+        /** @var list<Attachment> */
+        public array $attachments = [],              // BG-24 (and other document references)
+        /** @var list<string|null> */
+        public array $precedingInvoiceReferences = [], // BG-3 (BT-25 per entry)
     ) {}
 
     public function hasCategory(string $category): bool

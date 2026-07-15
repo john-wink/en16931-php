@@ -26,6 +26,19 @@
             </cac:PartyTaxScheme>
         </cac:Party>
     </cac:AccountingSupplierParty>
+    <cbc:TaxPointDate>2026-01-15</cbc:TaxPointDate>
+    <cac:BillingReference>
+        <cac:InvoiceDocumentReference><cbc:ID>R-2025-9</cbc:ID></cac:InvoiceDocumentReference>
+    </cac:BillingReference>
+    <cac:AdditionalDocumentReference>
+        <cbc:ID>DOC-1</cbc:ID>
+        <cac:Attachment>
+            <cbc:EmbeddedDocumentBinaryObject mimeCode="application/pdf" filename="timesheet.pdf">UjBsR09EbGhjZ0dTQUxNQUFBUUNBRU1tQ1p0dU1GUXhEUzhi</cbc:EmbeddedDocumentBinaryObject>
+        </cac:Attachment>
+    </cac:AdditionalDocumentReference>
+    <cac:PayeeParty>
+        <cac:PartyName><cbc:Name>Factoring AG</cbc:Name></cac:PartyName>
+    </cac:PayeeParty>
     <cac:TaxRepresentativeParty>
         <cac:PartyName><cbc:Name>Vertreter GmbH</cbc:Name></cac:PartyName>
         <cac:PostalAddress>
@@ -51,4 +64,29 @@
         <cbc:AllowanceChargeReasonCode>95</cbc:AllowanceChargeReasonCode>
         <cbc:Amount currencyID="EUR">10.00</cbc:Amount>
     </cac:AllowanceCharge>
+    <cac:InvoiceLine>
+        <cbc:ID>1</cbc:ID>
+        <cbc:InvoicedQuantity unitCode="C62">1</cbc:InvoicedQuantity>
+        <cbc:LineExtensionAmount currencyID="EUR">100.00</cbc:LineExtensionAmount>
+        <cac:Item>
+            <cbc:Name>Beratung</cbc:Name>
+            <cac:StandardItemIdentification><cbc:ID schemeID="0160">4012345001235</cbc:ID></cac:StandardItemIdentification>
+            <cac:CommodityClassification><cbc:ItemClassificationCode listID="TST">10201000</cbc:ItemClassificationCode></cac:CommodityClassification>
+            <cac:AdditionalItemProperty><cbc:Name>Farbe</cbc:Name><cbc:Value>Blau</cbc:Value></cac:AdditionalItemProperty>
+        </cac:Item>
+        <cac:AllowanceCharge>
+            <cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+            <cbc:AllowanceChargeReason>Rabatt</cbc:AllowanceChargeReason>
+            <cbc:Amount currencyID="EUR">5.00</cbc:Amount>
+            <cbc:BaseAmount currencyID="EUR">105.00</cbc:BaseAmount>
+        </cac:AllowanceCharge>
+        <cac:Price>
+            <cbc:PriceAmount currencyID="EUR">100.00</cbc:PriceAmount>
+            <cac:AllowanceCharge>
+                <cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+                <cbc:Amount currencyID="EUR">20.00</cbc:Amount>
+                <cbc:BaseAmount currencyID="EUR">120.00</cbc:BaseAmount>
+            </cac:AllowanceCharge>
+        </cac:Price>
+    </cac:InvoiceLine>
 </Invoice>

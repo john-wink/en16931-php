@@ -20,5 +20,6 @@ final readonly class Totals
         public ?string $paidAmount = null,      // BT-113 prepaid amount
         public ?string $roundingAmount = null,  // BT-114 rounding amount
         public ?string $payableAmount = null,   // BT-115 amount due for payment
+        public ?string $taxTotalAccounting = null, // BT-111 total VAT in accounting currency
     ) {}
 }

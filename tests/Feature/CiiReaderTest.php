@@ -93,3 +93,13 @@ it('reads the invoicing period, delivery date and deliver-to address', function 
         ->and($invoice->deliverTo?->city)->toBe('Potsdam')
         ->and($invoice->deliverTo?->countryCode)->toBe('DE');
 });
+
+it('reads payee, attachments and preceding invoices from CII', function (): void {
+    $invoice = (new CiiInvoiceReader)->read(ciiFixture('taxrep-cii.xml'));
+
+    expect($invoice->payee?->name)->toBe('Factoring AG')
+        ->and($invoice->attachments[0]->reference)->toBe('DOC-1')
+        ->and($invoice->attachments[0]->filename)->toBe('timesheet.pdf')
+        ->and($invoice->attachments[0]->mimeCode)->toBe('application/pdf')
+        ->and($invoice->precedingInvoiceReferences)->toBe(['R-2025-9']);
+});

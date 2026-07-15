@@ -9,10 +9,10 @@
 
 | Rule group | ✅ | 🟡 | ❌ | Total |
 |---|--:|--:|--:|--:|
-| BR — core document & line rules | 42 | 0 | 16 | 58 |
+| BR — core document & line rules | 46 | 0 | 12 | 58 |
 | BR-CO — conditions & calculations | 16 | 0 | 7 | 23 |
 | BR-DEC — decimals | 14 | 0 | 7 | 21 |
-| BR-CL — code lists | 4 | 1 | 18 | 23 |
+| BR-CL — code lists | 5 | 1 | 17 | 23 |
 | BR-AE — Reverse charge | 10 | 0 | 0 | 10 |
 | BR-AF — IGIC (Canary Islands) | 9 | 0 | 1 | 10 |
 | BR-AG — IPSI (Ceuta/Melilla) | 9 | 0 | 1 | 10 |
@@ -23,9 +23,9 @@
 | BR-G — Export outside the EU | 10 | 0 | 0 | 10 |
 | BR-O — Not subject to VAT | 14 | 0 | 0 | 14 |
 | BR-B — Split payment (Italy) | 2 | 0 | 0 | 2 |
-| BR-DE — XRechnung CIUS | 15 | 0 | 26 | 41 |
+| BR-DE — XRechnung CIUS | 26 | 0 | 15 | 41 |
 | BR-DEX — XRechnung Extension | 0 | 0 | 14 | 14 |
-| **Total** | **185** | **1** | **92** | **278** |
+| **Total** | **201** | **1** | **76** | **278** |
 
 ## BR — core document & line rules
 
@@ -75,16 +75,16 @@
 | BR-46 | ✅ | fatal | Each VAT breakdown (BG-23) shall have a VAT category tax amount (BT-117). |  |
 | BR-47 | ✅ | fatal | Each VAT breakdown (BG-23) shall be defined through a VAT category code (BT-118). |  |
 | BR-48 | ✅ | fatal | Each VAT breakdown (BG-23) shall have a VAT category rate (BT-119), except if the Invoice is not subject to VAT. |  |
-| BR-49 | ❌ | fatal | A Payment instruction (BG-16) shall specify the Payment means type code (BT-81). |  |
-| BR-50 | ❌ | fatal | A Payment account identifier (BT-84) shall be present if Credit transfer (BG-17) information is provided in the Invoice. |  |
-| BR-51 | ❌ | warning | In accordance with card payments security standards an invoice should never include a full card primary account number (BT-87). At the moment PCI Security Standards Council has defined that the first 6 digits and last 4 digits are the maximum number of digits to be shown. |  |
+| BR-49 | ✅ | fatal | A Payment instruction (BG-16) shall specify the Payment means type code (BT-81). |  |
+| BR-50 | ✅ | fatal | A Payment account identifier (BT-84) shall be present if Credit transfer (BG-17) information is provided in the Invoice. |  |
+| BR-51 | ✅ | warning | In accordance with card payments security standards an invoice should never include a full card primary account number (BT-87). At the moment PCI Security Standards Council has defined that the first 6 digits and last 4 digits are the maximum number of digits to be shown. |  |
 | BR-52 | ❌ | fatal | Each Additional supporting document (BG-24) shall contain a Supporting document reference (BT-122). |  |
 | BR-53 | ❌ | fatal | If the VAT accounting currency code (BT-6) is present, then the Invoice total VAT amount in accounting currency (BT-111) shall be provided. |  |
 | BR-54 | ❌ | fatal | Each Item attribute (BG-32) shall contain an Item attribute name (BT-160) and an Item attribute value (BT-161). |  |
 | BR-55 | ❌ | fatal | Each Preceding Invoice reference (BG-3) shall contain a Preceding Invoice reference (BT-25). |  |
 | BR-56 | ✅ | fatal | Each Seller tax representative party (BG-11) shall have a Seller tax representative VAT identifier (BT-63). |  |
 | BR-57 | ❌ | fatal | Each Deliver to address (BG-15) shall contain a Deliver to country code (BT-80). |  |
-| BR-61 | ❌ | fatal | If the Payment means type code (BT-81) means SEPA credit transfer, Local credit transfer or Non-SEPA international credit transfer, the Payment account identifier (BT-84) shall be present. |  |
+| BR-61 | ✅ | fatal | If the Payment means type code (BT-81) means SEPA credit transfer, Local credit transfer or Non-SEPA international credit transfer, the Payment account identifier (BT-84) shall be present. |  |
 | BR-62 | ✅ | fatal | The Seller electronic address (BT-34) shall have a Scheme identifier. |  |
 | BR-63 | ✅ | fatal | The Buyer electronic address (BT-49) shall have a Scheme identifier. |  |
 | BR-64 | ❌ | fatal | The Item standard identifier (BT-157) shall have a Scheme identifier. |  |
@@ -160,7 +160,7 @@
 | BR-CL-13 | ❌ | fatal | Item classification identifier identification scheme identifier MUST be coded using one of the UNTDID 7143 list. |  |
 | BR-CL-14 | 🟡 | fatal | Country codes in an invoice MUST be coded using ISO code list 3166-1 | Checked for the seller (BT-40), buyer (BT-55) and tax representative (BT-69) countries; BT-80 (deliver-to) is not modelled yet. |
 | BR-CL-15 | ❌ | fatal | Country codes in an invoice MUST be coded using ISO code list 3166-1 |  |
-| BR-CL-16 | ❌ | fatal | Payment means in an invoice MUST be coded using UNCL4461 code list |  |
+| BR-CL-16 | ✅ | fatal | Payment means in an invoice MUST be coded using UNCL4461 code list |  |
 | BR-CL-17 | ✅ | fatal | Invoice tax categories MUST be coded using UNCL5305 code list |  |
 | BR-CL-18 | ❌ | fatal | Invoice tax categories MUST be coded using UNCL5305 code list |  |
 | BR-CL-19 | ❌ | fatal | Coded allowance reasons MUST belong to the UNCL 5189 code list |  |
@@ -324,7 +324,7 @@
 
 | Rule | Status | Flag | Official text | Note |
 |---|:-:|---|---|---|
-| BR-DE-1 | ❌ | fatal | Eine Rechnung (INVOICE) muss Angaben zu "PAYMENT INSTRUCTIONS" (BG-16) enthalten. |  |
+| BR-DE-1 | ✅ | fatal | Eine Rechnung (INVOICE) muss Angaben zu "PAYMENT INSTRUCTIONS" (BG-16) enthalten. |  |
 | BR-DE-2 | ✅ | fatal | Die Gruppe "SELLER CONTACT" (BG-6) muss übermittelt werden. |  |
 | BR-DE-3 | ✅ | fatal | Das Element "Seller city" (BT-37) muss übermittelt werden. |  |
 | BR-DE-4 | ✅ | fatal | Das Element "Seller post code" (BT-38) muss übermittelt werden. |  |
@@ -340,21 +340,21 @@
 | BR-DE-16 | ✅ | fatal | Wenn in einer Rechnung die Steuercodes S, Z, E, AE, K, G, L oder M verwendet werden, muss mindestens eines der Elemente "Seller VAT identifier" (BT-31), "Seller tax registration identifier" (BT-32) oder "SELLER TAX REPRESENTATIVE PARTY" (BG-11) übermittelt werden. |  |
 | BR-DE-17 | ✅ | warning | Mit dem Element "Invoice type code" (BT-3) sollen ausschließlich folgende Codes aus der Codeliste UNTDID 1001 übermittelt werden: 326 (Partial invoice), 380 (Commercial invoice), 384 (Corrected invoice), 389 (Self-billed invoice) und 381 (Credit note),875 (Partial construction invoice), 876 (Partial final construction invoice), 877 (Final construction invoice). |  |
 | BR-DE-18 | ✅ | fatal | Skonto Zeilen in müssen diesem regulärem Ausdruck entsprechen: . Die Informationen zur Gewährung von Skonto müssen wie folgt im Element "Payment terms" (BT-20) übermittelt werden: Anzugeben ist im ersten Segment "SKONTO", im zweiten "TAGE=n", im dritten "PROZENT=n". Prozentzahlen sind ohne Vorzeichen sowie mit Punkt getrennt von zwei Nachkommastellen anzugeben. Liegt dem zu berechnenden Betrag nicht BT-115, "fälliger Betrag" zugrunde, sondern nur ein Teil des fälligen Betrags der Rechnung, ist der Grundwert zur Berechnung von Skonto als viertes Segment "BASISBETRAG=n" gemäß dem semantischen Datentypen Amount anzugeben. Jeder Eintrag beginnt mit einer #, die Segmente sind mit einer # getrennt und eine Zeile schließt mit einer # ab. Am Ende einer vollständigen Skontoangabe muss ein XML-konformer Zeilenumbruch folgen. Alle Angaben zur Gewährung von Skonto müssen in Großbuchstaben gemacht werden. Zusätzliches Whitespace (Leerzeichen, Tabulatoren oder Zeilenumbrüche) ist nicht zulässig. Andere Zeichen oder Texte als in den oberen Vorgaben genannt sind nicht zulässig. |  |
-| BR-DE-19 | ❌ | warning | "Payment account identifier" (BT-84) soll eine korrekte IBAN enthalten, wenn in "Payment means type code" (BT-81) mit dem Code 58 SEPA als Zahlungsmittel gefordert wird. |  |
-| BR-DE-20 | ❌ | warning | "Debited account identifier" (BT-91) soll eine korrekte IBAN enthalten, wenn in "Payment means type code" (BT-81) mit dem Code 59 SEPA als Zahlungsmittel gefordert wird. |  |
+| BR-DE-19 | ✅ | warning | "Payment account identifier" (BT-84) soll eine korrekte IBAN enthalten, wenn in "Payment means type code" (BT-81) mit dem Code 58 SEPA als Zahlungsmittel gefordert wird. |  |
+| BR-DE-20 | ✅ | warning | "Debited account identifier" (BT-91) soll eine korrekte IBAN enthalten, wenn in "Payment means type code" (BT-81) mit dem Code 59 SEPA als Zahlungsmittel gefordert wird. |  |
 | BR-DE-21 | ✅ | warning | Das Element "Specification identifier" (BT-24) soll syntaktisch der Kennung des Standards XRechnung entsprechen. |  |
 | BR-DE-22 | ❌ | fatal | Das "filename"-Attribut aller "EmbeddedDocumentBinaryObject"-Elemente muss eindeutig sein |  |
-| BR-DE-23-a | ❌ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Überweisungen enthält (30, 58), muss BG-17 "CREDIT TRANSFER" übermittelt werden. |  |
-| BR-DE-23-b | ❌ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Überweisungen enthält (30, 58), dürfen BG-18 und BG-19 nicht übermittelt werden. |  |
-| BR-DE-24-a | ❌ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Kartenzahlungen enthält (48, 54, 55), muss genau BG-18 "PAYMENT CARD INFORMATION" übermittelt werden. |  |
-| BR-DE-24-b | ❌ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Kartenzahlungen enthält (48, 54, 55), dürfen BG-17 und BG-19 nicht übermittelt werden. |  |
-| BR-DE-25-a | ❌ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Lastschriften enthält (59), muss genau BG-19 "DIRECT DEBIT" übermittelt werden. |  |
-| BR-DE-25-b | ❌ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Lastschriften enthält (59), dürfen BG-17 und BG-18 nicht übermittelt werden. |  |
+| BR-DE-23-a | ✅ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Überweisungen enthält (30, 58), muss BG-17 "CREDIT TRANSFER" übermittelt werden. |  |
+| BR-DE-23-b | ✅ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Überweisungen enthält (30, 58), dürfen BG-18 und BG-19 nicht übermittelt werden. |  |
+| BR-DE-24-a | ✅ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Kartenzahlungen enthält (48, 54, 55), muss genau BG-18 "PAYMENT CARD INFORMATION" übermittelt werden. |  |
+| BR-DE-24-b | ✅ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Kartenzahlungen enthält (48, 54, 55), dürfen BG-17 und BG-19 nicht übermittelt werden. |  |
+| BR-DE-25-a | ✅ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Lastschriften enthält (59), muss genau BG-19 "DIRECT DEBIT" übermittelt werden. |  |
+| BR-DE-25-b | ✅ | fatal | Wenn BT-81 "Payment means type code" einen Schlüssel für Lastschriften enthält (59), dürfen BG-17 und BG-18 nicht übermittelt werden. |  |
 | BR-DE-26 | ❌ | warning | Wenn im Element "Invoice type code" (BT-3) der Code 384 (Corrected invoice) übergeben wird, soll PRECEDING INVOICE REFERENCE BG-3 mind. einmal vorhanden sein. |  |
 | BR-DE-27 | ✅ | warning | In BT-42 sollen mindestens drei Ziffern enthalten sein. |  |
 | BR-DE-28 | ✅ | warning | In BT-43 soll genau ein @-Zeichen enthalten sein, welches nicht von einem Leerzeichen, einem Punkt, aber mindestens zwei Zeichen auf beiden Seiten flankiert werden soll. Ein Punkt sollte nicht am Anfang oder am Ende stehen. |  |
-| BR-DE-30 | ❌ | fatal | Wenn "DIRECT DEBIT" BG-19 vorhanden ist, dann muss "Bank assigned creditor identifier" BT-90 übermittelt werden. |  |
-| BR-DE-31 | ❌ | fatal | Wenn "DIRECT DEBIT" BG-19 vorhanden ist, dann muss "Debited account identifier" BT-91 übermittelt werden. |  |
+| BR-DE-30 | ✅ | fatal | Wenn "DIRECT DEBIT" BG-19 vorhanden ist, dann muss "Bank assigned creditor identifier" BT-90 übermittelt werden. |  |
+| BR-DE-31 | ✅ | fatal | Wenn "DIRECT DEBIT" BG-19 vorhanden ist, dann muss "Debited account identifier" BT-91 übermittelt werden. |  |
 | BR-DE-CVD-01 | ❌ | fatal | Das Element "Contract reference" (BT-12) muss übermittelt werden. |  |
 | BR-DE-CVD-02 | ❌ | fatal | Das Element "Tender or lot reference" (BT-17) muss übermittelt werden. |  |
 | BR-DE-CVD-03 | ❌ | fatal | In einer Rechnung muss mindestens eine INVOICE LINE (BG-25) enthalten sein, in der der Scheme identifier von "Item classification identifier" (BT-158) den Wert 'CVD' und der "Item attribute name" (BT-160) den Wert 'cva' enthält. |  |

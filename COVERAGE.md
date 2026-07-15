@@ -14,8 +14,8 @@
 | BR-DEC — decimals | 21 | 0 | 0 | 21 |
 | BR-CL — code lists | 23 | 0 | 0 | 23 |
 | BR-AE — Reverse charge | 10 | 0 | 0 | 10 |
-| BR-AF — IGIC (Canary Islands) | 9 | 0 | 1 | 10 |
-| BR-AG — IPSI (Ceuta/Melilla) | 9 | 0 | 1 | 10 |
+| BR-AF — IGIC (Canary Islands) | 10 | 0 | 0 | 10 |
+| BR-AG — IPSI (Ceuta/Melilla) | 10 | 0 | 0 | 10 |
 | BR-IC — Intra-community supply | 12 | 0 | 0 | 12 |
 | BR-S — Standard rated | 10 | 0 | 0 | 10 |
 | BR-Z — Zero rated | 10 | 0 | 0 | 10 |
@@ -23,9 +23,9 @@
 | BR-G — Export outside the EU | 10 | 0 | 0 | 10 |
 | BR-O — Not subject to VAT | 14 | 0 | 0 | 14 |
 | BR-B — Split payment (Italy) | 2 | 0 | 0 | 2 |
-| BR-DE — XRechnung CIUS | 31 | 0 | 10 | 41 |
-| BR-DEX — XRechnung Extension | 0 | 0 | 14 | 14 |
-| **Total** | **252** | **0** | **26** | **278** |
+| BR-DE — XRechnung CIUS | 41 | 0 | 0 | 41 |
+| BR-DEX — XRechnung Extension | 14 | 0 | 0 | 14 |
+| **Total** | **278** | **0** | **0** | **278** |
 
 ## BR — core document & line rules
 
@@ -198,7 +198,7 @@
 | BR-AF-05 | ✅ | fatal | In an Invoice line (BG-25) where the Invoiced item VAT category code (BT-151) is "IGIC" the invoiced item VAT rate (BT-152) shall be 0 (zero) or greater than zero. |  |
 | BR-AF-06 | ✅ | fatal | In a Document level allowance (BG-20) where the Document level allowance VAT category code (BT-95) is "IGIC" the Document level allowance VAT rate (BT-96) shall be 0 (zero) or greater than zero. |  |
 | BR-AF-07 | ✅ | fatal | In a Document level charge (BG-21) where the Document level charge VAT category code (BT-102) is "IGIC" the Document level charge VAT rate (BT-103) shall be 0 (zero) or greater than zero. |  |
-| BR-AF-08 | ❌ | fatal | For each different value of VAT category rate (BT-119) where the VAT category code (BT-118) is "IGIC", the VAT category taxable amount (BT-116) in a VAT breakdown (BG-23) shall equal the sum of Invoice line net amounts (BT-131) plus the sum of document level charge amounts (BT-99) minus the sum of document level allowance amounts (BT-92) where the VAT category code (BT-151, BT-102, BT-95) is "IGIC" and the VAT rate (BT-152, BT-103, BT-96) equals the VAT category rate (BT-119). |  |
+| BR-AF-08 | ✅ | fatal | For each different value of VAT category rate (BT-119) where the VAT category code (BT-118) is "IGIC", the VAT category taxable amount (BT-116) in a VAT breakdown (BG-23) shall equal the sum of Invoice line net amounts (BT-131) plus the sum of document level charge amounts (BT-99) minus the sum of document level allowance amounts (BT-92) where the VAT category code (BT-151, BT-102, BT-95) is "IGIC" and the VAT rate (BT-152, BT-103, BT-96) equals the VAT category rate (BT-119). |  |
 | BR-AF-09 | ✅ | fatal | The VAT category tax amount (BT-117) in a VAT breakdown (BG-23) where VAT category code (BT-118) is "IGIC" shall equal the VAT category taxable amount (BT-116) multiplied by the VAT category rate (BT-119). |  |
 | BR-AF-10 | ✅ | fatal | A VAT breakdown (BG-23) with VAT Category code (BT-118) "IGIC" shall not have a VAT exemption reason code (BT-121) or VAT exemption reason text (BT-120). |  |
 
@@ -213,7 +213,7 @@
 | BR-AG-05 | ✅ | fatal | In an Invoice line (BG-25) where the Invoiced item VAT category code (BT-151) is "IPSI" the Invoiced item VAT rate (BT-152) shall be 0 (zero) or greater than zero. |  |
 | BR-AG-06 | ✅ | fatal | In a Document level allowance (BG-20) where the Document level allowance VAT category code (BT-95) is "IPSI" the Document level allowance VAT rate (BT-96) shall be 0 (zero) or greater than zero. |  |
 | BR-AG-07 | ✅ | fatal | In a Document level charge (BG-21) where the Document level charge VAT category code (BT-102) is "IPSI" the Document level charge VAT rate (BT-103) shall be 0 (zero) or greater than zero. |  |
-| BR-AG-08 | ❌ | fatal | For each different value of VAT category rate (BT-119) where the VAT category code (BT-118) is "IPSI", the VAT category taxable amount (BT-116) in a VAT breakdown (BG-23) shall equal the sum of Invoice line net amounts (BT-131) plus the sum of document level charge amounts (BT-99) minus the sum of document level allowance amounts (BT-92) where the VAT category code (BT-151, BT-102, BT-95) is "IPSI" and the VAT rate (BT-152, BT-103, BT-96) equals the VAT category rate (BT-119). |  |
+| BR-AG-08 | ✅ | fatal | For each different value of VAT category rate (BT-119) where the VAT category code (BT-118) is "IPSI", the VAT category taxable amount (BT-116) in a VAT breakdown (BG-23) shall equal the sum of Invoice line net amounts (BT-131) plus the sum of document level charge amounts (BT-99) minus the sum of document level allowance amounts (BT-92) where the VAT category code (BT-151, BT-102, BT-95) is "IPSI" and the VAT rate (BT-152, BT-103, BT-96) equals the VAT category rate (BT-119). |  |
 | BR-AG-09 | ✅ | fatal | The VAT category tax amount (BT-117) in a VAT breakdown (BG-23) where VAT category code (BT-118) is "IPSI" shall equal the VAT category taxable amount (BT-116) multiplied by the VAT category rate (BT-119). |  |
 | BR-AG-10 | ✅ | fatal | A VAT breakdown (BG-23) with VAT Category code (BT-118) "IPSI" shall not have a VAT exemption reason code (BT-121) or VAT exemption reason text (BT-120). |  |
 
@@ -335,7 +335,7 @@
 | BR-DE-9 | ✅ | fatal | Das Element "Buyer post code" (BT-53) muss übermittelt werden. |  |
 | BR-DE-10 | ✅ | fatal | Das Element "Deliver to city" (BT-77) muss übermittelt werden, wenn die Gruppe "DELIVER TO ADDRESS" (BG-15) übermittelt wird. |  |
 | BR-DE-11 | ✅ | fatal | Das Element "Deliver to post code" (BT-78) muss übermittelt werden, wenn die Gruppe "DELIVER TO ADDRESS" (BG-15) übermittelt wird. |  |
-| BR-DE-14 | ❌ | fatal | Das Element "VAT category rate" (BT-119) muss übermittelt werden. |  |
+| BR-DE-14 | ✅ | fatal | Das Element "VAT category rate" (BT-119) muss übermittelt werden. |  |
 | BR-DE-15 | ✅ | fatal | Das Element "Buyer reference" (BT-10) muss übermittelt werden. |  |
 | BR-DE-16 | ✅ | fatal | Wenn in einer Rechnung die Steuercodes S, Z, E, AE, K, G, L oder M verwendet werden, muss mindestens eines der Elemente "Seller VAT identifier" (BT-31), "Seller tax registration identifier" (BT-32) oder "SELLER TAX REPRESENTATIVE PARTY" (BG-11) übermittelt werden. |  |
 | BR-DE-17 | ✅ | warning | Mit dem Element "Invoice type code" (BT-3) sollen ausschließlich folgende Codes aus der Codeliste UNTDID 1001 übermittelt werden: 326 (Partial invoice), 380 (Commercial invoice), 384 (Corrected invoice), 389 (Self-billed invoice) und 381 (Credit note),875 (Partial construction invoice), 876 (Partial final construction invoice), 877 (Final construction invoice). |  |
@@ -355,35 +355,35 @@
 | BR-DE-28 | ✅ | warning | In BT-43 soll genau ein @-Zeichen enthalten sein, welches nicht von einem Leerzeichen, einem Punkt, aber mindestens zwei Zeichen auf beiden Seiten flankiert werden soll. Ein Punkt sollte nicht am Anfang oder am Ende stehen. |  |
 | BR-DE-30 | ✅ | fatal | Wenn "DIRECT DEBIT" BG-19 vorhanden ist, dann muss "Bank assigned creditor identifier" BT-90 übermittelt werden. |  |
 | BR-DE-31 | ✅ | fatal | Wenn "DIRECT DEBIT" BG-19 vorhanden ist, dann muss "Debited account identifier" BT-91 übermittelt werden. |  |
-| BR-DE-CVD-01 | ❌ | fatal | Das Element "Contract reference" (BT-12) muss übermittelt werden. |  |
-| BR-DE-CVD-02 | ❌ | fatal | Das Element "Tender or lot reference" (BT-17) muss übermittelt werden. |  |
-| BR-DE-CVD-03 | ❌ | fatal | In einer Rechnung muss mindestens eine INVOICE LINE (BG-25) enthalten sein, in der der Scheme identifier von "Item classification identifier" (BT-158) den Wert 'CVD' und der "Item attribute name" (BT-160) den Wert 'cva' enthält. |  |
-| BR-DE-CVD-04 | ❌ | fatal | Ein "Item classification identifier" (BT-158) mit dem Scheme identifier 'CVD' muss einen Wert aus der Liste der zulässigen Fahrzeugkategorien enthalten. |  |
-| BR-DE-CVD-05 | ❌ | fatal | Wenn innerhalb von ITEM ATTRIBUTES (BG-32) der "Item attribute name" (BT-160) den Wert 'cva' hat, muss der "Item attribute value" (BT-161) einen der zulässigen Werte enthalten. |  |
-| BR-DE-CVD-06-a | ❌ | fatal | Wenn der Scheme identifier von "Item classification identifier" (BT-158) mit dem Wert 'CVD' angegeben ist, muss in derselben Rechnungszeile genau ein "Item attribute name" (BT-160) mit dem Wert 'cva' vorhanden sein. |  |
-| BR-DE-CVD-06-b | ❌ | fatal | Wenn "Item attribute name" (BT-160) mit dem Wert 'cva' angegeben ist, muss in derselben Rechnungszeile genau ein "Item classification identifier" (BT-158) mit dem Scheme identifier 'CVD' vorhanden sein. |  |
+| BR-DE-CVD-01 | ✅ | fatal | Das Element "Contract reference" (BT-12) muss übermittelt werden. |  |
+| BR-DE-CVD-02 | ✅ | fatal | Das Element "Tender or lot reference" (BT-17) muss übermittelt werden. |  |
+| BR-DE-CVD-03 | ✅ | fatal | In einer Rechnung muss mindestens eine INVOICE LINE (BG-25) enthalten sein, in der der Scheme identifier von "Item classification identifier" (BT-158) den Wert 'CVD' und der "Item attribute name" (BT-160) den Wert 'cva' enthält. |  |
+| BR-DE-CVD-04 | ✅ | fatal | Ein "Item classification identifier" (BT-158) mit dem Scheme identifier 'CVD' muss einen Wert aus der Liste der zulässigen Fahrzeugkategorien enthalten. |  |
+| BR-DE-CVD-05 | ✅ | fatal | Wenn innerhalb von ITEM ATTRIBUTES (BG-32) der "Item attribute name" (BT-160) den Wert 'cva' hat, muss der "Item attribute value" (BT-161) einen der zulässigen Werte enthalten. |  |
+| BR-DE-CVD-06-a | ✅ | fatal | Wenn der Scheme identifier von "Item classification identifier" (BT-158) mit dem Wert 'CVD' angegeben ist, muss in derselben Rechnungszeile genau ein "Item attribute name" (BT-160) mit dem Wert 'cva' vorhanden sein. |  |
+| BR-DE-CVD-06-b | ✅ | fatal | Wenn "Item attribute name" (BT-160) mit dem Wert 'cva' angegeben ist, muss in derselben Rechnungszeile genau ein "Item classification identifier" (BT-158) mit dem Scheme identifier 'CVD' vorhanden sein. |  |
 | BR-DE-TMP-32 | ✅ | information | Eine Rechnung sollte zur Angabe des Liefer-/Leistungsdatums entweder BT-72 "Actual delivery date", BG-14 "Invoicing period" oder in jeder Rechnungsposition BG-26 "Invoice line period" enthalten. |  |
-| BR-TMP-2 | ❌ | warning | BT-124 "External document location" muss eine absolute URL mit gültigem Schema enthalten. |  |
-| BR-TMP-CVD-01 | ❌ | fatal | Das Bildungsschema für "Item classification identifier" (BT-158) ist aus der Codeliste UNTDID 7143 zu wählen. |  |
+| BR-TMP-2 | ✅ | warning | BT-124 "External document location" muss eine absolute URL mit gültigem Schema enthalten. |  |
+| BR-TMP-CVD-01 | ✅ | fatal | Das Bildungsschema für "Item classification identifier" (BT-158) ist aus der Codeliste UNTDID 7143 zu wählen. |  |
 
 ## BR-DEX — XRechnung Extension
 
 | Rule | Status | Flag | Official text | Note |
 |---|:-:|---|---|---|
-| BR-DEX-01 | ❌ | fatal | Das Element "Attached Document" (BT-125) benutzt einen nicht zulässigen MIME-Code: . Im Falle einer Extension darf zusätzlich zu der Liste der mime codes (definiert in Abschnitt 8.2, "Binary Object") der MIME-Code application/xml genutzt werden. |  |
-| BR-DEX-02 | ❌ | warning | Der Wert von "Invoice line net amount" (BT-131) einer "INVOICE LINE" (BG-25) oder einer "SUB INVOICE LINE" (BG-DEX-01) soll der Summe der "Invoice line net amount" (BT-131) der direkt darunterliegenden "SUB INVOICE LINE" (BG-DEX-01) entsprechen. |  |
-| BR-DEX-03 | ❌ | fatal | Eine Sub Invoice Line (BG-DEX-01) muss genau eine "SUB INVOICE LINE VAT INFORMATION" (BG-DEX-06) enthalten. |  |
-| BR-DEX-04 | ❌ | fatal | Any scheme identifier in MUST be coded using one of the ISO 6523 ICD list. |  |
-| BR-DEX-05 | ❌ | fatal | Any scheme identifier in MUST be coded using one of the ISO 6523 ICD list. |  |
-| BR-DEX-06 | ❌ | fatal | Any scheme identifier in MUST be coded using one of the ISO 6523 ICD list. |  |
-| BR-DEX-07 | ❌ | fatal | Any scheme identifier for an Endpoint Identifier in MUST belong to the CEF EAS code list. |  |
-| BR-DEX-08 | ❌ | fatal | Any scheme identifier for a Delivery location identifier in MUST be coded using one of the ISO 6523 ICD list. |  |
-| BR-DEX-09 | ❌ | fatal | Amount due for payment (BT-115) = Invoice total amount with VAT (BT-112) - Paid amount (BT-113) + Rounding amount (BT-114) + Σ Third party payment amount (BT-DEX-002). |  |
-| BR-DEX-10 | ❌ | fatal | Das Element "Third party payment type" BT-DEX-001 muss übermittelt werden, wenn die Gruppe "THIRD PARTY PAYMENT" (BG-DEX-09) übermittelt wird. |  |
-| BR-DEX-11 | ❌ | fatal | Das Element "Third party payment amount" BT-DEX-002 muss übermittelt werden, wenn die Gruppe "THIRD PARTY PAYMENT" (BG-DEX-09) übermittelt wird. |  |
-| BR-DEX-12 | ❌ | fatal | Das Element "Third party payment description" BT-DEX-003 muss übermittelt werden, wenn die Gruppe "THIRD PARTY PAYMENT" (BG-DEX-09) übermittelt wird. |  |
-| BR-DEX-13 | ❌ | fatal | Die maximale Anzahl zulässiger Nachkommastellen für das Element "Third party payment amount" (BT-DEX-002) ist 2. |  |
-| BR-DEX-14 | ❌ | fatal | Die Währungsangabe von "Third party payment amount" BT-DEX-002 muss BT-5 ("Invoice currency code") entsprechen. |  |
+| BR-DEX-01 | ✅ | fatal | Das Element "Attached Document" (BT-125) benutzt einen nicht zulässigen MIME-Code: . Im Falle einer Extension darf zusätzlich zu der Liste der mime codes (definiert in Abschnitt 8.2, "Binary Object") der MIME-Code application/xml genutzt werden. |  |
+| BR-DEX-02 | ✅ | warning | Der Wert von "Invoice line net amount" (BT-131) einer "INVOICE LINE" (BG-25) oder einer "SUB INVOICE LINE" (BG-DEX-01) soll der Summe der "Invoice line net amount" (BT-131) der direkt darunterliegenden "SUB INVOICE LINE" (BG-DEX-01) entsprechen. |  |
+| BR-DEX-03 | ✅ | fatal | Eine Sub Invoice Line (BG-DEX-01) muss genau eine "SUB INVOICE LINE VAT INFORMATION" (BG-DEX-06) enthalten. |  |
+| BR-DEX-04 | ✅ | fatal | Any scheme identifier in MUST be coded using one of the ISO 6523 ICD list. |  |
+| BR-DEX-05 | ✅ | fatal | Any scheme identifier in MUST be coded using one of the ISO 6523 ICD list. |  |
+| BR-DEX-06 | ✅ | fatal | Any scheme identifier in MUST be coded using one of the ISO 6523 ICD list. |  |
+| BR-DEX-07 | ✅ | fatal | Any scheme identifier for an Endpoint Identifier in MUST belong to the CEF EAS code list. |  |
+| BR-DEX-08 | ✅ | fatal | Any scheme identifier for a Delivery location identifier in MUST be coded using one of the ISO 6523 ICD list. |  |
+| BR-DEX-09 | ✅ | fatal | Amount due for payment (BT-115) = Invoice total amount with VAT (BT-112) - Paid amount (BT-113) + Rounding amount (BT-114) + Σ Third party payment amount (BT-DEX-002). |  |
+| BR-DEX-10 | ✅ | fatal | Das Element "Third party payment type" BT-DEX-001 muss übermittelt werden, wenn die Gruppe "THIRD PARTY PAYMENT" (BG-DEX-09) übermittelt wird. |  |
+| BR-DEX-11 | ✅ | fatal | Das Element "Third party payment amount" BT-DEX-002 muss übermittelt werden, wenn die Gruppe "THIRD PARTY PAYMENT" (BG-DEX-09) übermittelt wird. |  |
+| BR-DEX-12 | ✅ | fatal | Das Element "Third party payment description" BT-DEX-003 muss übermittelt werden, wenn die Gruppe "THIRD PARTY PAYMENT" (BG-DEX-09) übermittelt wird. |  |
+| BR-DEX-13 | ✅ | fatal | Die maximale Anzahl zulässiger Nachkommastellen für das Element "Third party payment amount" (BT-DEX-002) ist 2. |  |
+| BR-DEX-14 | ✅ | fatal | Die Währungsangabe von "Third party payment amount" BT-DEX-002 muss BT-5 ("Invoice currency code") entsprechen. |  |
 
 ## Implemented beyond the reference
 

@@ -24,7 +24,7 @@ final class CoverageMatrix
     /**
      * TaxableSumRule registers as "BR-CAT-08" but reports one of these ids.
      */
-    private const array CATEGORY_SUM_IDS = ['BR-S-08', 'BR-Z-08', 'BR-E-08', 'BR-AE-08', 'BR-IC-08', 'BR-G-08', 'BR-O-08'];
+    private const array CATEGORY_SUM_IDS = ['BR-S-08', 'BR-Z-08', 'BR-E-08', 'BR-AE-08', 'BR-IC-08', 'BR-G-08', 'BR-O-08', 'BR-AF-08', 'BR-AG-08'];
 
     /**
      * Rules whose implementation deviates from the official scope (🟡).

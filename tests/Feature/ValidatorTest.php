@@ -263,3 +263,36 @@ it('recommends a preceding invoice on corrected invoices (BR-DE-26)', function (
         ->and($corrected->isValid())->toBeTrue()
         ->and($withReference->hasViolation('BR-DE-26'))->toBeFalse();
 });
+
+// ---- Dreistufige Pipeline (XSD → Syntax → Business Rules) ----
+
+it('rejects a payload that is not well-formed XML', function (): void {
+    $result = en()->validate('<Invoice><unclosed>');
+
+    expect($result->isValid())->toBeFalse()
+        ->and($result->hasViolation('XML'))->toBeTrue();
+});
+
+it('rejects a schema-invalid document at the XSD stage', function (): void {
+    $xml = str_replace('</Invoice>', '<cbc:Bogus>x</cbc:Bogus></Invoice>', (string) file_get_contents(dirname(__DIR__).'/Fixtures/valid-ubl.xml'));
+
+    $result = en()->validateUbl($xml);
+
+    expect($result->isValid())->toBeFalse()
+        ->and($result->hasViolation('XSD'))->toBeTrue();
+});
+
+it('fires a syntax rule through the full pipeline (UBL-CR-002)', function (): void {
+    $xml = str_replace('<cbc:CustomizationID>', '<cbc:UBLVersionID>2.0</cbc:UBLVersionID><cbc:CustomizationID>', (string) file_get_contents(dirname(__DIR__).'/Fixtures/valid-ubl.xml'));
+
+    // UBL-CR-002 is a warning: it fires but does not invalidate.
+    $result = en()->validateUbl($xml);
+
+    expect($result->hasViolation('UBL-CR-002'))->toBeTrue()
+        ->and($result->isValid())->toBeTrue();
+});
+
+it('accepts the clean fixtures through the full pipeline in both syntaxes', function (): void {
+    expect(xr()->validateUbl((string) file_get_contents(dirname(__DIR__).'/Fixtures/valid-ubl.xml'))->isValid())->toBeTrue()
+        ->and(xr()->validateCii((string) file_get_contents(dirname(__DIR__).'/Fixtures/valid-cii.xml'))->isValid())->toBeTrue();
+});

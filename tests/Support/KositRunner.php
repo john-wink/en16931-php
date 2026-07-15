@@ -74,7 +74,7 @@ final class KositRunner
         foreach ($files as $file) {
             $name = basename($file);
             $report = (string) @file_get_contents($dir.'/'.basename($file, '.xml').'-report.xml');
-            preg_match_all('/code="(BR-[A-Z0-9-]+)"/', $report, $matches);
+            preg_match_all('/code="((?:BR|UBL-CR|UBL-SR|CII-SR|CII-DT)[A-Z0-9-]*)"/', $report, $matches);
 
             $results[$name] = [
                 'accept' => $report !== '' && ! str_contains($report, '<rep:reject'),
@@ -114,7 +114,7 @@ final class KositRunner
 
         $this->cleanup($dir);
 
-        preg_match_all('/code="(BR-[A-Z0-9-]+)"/', $report, $matches);
+        preg_match_all('/code="((?:BR|UBL-CR|UBL-SR|CII-SR|CII-DT)[A-Z0-9-]*)"/', $report, $matches);
 
         return [
             'accept' => $report !== '' && ! str_contains($report, '<rep:reject'),

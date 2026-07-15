@@ -8,17 +8,24 @@ use DOMDocument;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Reader\CiiInvoiceReader;
 use JohnWink\En16931\Reader\UblInvoiceReader;
+use JohnWink\En16931\Syntax\SchematronEngine;
+use JohnWink\En16931\Syntax\SchemaValidator;
 
 /**
- * The package entry point: validates an EN 16931 invoice against the EN 16931
- * core rules, optionally plus the German XRechnung CIUS. Both CII and UBL syntax
- * are supported natively; {@see self::validate()} auto-detects which.
+ * The package entry point. Validating XML runs the full three-stage pipeline the
+ * official KoSIT validator applies — XSD schema, then the syntax rules
+ * (UBL-CR/SR, CII-SR/DT), then the EN 16931 (and optional XRechnung CIUS)
+ * business rules — natively, without Java. Both CII and UBL syntax are
+ * supported; {@see self::validate()} auto-detects which.
  *
  * ```php
  * $result = En16931Validator::xrechnung()->validate($xml);
- * $result->isValid();      // bool (no fatal violation)
+ * $result->isValid();      // bool (no fatal violation across all three stages)
  * $result->violations;     // list<Violation>
  * ```
+ *
+ * {@see self::validateModel()} runs the business rules only — there is no XML to
+ * schema- or syntax-check.
  */
 final readonly class En16931Validator
 {
@@ -34,6 +41,8 @@ final readonly class En16931Validator
         private CiiInvoiceReader $ciiInvoiceReader,
         private UblInvoiceReader $ublInvoiceReader,
         private Validator $validator,
+        private SchemaValidator $schemaValidator,
+        private SchematronEngine $schematronEngine,
     ) {}
 
     /**
@@ -41,7 +50,7 @@ final readonly class En16931Validator
      */
     public static function en16931(): self
     {
-        return new self(new CiiInvoiceReader, new UblInvoiceReader, new Validator(RuleSets::en16931()));
+        return self::build(new Validator(RuleSets::en16931()));
     }
 
     /**
@@ -49,10 +58,17 @@ final readonly class En16931Validator
      */
     public static function xrechnung(): self
     {
+        return self::build(new Validator([...RuleSets::en16931(), ...RuleSets::xrechnung()]));
+    }
+
+    private static function build(Validator $validator): self
+    {
         return new self(
             new CiiInvoiceReader,
             new UblInvoiceReader,
-            new Validator([...RuleSets::en16931(), ...RuleSets::xrechnung()]),
+            $validator,
+            new SchemaValidator,
+            SchematronEngine::fromBundledRules(),
         );
     }
 
@@ -62,19 +78,17 @@ final readonly class En16931Validator
      */
     public function validate(string $xml): ValidationResult
     {
-        return $this->validator->validate(
-            $this->isUbl($xml) ? $this->ublInvoiceReader->read($xml) : $this->ciiInvoiceReader->read($xml),
-        );
+        return $this->runPipeline($xml, $this->isUbl($xml) ? 'ubl' : 'cii');
     }
 
     public function validateCii(string $xml): ValidationResult
     {
-        return $this->validator->validate($this->ciiInvoiceReader->read($xml));
+        return $this->runPipeline($xml, 'cii');
     }
 
     public function validateUbl(string $xml): ValidationResult
     {
-        return $this->validator->validate($this->ublInvoiceReader->read($xml));
+        return $this->runPipeline($xml, 'ubl');
     }
 
     public function validateModel(Invoice $invoice): ValidationResult
@@ -82,21 +96,44 @@ final readonly class En16931Validator
         return $this->validator->validate($invoice);
     }
 
-    private function isUbl(string $xml): bool
+    /**
+     * The three-stage pipeline: XSD schema → syntax rules → business rules.
+     * A payload that is not well-formed XML fails immediately.
+     */
+    private function runPipeline(string $xml, string $syntax): ValidationResult
+    {
+        $document = $this->parse($xml);
+
+        if (! $document instanceof DOMDocument) {
+            return new ValidationResult([new Violation('XML', Severity::Fatal, 'The payload is not well-formed XML.', 'XML')]);
+        }
+
+        $reader = $syntax === 'ubl' ? $this->ublInvoiceReader : $this->ciiInvoiceReader;
+
+        return new ValidationResult([
+            ...$this->schemaValidator->validate($document, $syntax),
+            ...$this->schematronEngine->evaluate($document, $syntax),
+            ...$this->validator->validate($reader->read($xml))->violations,
+        ]);
+    }
+
+    private function parse(string $xml): ?DOMDocument
     {
         $domDocument = new DOMDocument;
-
         $previous = libxml_use_internal_errors(true);
 
         try {
-            if (! $domDocument->loadXML($xml)) {
-                return false;
-            }
+            return $domDocument->loadXML($xml) ? $domDocument : null;
         } finally {
             libxml_clear_errors();
             libxml_use_internal_errors($previous);
         }
+    }
 
-        return in_array($domDocument->documentElement?->namespaceURI, self::UBL_NAMESPACES, true);
+    private function isUbl(string $xml): bool
+    {
+        $document = $this->parse($xml);
+
+        return in_array($document?->documentElement?->namespaceURI, self::UBL_NAMESPACES, true);
     }
 }

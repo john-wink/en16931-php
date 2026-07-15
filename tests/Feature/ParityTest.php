@@ -46,6 +46,50 @@ it('agrees with the KoSIT validator on real schema-valid invoices', function (st
     expect(array_values(array_diff($ourCodes, $kosit['codes'])))->toBe([]);
 })->with(fn (): array => glob(__DIR__.'/../Fixtures/corpus/*.xml') ?: []);
 
+it('agrees with the KoSIT validator across the full official instance suite', function (): void {
+    $runner = kositRunner();
+    $instances = glob(dirname(__DIR__, 2).'/build/kosit/testsuite/instances/*/*.xml') ?: [];
+
+    if ($instances === []) {
+        test()->markTestSkipped('KoSIT test suite not downloaded — run tools/kosit-setup.sh.');
+    }
+
+    // One JVM invocation for the whole suite (UBL + CII, standard/extension/
+    // technical-cases), then compare verdicts and fired codes per instance.
+    $kositResults = $runner->validateBatch($instances);
+
+    $verdictDiffs = [];
+    $falsePositives = [];
+
+    foreach ($instances as $instance) {
+        $name = basename($instance);
+        $kosit = $kositResults[$name] ?? null;
+
+        if ($kosit === null) {
+            continue;
+        }
+
+        $xml = (string) file_get_contents($instance);
+        $ours = parityValidatorFor($xml)->validate($xml);
+
+        if ($ours->isValid() !== $kosit['accept']) {
+            $verdictDiffs[$name] = ['ours' => $ours->isValid(), 'kosit' => $kosit['accept']];
+        }
+
+        $ourCodes = array_values(array_unique(array_map(static fn ($violation): string => $violation->ruleId, $ours->violations)));
+        $extra = array_values(array_diff($ourCodes, $kosit['codes']));
+
+        if ($extra !== []) {
+            $falsePositives[$name] = $extra;
+        }
+    }
+
+    // Verdict parity AND no false positives on every real instance in both
+    // syntaxes — the broad bidirectional conformance proof.
+    expect($verdictDiffs)->toBe([])
+        ->and($falsePositives)->toBe([]);
+});
+
 it('fatally rejects none of the official KoSIT XRechnung positive test suite', function (): void {
     $instances = glob(dirname(__DIR__, 2).'/build/kosit/testsuite/instances/*/*.xml') ?: [];
 

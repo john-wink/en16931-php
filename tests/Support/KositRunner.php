@@ -43,6 +43,51 @@ final class KositRunner
     }
 
     /**
+     * Validate many files in a single JVM invocation (far faster than one start
+     * per file) and return each file's verdict plus fired codes, keyed by the
+     * file's basename.
+     *
+     * @param  list<string>  $files
+     * @return array<string, array{accept: bool, codes: list<string>}>
+     */
+    public function validateBatch(array $files): array
+    {
+        if ($files === []) {
+            return [];
+        }
+
+        $dir = sys_get_temp_dir().'/kosit-'.bin2hex(random_bytes(6));
+        mkdir($dir);
+
+        $command = sprintf(
+            'java -jar %s -r %s -s %s -o %s %s 2>/dev/null',
+            escapeshellarg($this->jar),
+            escapeshellarg($this->configDir),
+            escapeshellarg($this->configDir.'/scenarios.xml'),
+            escapeshellarg($dir),
+            implode(' ', array_map(escapeshellarg(...), $files)),
+        );
+        exec($command);
+
+        $results = [];
+
+        foreach ($files as $file) {
+            $name = basename($file);
+            $report = (string) @file_get_contents($dir.'/'.basename($file, '.xml').'-report.xml');
+            preg_match_all('/code="(BR-[A-Z0-9-]+)"/', $report, $matches);
+
+            $results[$name] = [
+                'accept' => $report !== '' && ! str_contains($report, '<rep:reject'),
+                'codes' => array_values(array_unique($matches[1])),
+            ];
+        }
+
+        $this->cleanup($dir);
+
+        return $results;
+    }
+
+    /**
      * Validate the payload with KoSIT and return its verdict plus the set of
      * fired business-rule codes.
      *

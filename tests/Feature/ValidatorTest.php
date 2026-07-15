@@ -2,21 +2,10 @@
 
 declare(strict_types=1);
 
-use JohnWink\En16931\En16931Validator;
 use JohnWink\En16931\Model\InvoiceLine;
 use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Model\Totals;
-
-function en(): En16931Validator
-{
-    return En16931Validator::en16931();
-}
-
-function xr(): En16931Validator
-{
-    return En16931Validator::xrechnung();
-}
 
 it('accepts a fully valid invoice under EN 16931 and XRechnung', function (): void {
     expect(en()->validateModel(makeInvoice())->isValid())->toBeTrue()

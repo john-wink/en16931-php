@@ -2,12 +2,28 @@
 
 declare(strict_types=1);
 
+use JohnWink\En16931\En16931Validator;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
 use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\PaymentMeans;
 use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Model\Totals;
+
+function core(): En16931Validator
+{
+    return En16931Validator::en16931();
+}
+
+function en(): En16931Validator
+{
+    return En16931Validator::en16931();
+}
+
+function xr(): En16931Validator
+{
+    return En16931Validator::xrechnung();
+}
 
 /**
  * Build a fully EN-16931-and-XRechnung-valid invoice model. Named arguments
@@ -79,5 +95,8 @@ function makeInvoice(mixed ...$overrides): Invoice
         attachments: $pick('attachments', []),
         precedingInvoiceReferences: $pick('precedingInvoiceReferences', []),
         amountCurrencyCodes: $pick('amountCurrencyCodes', []),
+        contractReference: $pick('contractReference', null),
+        tenderReference: $pick('tenderReference', null),
+        thirdPartyPayments: $pick('thirdPartyPayments', []),
     );
 }

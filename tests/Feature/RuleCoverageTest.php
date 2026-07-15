@@ -2,15 +2,9 @@
 
 declare(strict_types=1);
 
-use JohnWink\En16931\En16931Validator;
 use JohnWink\En16931\Model\InvoiceLine;
 use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\TaxSubtotal;
-
-function core(): En16931Validator
-{
-    return En16931Validator::en16931();
-}
 
 it('flags a missing specification identifier (BR-01)', function (): void {
     expect(core()->validateModel(makeInvoice(customizationId: null))->hasViolation('BR-01'))->toBeTrue();

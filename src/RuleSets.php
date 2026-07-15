@@ -13,6 +13,7 @@ use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
 use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\Party;
+use JohnWink\En16931\Model\PaymentMeans;
 use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Rules\AllowanceRule;
 use JohnWink\En16931\Rules\CalculationRule;
@@ -21,6 +22,7 @@ use JohnWink\En16931\Rules\ConditionalRule;
 use JohnWink\En16931\Rules\InvoiceRule;
 use JohnWink\En16931\Rules\LineAllowanceRule;
 use JohnWink\En16931\Rules\LineRule;
+use JohnWink\En16931\Rules\PaymentMeansRule;
 use JohnWink\En16931\Rules\PresenceRule;
 use JohnWink\En16931\Rules\SubtotalRule;
 use JohnWink\En16931\Rules\TaxableSumRule;
@@ -84,6 +86,12 @@ final class RuleSets
             new PresenceRule('BR-11', 'BT-55', 'The Buyer postal address shall contain a country code (BT-55).', static fn (Invoice $invoice): bool => self::filled($invoice->buyer->countryCode)),
             new ConditionalRule('BR-62', 'BT-34', 'The Seller electronic address (BT-34) shall have a scheme identifier.', static fn (Invoice $invoice): bool => $invoice->seller->electronicAddress !== null, static fn (Invoice $invoice): bool => $invoice->seller->electronicAddressScheme !== null),
             new ConditionalRule('BR-63', 'BT-49', 'The Buyer electronic address (BT-49) shall have a scheme identifier.', static fn (Invoice $invoice): bool => $invoice->buyer->electronicAddress !== null, static fn (Invoice $invoice): bool => $invoice->buyer->electronicAddressScheme !== null),
+
+            new PaymentMeansRule('BR-49', 'BT-81', 'Each payment instruction (BG-16) shall specify the payment means type code (BT-81).', static fn (PaymentMeans $paymentMeans): bool => self::filled($paymentMeans->typeCode)),
+            new PaymentMeansRule('BR-50', 'BT-84', 'A payment account identifier (BT-84) shall be present when credit transfer information is given.', static fn (PaymentMeans $paymentMeans): bool => ! $paymentMeans->hasCreditTransfer || ! in_array(mb_trim((string) $paymentMeans->typeCode), ['30', '58'], true) || self::filled($paymentMeans->accountId)),
+            new PaymentMeansRule('BR-51', 'BT-87', 'An invoice should never include a full card primary account number (BT-87) — at most 10 characters.', static fn (PaymentMeans $paymentMeans): bool => $paymentMeans->cardNumber === null || mb_strlen(mb_trim($paymentMeans->cardNumber)) <= 10, Severity::Warning),
+            new PaymentMeansRule('BR-61', 'BT-84', 'A credit transfer (payment means code 30 or 58) shall carry a payment account identifier (BT-84).', static fn (PaymentMeans $paymentMeans): bool => ! in_array(mb_trim((string) $paymentMeans->typeCode), ['30', '58'], true) || $paymentMeans->accountId !== null),
+            new PaymentMeansRule('BR-CL-16', 'BT-81', 'The payment means type code (BT-81) shall be a valid UNTDID 4461 code.', static fn (PaymentMeans $paymentMeans): bool => $paymentMeans->typeCode === null || in_array($paymentMeans->typeCode, CodeLists::PAYMENT_MEANS_CODES, true)),
             new PresenceRule('BR-16', 'BG-25', 'An Invoice shall have at least one Invoice line (BG-25).', static fn (Invoice $invoice): bool => $invoice->lines !== []),
             new PresenceRule('BR-12', 'BT-106', 'An Invoice shall have the Sum of Invoice line net amount (BT-106).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->lineTotal)),
             new PresenceRule('BR-13', 'BT-109', 'An Invoice shall have the Invoice total amount without VAT (BT-109).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->taxBasisTotal)),
@@ -168,6 +176,7 @@ final class RuleSets
     public static function xrechnung(): array
     {
         return [
+            new PresenceRule('BR-DE-1', 'BG-16', 'An XRechnung shall contain payment instructions (BG-16).', static fn (Invoice $invoice): bool => $invoice->paymentMeans !== []),
             new PresenceRule('BR-DE-15', 'BT-10', 'An XRechnung shall contain the Buyer reference / Leitweg-ID (BT-10).', static fn (Invoice $invoice): bool => self::filled($invoice->buyerReference)),
             new PresenceRule('BR-DE-2', 'BG-6', 'An XRechnung shall contain the Seller contact group (BG-6).', static fn (Invoice $invoice): bool => self::hasSellerContact($invoice)),
             new ConditionalRule('BR-DE-3', 'BT-37', 'The Seller postal address shall contain a city (BT-37).', static fn (Invoice $invoice): bool => $invoice->seller->hasPostalAddress(), static fn (Invoice $invoice): bool => self::filled($invoice->seller->city)),
@@ -183,6 +192,17 @@ final class RuleSets
             new InvoiceRule('BR-DE-21', 'BT-24', 'The Specification identifier (BT-24) should be the XRechnung CIUS, extension or CVD identifier.', static fn (Invoice $invoice): bool => $invoice->customizationId === null || in_array($invoice->customizationId, self::XRECHNUNG_SPECIFICATION_IDS, true), Severity::Warning),
             new InvoiceRule('BR-DE-27', 'BT-42', 'The Seller contact telephone number (BT-42) should contain at least three digits.', static fn (Invoice $invoice): bool => ! self::hasSellerContact($invoice) || preg_match_all('/\d/', $invoice->seller->contactPhone ?? '') >= 3, Severity::Warning),
             new InvoiceRule('BR-DE-28', 'BT-43', 'The Seller contact email address (BT-43) should contain exactly one @, a dotted domain and no whitespace.', static fn (Invoice $invoice): bool => ! self::hasSellerContact($invoice) || preg_match('/^[^@\s]+@([^@.\s]+\.)+[^@.\s]+$/D', mb_trim((string) preg_replace('/[\s\p{Zs}]+/u', ' ', $invoice->seller->contactEmail ?? ''))) === 1, Severity::Warning),
+
+            new PaymentMeansRule('BR-DE-19', 'BT-84', 'For SEPA credit transfers (code 58) the payment account identifier (BT-84) should be a valid IBAN.', static fn (PaymentMeans $paymentMeans): bool => mb_trim((string) $paymentMeans->typeCode) !== '58' || self::isValidIban($paymentMeans->accountId), Severity::Warning),
+            new PaymentMeansRule('BR-DE-20', 'BT-91', 'For SEPA direct debits (code 59) the debited account identifier (BT-91) should be a valid IBAN.', static fn (PaymentMeans $paymentMeans): bool => mb_trim((string) $paymentMeans->typeCode) !== '59' || self::isValidIban($paymentMeans->debitedAccountId), Severity::Warning),
+            new PaymentMeansRule('BR-DE-23-a', 'BT-81', 'A credit transfer (code 30/58) shall carry the CREDIT TRANSFER group (BG-17).', static fn (PaymentMeans $paymentMeans): bool => ! in_array(mb_trim((string) $paymentMeans->typeCode), ['30', '58'], true) || $paymentMeans->hasCreditTransfer),
+            new PaymentMeansRule('BR-DE-23-b', 'BT-81', 'A credit transfer (code 30/58) shall not carry the card or direct debit groups (BG-18/BG-19).', static fn (PaymentMeans $paymentMeans): bool => ! in_array(mb_trim((string) $paymentMeans->typeCode), ['30', '58'], true) || (! $paymentMeans->hasCardInformation && ! $paymentMeans->hasDirectDebit)),
+            new PaymentMeansRule('BR-DE-24-a', 'BT-81', 'A card payment (code 48/54/55) shall carry the PAYMENT CARD INFORMATION group (BG-18).', static fn (PaymentMeans $paymentMeans): bool => ! in_array(mb_trim((string) $paymentMeans->typeCode), ['48', '54', '55'], true) || $paymentMeans->hasCardInformation),
+            new PaymentMeansRule('BR-DE-24-b', 'BT-81', 'A card payment (code 48/54/55) shall not carry the credit transfer or direct debit groups (BG-17/BG-19).', static fn (PaymentMeans $paymentMeans): bool => ! in_array(mb_trim((string) $paymentMeans->typeCode), ['48', '54', '55'], true) || (! $paymentMeans->hasCreditTransfer && ! $paymentMeans->hasDirectDebit)),
+            new PaymentMeansRule('BR-DE-25-a', 'BT-81', 'A direct debit (code 59) shall carry the DIRECT DEBIT group (BG-19).', static fn (PaymentMeans $paymentMeans): bool => mb_trim((string) $paymentMeans->typeCode) !== '59' || $paymentMeans->hasDirectDebit),
+            new PaymentMeansRule('BR-DE-25-b', 'BT-81', 'A direct debit (code 59) shall not carry the credit transfer or card groups (BG-17/BG-18).', static fn (PaymentMeans $paymentMeans): bool => mb_trim((string) $paymentMeans->typeCode) !== '59' || (! $paymentMeans->hasCreditTransfer && ! $paymentMeans->hasCardInformation)),
+            new InvoiceRule('BR-DE-30', 'BT-90', 'A direct debit (BG-19) requires the bank assigned creditor identifier (BT-90).', static fn (Invoice $invoice): bool => ! self::hasDirectDebitGroup($invoice) || self::filled($invoice->sepaCreditorId)),
+            new InvoiceRule('BR-DE-31', 'BT-91', 'A direct debit (BG-19) requires the debited account identifier (BT-91).', static fn (Invoice $invoice): bool => ! self::hasDirectDebitGroup($invoice) || array_any($invoice->paymentMeans, fn (PaymentMeans $paymentMeans): bool => self::filled($paymentMeans->debitedAccountId))),
         ];
     }
 
@@ -503,6 +523,32 @@ final class RuleSets
     private static function usesAnyVatCategoryOf(Invoice $invoice, array $categories): bool
     {
         return array_any($categories, fn (string $category): bool => self::usesCategory($invoice, $category));
+    }
+
+    private static function hasDirectDebitGroup(Invoice $invoice): bool
+    {
+        return array_any($invoice->paymentMeans, fn (PaymentMeans $paymentMeans): bool => $paymentMeans->hasDirectDebit);
+    }
+
+    /**
+     * BR-DE-19/20: the official IBAN check — the structural pattern plus the
+     * ISO 7064 mod-97 checksum, exactly as in the KoSIT asserts.
+     */
+    private static function isValidIban(?string $value): bool
+    {
+        $iban = (string) preg_replace('/[\s\p{Zs}]+/u', '', (string) $value);
+
+        if (preg_match('/^[A-Z]{2}[0-9]{2}[a-zA-Z0-9]{0,30}$/D', $iban) !== 1) {
+            return false;
+        }
+
+        $numeric = '';
+
+        foreach (str_split(substr($iban, 4).substr($iban, 0, 4)) as $character) {
+            $numeric .= ctype_alpha($character) ? (string) (ord(strtoupper($character)) - 55) : $character;
+        }
+
+        return bcmod($numeric, '97') === '1';
     }
 
     private static function hasSellerContact(Invoice $invoice): bool

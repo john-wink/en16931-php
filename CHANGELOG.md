@@ -10,6 +10,13 @@ Pre-1.0: the public API may still change between minor versions.
 
 ### Added
 
+- Payment instructions (BG-16..19): BR-49/50/51/61 and BR-CL-16 (UNTDID 4461),
+  plus the XRechnung payment rules — BR-DE-1 (payment instructions mandatory),
+  BR-DE-23/24/25 a+b (payment-code group consistency), BR-DE-30/31 (direct
+  debit) and BR-DE-19/20 (IBAN checks incl. the mod-97 checksum). New
+  `PaymentMeans` model (BT-81/84/87/91 + group flags) and BT-90, parsed from
+  both CII and UBL.
+
 - Postal addresses and electronic addresses: BR-08/BR-10 (address groups),
   BR-62/BR-63 (electronic address scheme required), BR-CL-25 (EAS code list)
   and the XRechnung address rules BR-DE-3/4/8/9 (city + post code). The model

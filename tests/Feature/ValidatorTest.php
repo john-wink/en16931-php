@@ -187,3 +187,55 @@ it('does not require a city when no address group is present at all (BR-DE-3)', 
     expect($result->hasViolation('BR-DE-3'))->toBeFalse()
         ->and($result->hasViolation('BR-08'))->toBeTrue();
 });
+
+it('requires payment instructions on every XRechnung (BR-DE-1)', function (): void {
+    $invoice = makeInvoice(paymentMeans: []);
+
+    expect(en()->validateModel($invoice)->hasViolation('BR-DE-1'))->toBeFalse()
+        ->and(xr()->validateModel($invoice)->hasViolation('BR-DE-1'))->toBeTrue()
+        ->and(xr()->validateModel(makeInvoice())->hasViolation('BR-DE-1'))->toBeFalse();
+});
+
+it('requires credit transfer details for transfer codes (BR-DE-23-a/b)', function (): void {
+    $withoutAccount = xr()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '58')]));
+    $withCard = xr()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '30', hasCreditTransfer: true, accountId: 'DE02120300000000202051', hasCardInformation: true)]));
+
+    expect($withoutAccount->hasViolation('BR-DE-23-a'))->toBeTrue()
+        ->and($withCard->hasViolation('BR-DE-23-b'))->toBeTrue();
+});
+
+it('requires card information for card codes (BR-DE-24-a/b)', function (): void {
+    $withoutCard = xr()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '48')]));
+    $withTransfer = xr()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '54', hasCardInformation: true, hasCreditTransfer: true)]));
+
+    expect($withoutCard->hasViolation('BR-DE-24-a'))->toBeTrue()
+        ->and($withTransfer->hasViolation('BR-DE-24-b'))->toBeTrue();
+});
+
+it('requires direct debit details for code 59 (BR-DE-25-a/b, BR-DE-30, BR-DE-31)', function (): void {
+    $withoutMandate = xr()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '59')]));
+    $mandate = new JohnWink\En16931\Model\PaymentMeans(typeCode: '59', hasDirectDebit: true, debitedAccountId: 'DE02120300000000202051');
+    $withoutCreditor = xr()->validateModel(makeInvoice(paymentMeans: [$mandate]));
+    $complete = xr()->validateModel(makeInvoice(paymentMeans: [$mandate], sepaCreditorId: 'DE98ZZZ09999999999'));
+    $withTransfer = xr()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '59', hasDirectDebit: true, hasCreditTransfer: true)]));
+
+    expect($withoutMandate->hasViolation('BR-DE-25-a'))->toBeTrue()
+        ->and($withoutCreditor->hasViolation('BR-DE-30'))->toBeTrue()
+        ->and($complete->hasViolation('BR-DE-30'))->toBeFalse()
+        ->and($complete->hasViolation('BR-DE-31'))->toBeFalse()
+        ->and($withTransfer->hasViolation('BR-DE-25-b'))->toBeTrue()
+        ->and($withTransfer->hasViolation('BR-DE-31'))->toBeTrue();
+});
+
+it('checks the IBAN of SEPA transfers and debits (BR-DE-19, BR-DE-20)', function (): void {
+    $badTransferIban = xr()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '58', hasCreditTransfer: true, accountId: 'DE00123456781234567890')]));
+    $goodTransferIban = xr()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '58', hasCreditTransfer: true, accountId: 'DE02120300000000202051')]));
+    $badDebitIban = xr()->validateModel(makeInvoice(
+        paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '59', hasDirectDebit: true, debitedAccountId: 'XX00WRONG')],
+        sepaCreditorId: 'DE98ZZZ09999999999',
+    ));
+
+    expect($badTransferIban->hasViolation('BR-DE-19'))->toBeTrue()
+        ->and($goodTransferIban->hasViolation('BR-DE-19'))->toBeFalse()
+        ->and($badDebitIban->hasViolation('BR-DE-20'))->toBeTrue();
+});

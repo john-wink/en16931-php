@@ -544,3 +544,31 @@ it('validates the electronic address scheme against the EAS list (BR-CL-25)', fu
     expect($invalid->hasViolation('BR-CL-25'))->toBeTrue()
         ->and($valid->hasViolation('BR-CL-25'))->toBeFalse();
 });
+
+// ---- Schritt 3: Zahlungsinstruktionen (BG-16..19) ----
+
+it('requires a payment means type code (BR-49) from the UNTDID 4461 list (BR-CL-16)', function (): void {
+    $missing = core()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(accountId: 'DE02120300000000202051', hasCreditTransfer: true)]));
+    $unknown = core()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '99')]));
+
+    expect($missing->hasViolation('BR-49'))->toBeTrue()
+        ->and($unknown->hasViolation('BR-CL-16'))->toBeTrue()
+        ->and(core()->validateModel(makeInvoice())->hasViolation('BR-CL-16'))->toBeFalse();
+});
+
+it('requires an account id for credit transfers (BR-61) and on present accounts (BR-50)', function (): void {
+    $noAccount = core()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '58')]));
+    $emptyAccount = core()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '30', hasCreditTransfer: true)]));
+
+    expect($noAccount->hasViolation('BR-61'))->toBeTrue()
+        ->and($emptyAccount->hasViolation('BR-50'))->toBeTrue()
+        ->and(core()->validateModel(makeInvoice())->hasViolation('BR-61'))->toBeFalse();
+});
+
+it('warns about a full card primary account number (BR-51)', function (): void {
+    $full = core()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '48', hasCardInformation: true, cardNumber: '4111111111111111')]));
+    $truncated = core()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '48', hasCardInformation: true, cardNumber: '1111')]));
+
+    expect($full->hasViolation('BR-51'))->toBeTrue()
+        ->and($truncated->hasViolation('BR-51'))->toBeFalse();
+});

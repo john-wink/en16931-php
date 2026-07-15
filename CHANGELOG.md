@@ -10,6 +10,20 @@ Pre-1.0: the public API may still change between minor versions.
 
 ### Added
 
+- ~70 additional rules: document allowance/charge mandatory fields (BR-31..38),
+  the breakdown rate (BR-48), VAT-id country prefixes (BR-CO-09), per-category
+  VAT identification (BR-*-02/-03/-04 for S/Z/E/AE/K/G/O/L/M), the
+  Not-subject-to-VAT restrictions (BR-O-02..07, BR-O-11..14), IGIC / IPSI /
+  split payment (BR-AF-*, BR-AG-*, BR-B-01/02), the S/L/M tax calculation with
+  the official ±1 tolerance (BR-S/AF/AG-09), tax representative rules
+  (BR-18/20/56) and the XRechnung rules BR-DE-2/16/17/18/21/27/28 (incl. the
+  Skonto format check).
+- Model & readers: seller tax registration identifier (BT-32), the tax
+  representative party (BG-11: BT-62/63/69) and document allowance/charge
+  reason codes (BT-98/BT-105) are now parsed from both CII and UBL; payment
+  terms (BT-20) are read untrimmed so the Skonto line-break rule matches the
+  official validator.
+
 - Rule-coverage matrix: [COVERAGE.md](COVERAGE.md) + README summary, generated
   by `tools/generate-coverage.php` against the official EN 16931 **1.3.16** /
   XRechnung **2.5.0** artefacts (`resources/rules-reference.json`, built by

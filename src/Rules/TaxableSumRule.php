@@ -24,6 +24,7 @@ final readonly class TaxableSumRule implements Rule
     private const array RULE_ID = [
         'S' => 'BR-S-08', 'Z' => 'BR-Z-08', 'E' => 'BR-E-08',
         'AE' => 'BR-AE-08', 'K' => 'BR-IC-08', 'G' => 'BR-G-08', 'O' => 'BR-O-08',
+        'L' => 'BR-AF-08', 'M' => 'BR-AG-08',
     ];
 
     public function id(): string

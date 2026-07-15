@@ -36,6 +36,14 @@ final class CodeLists
         '935',
     ];
 
+    /**
+     * VAT-number prefixes BR-CO-09 accepts on top of ISO 3166-1 alpha-2
+     * (Greece uses EL, Northern Ireland XI).
+     *
+     * @var list<string>
+     */
+    public const array VAT_PREFIX_EXTRAS = ['EL', 'XI'];
+
     public static function isVatCategory(string $code): bool
     {
         return in_array($code, self::VAT_CATEGORIES, true);

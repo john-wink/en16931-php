@@ -36,7 +36,7 @@ it('flags a taxable amount that does not match the line sum (BR-S-08)', function
 it('reconciles the taxable amount through a document allowance (no BR-S-08)', function (): void {
     // 100.00 line − 10.00 allowance = 90.00 taxable, VAT 17.10 → a clean invoice.
     $result = validate(
-        allowanceCharges: [new DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00')],
+        allowanceCharges: [new DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00', reason: 'Rabatt')],
         totals: new Totals(
             lineTotal: '100.00',
             allowanceTotal: '10.00',

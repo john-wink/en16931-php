@@ -73,6 +73,7 @@ final class UblInvoiceReader
             attachments: $this->attachments($xpath),
             precedingInvoiceReferences: $this->precedingInvoiceReferences($xpath),
             amountCurrencyCodes: $this->amountCurrencyCodes($xpath),
+            sourceSyntax: 'ubl',
             contractReference: $this->value($xpath, '/*/cac:ContractDocumentReference/cbc:ID'),
             tenderReference: $this->value($xpath, '/*/cac:OriginatorDocumentReference/cbc:ID'),
             thirdPartyPayments: $this->thirdPartyPayments($xpath),

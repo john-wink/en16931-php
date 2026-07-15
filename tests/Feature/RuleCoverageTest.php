@@ -426,7 +426,7 @@ it('forbids other breakdown groups next to O (BR-O-11) and non-O lines (BR-O-12)
 
 // ---- Schritt 1: IGIC/IPSI (L/M) und Split payment (B) ----
 
-it('requires a present, non-negative rate on an IGIC line (BR-AF-05)', function (): void {
+it('requires a present, non-negative rate on an IGIC line (BR-IG-05)', function (): void {
     $missing = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
         id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'L',
     )]));
@@ -434,28 +434,28 @@ it('requires a present, non-negative rate on an IGIC line (BR-AF-05)', function 
         id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'L', taxRate: '7.00',
     )]));
 
-    expect($missing->hasViolation('BR-AF-05'))->toBeTrue()
-        ->and($positive->hasViolation('BR-AF-05'))->toBeFalse();
+    expect($missing->hasViolation('BR-IG-05'))->toBeTrue()
+        ->and($positive->hasViolation('BR-IG-05'))->toBeFalse();
 });
 
-it('tolerates rounding within one unit on IGIC tax amounts (BR-AF-09)', function (): void {
+it('tolerates rounding within one unit on IGIC tax amounts (BR-IG-09)', function (): void {
     $line = new InvoiceLine(id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'L', taxRate: '7.00');
 
     $offByTwo = core()->validateModel(makeInvoice(lines: [$line], taxSubtotals: [new TaxSubtotal(category: 'L', rate: '7.00', taxableAmount: '100.00', taxAmount: '9.00')]));
     $withinTolerance = core()->validateModel(makeInvoice(lines: [$line], taxSubtotals: [new TaxSubtotal(category: 'L', rate: '7.00', taxableAmount: '100.00', taxAmount: '7.50')]));
 
-    expect($offByTwo->hasViolation('BR-AF-09'))->toBeTrue()
-        ->and($withinTolerance->hasViolation('BR-AF-09'))->toBeFalse();
+    expect($offByTwo->hasViolation('BR-IG-09'))->toBeTrue()
+        ->and($withinTolerance->hasViolation('BR-IG-09'))->toBeFalse();
 });
 
-it('reconciles the IGIC taxable amount per rate (BR-AF-08)', function (): void {
+it('reconciles the IGIC taxable amount per rate (BR-IG-08)', function (): void {
     $line = new InvoiceLine(id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'L', taxRate: '7.00');
 
     $result = core()->validateModel(makeInvoice(lines: [$line], taxSubtotals: [
         new TaxSubtotal(category: 'L', rate: '7.00', taxableAmount: '200.00', taxAmount: '14.00'),
     ]));
 
-    expect($result->hasViolation('BR-AF-08'))->toBeTrue();
+    expect($result->hasViolation('BR-IG-08'))->toBeTrue();
 });
 
 it('requires split payment invoices to be domestic Italian (BR-B-01)', function (): void {
@@ -854,4 +854,27 @@ it('validates the delivery location scheme (BR-CL-26)', function (): void {
     )));
 
     expect($result->hasViolation('BR-CL-26'))->toBeTrue();
+});
+
+// ---- Nachtrag: von der KoSIT-Config erzwungene Regeln ----
+
+it('allows at most one payment card account (BR-66) and one mandate (BR-67)', function (): void {
+    $twoCards = core()->validateModel(makeInvoice(paymentMeans: [
+        new JohnWink\En16931\Model\PaymentMeans(typeCode: '48', hasCardInformation: true),
+        new JohnWink\En16931\Model\PaymentMeans(typeCode: '48', hasCardInformation: true),
+    ]));
+    $twoMandates = core()->validateModel(makeInvoice(paymentMeans: [
+        new JohnWink\En16931\Model\PaymentMeans(typeCode: '59', hasDirectDebit: true, debitedAccountId: 'DE02120300000000202051'),
+        new JohnWink\En16931\Model\PaymentMeans(typeCode: '59', hasDirectDebit: true, debitedAccountId: 'DE02120300000000202051'),
+    ], sepaCreditorId: 'DE98ZZZ09999999999'));
+
+    expect($twoCards->hasViolation('BR-66'))->toBeTrue()
+        ->and($twoMandates->hasViolation('BR-67'))->toBeTrue()
+        ->and(core()->validateModel(makeInvoice())->hasViolation('BR-66'))->toBeFalse()
+        ->and(core()->validateModel(makeInvoice())->hasViolation('BR-67'))->toBeFalse();
+});
+
+it('registers BR-CO-27 without ever rejecting a well-formed account (tautology in the config)', function (): void {
+    // The official assert is vacuous (IBAN or proprietary or neither) — it never fires.
+    expect(core()->validateModel(makeInvoice())->hasViolation('BR-CO-27'))->toBeFalse();
 });

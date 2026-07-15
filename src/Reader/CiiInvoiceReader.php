@@ -72,6 +72,7 @@ final class CiiInvoiceReader
             attachments: $this->attachments($xpath),
             precedingInvoiceReferences: $this->precedingInvoiceReferences($xpath),
             amountCurrencyCodes: $this->amountCurrencyCodes($xpath),
+            sourceSyntax: 'cii',
             contractReference: $this->value($xpath, '//ram:ApplicableHeaderTradeAgreement/ram:ContractReferencedDocument/ram:IssuerAssignedID'),
             tenderReference: $this->value($xpath, '//ram:ApplicableHeaderTradeAgreement/ram:AdditionalReferencedDocument[ram:TypeCode="50"]/ram:IssuerAssignedID'),
         );

@@ -134,6 +134,12 @@ final class RuleSets
             new PaymentMeansRule('BR-61', 'BT-84', 'A credit transfer (payment means code 30 or 58) shall carry a payment account identifier (BT-84).', static fn (PaymentMeans $paymentMeans): bool => ! in_array(mb_trim((string) $paymentMeans->typeCode), ['30', '58'], true) || $paymentMeans->accountId !== null),
             new PaymentMeansRule('BR-CL-16', 'BT-81', 'The payment means type code (BT-81) shall be a valid UNTDID 4461 code.', static fn (PaymentMeans $paymentMeans): bool => $paymentMeans->typeCode === null || in_array($paymentMeans->typeCode, CodeLists::PAYMENT_MEANS_CODES, true)),
 
+            new InvoiceRule('BR-66', 'BG-18', 'An Invoice shall contain at most one payment card account (BG-18).', static fn (Invoice $invoice): bool => count(array_filter($invoice->paymentMeans, static fn (PaymentMeans $paymentMeans): bool => $paymentMeans->hasCardInformation)) <= 1),
+            new InvoiceRule('BR-67', 'BG-19', 'An Invoice shall contain at most one payment mandate (BG-19).', static fn (Invoice $invoice): bool => count(array_filter($invoice->paymentMeans, static fn (PaymentMeans $paymentMeans): bool => $paymentMeans->hasDirectDebit)) <= 1),
+            // BR-CO-27 (BT-84): the official assert is "IBAN or proprietary id or
+            // neither" — a tautology that never rejects. Registered for parity.
+            new InvoiceRule('BR-CO-27', 'BT-84', 'Either the IBAN or a proprietary account id (BT-84) shall be used.', static fn (Invoice $invoice): bool => true),
+
             new InvoiceRule('BR-29', 'BT-73', 'When both invoicing period dates are given, the end date (BT-74) shall not precede the start date (BT-73).', static fn (Invoice $invoice): bool => self::periodOrdered($invoice->invoicingPeriodStart, $invoice->invoicingPeriodEnd)),
             new LineRule('BR-30', 'BT-134', 'When both line period dates are given, the end date (BT-135) shall not precede the start date (BT-134).', static fn (InvoiceLine $invoiceLine): bool => self::periodOrdered($invoiceLine->periodStart, $invoiceLine->periodEnd)),
             new ConditionalRule('BR-CO-19', 'BG-14', 'A used invoicing period (BG-14) shall have a start date (BT-73), an end date (BT-74) or a description code (BT-8).', static fn (Invoice $invoice): bool => $invoice->hasInvoicingPeriod, static fn (Invoice $invoice): bool => self::filled($invoice->invoicingPeriodStart) || self::filled($invoice->invoicingPeriodEnd) || self::filled($invoice->taxPointDateCode)),
@@ -278,7 +284,9 @@ final class RuleSets
             new ConditionalRule('BR-DE-9', 'BT-53', 'The Buyer postal address shall contain a post code (BT-53).', static fn (Invoice $invoice): bool => $invoice->buyer->hasPostalAddress(), static fn (Invoice $invoice): bool => self::filled($invoice->buyer->postCode)),
             new ConditionalRule('BR-DE-10', 'BT-77', 'The deliver-to address shall contain a city (BT-77).', static fn (Invoice $invoice): bool => $invoice->deliverTo instanceof Party, static fn (Invoice $invoice): bool => self::filled($invoice->deliverTo?->city)),
             new ConditionalRule('BR-DE-11', 'BT-78', 'The deliver-to address shall contain a post code (BT-78).', static fn (Invoice $invoice): bool => $invoice->deliverTo instanceof Party, static fn (Invoice $invoice): bool => self::filled($invoice->deliverTo?->postCode)),
-            new InvoiceRule('BR-DE-TMP-32', 'BT-72', 'An invoice should contain the actual delivery date (BT-72), an invoicing period (BG-14) or a period on every line (BG-26).', static fn (Invoice $invoice): bool => self::filled($invoice->actualDeliveryDate) || $invoice->hasInvoicingPeriod || array_all($invoice->lines, fn (InvoiceLine $invoiceLine): bool => $invoiceLine->hasPeriod), Severity::Warning),
+            // BR-DE-TMP-32 exists in the XRechnung schematron source but is NOT
+            // shipped in the KoSIT validator configuration 3.0.2, so enforcing it
+            // produces false positives against the official validator. Not registered.
             new PresenceRule('BR-DE-5', 'BT-41', 'An XRechnung shall contain the Seller contact point (BT-41).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactName)),
             new PresenceRule('BR-DE-6', 'BT-42', 'An XRechnung shall contain the Seller contact telephone number (BT-42).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactPhone)),
             new PresenceRule('BR-DE-7', 'BT-43', 'An XRechnung shall contain the Seller contact email address (BT-43).', static fn (Invoice $invoice): bool => self::filled($invoice->seller->contactEmail)),
@@ -336,6 +344,10 @@ final class RuleSets
             new InvoiceRule('BR-DEX-12', 'BT-DEX-003', 'Each third party payment shall carry a description.', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all($invoice->thirdPartyPayments, fn (ThirdPartyPayment $thirdPartyPayment): bool => self::filled($thirdPartyPayment->description))),
             new InvoiceRule('BR-DEX-13', 'BT-DEX-002', 'A third party payment amount shall not have more than two decimals.', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all($invoice->thirdPartyPayments, fn (ThirdPartyPayment $thirdPartyPayment): bool => self::maxTwoDecimals($thirdPartyPayment->amount))),
             new InvoiceRule('BR-DEX-14', 'BT-DEX-002', 'A third party payment amount shall use the invoice currency (BT-5).', static fn (Invoice $invoice): bool => ! $extension($invoice) || array_all($invoice->thirdPartyPayments, fn (ThirdPartyPayment $thirdPartyPayment): bool => $thirdPartyPayment->currency !== null && $thirdPartyPayment->currency === $invoice->currency)),
+            // BR-DEX-15 is a CII-only rule in the KoSIT configuration (the UBL
+            // extension supports sub invoice lines and validates them via
+            // BR-DEX-02/03), so scope it to CII to avoid firing on UBL.
+            new InvoiceRule('BR-DEX-15', 'BG-DEX-01', 'XRechnung (CII) does not support sub invoice lines.', static fn (Invoice $invoice): bool => ! $extension($invoice) || $invoice->sourceSyntax === 'ubl' || array_all($invoice->lines, fn (InvoiceLine $invoiceLine): bool => $invoiceLine->subLines === []), Severity::Warning),
         ];
     }
 
@@ -382,8 +394,8 @@ final class RuleSets
             'S' => ['BR-S', $sellerIdentified, 'the Seller VAT identifier (BT-31), tax registration identifier (BT-32) or tax representative VAT identifier (BT-63)'],
             'Z' => ['BR-Z', $sellerIdentified, 'the Seller VAT identifier (BT-31), tax registration identifier (BT-32) or tax representative VAT identifier (BT-63)'],
             'E' => ['BR-E', $sellerIdentified, 'the Seller VAT identifier (BT-31), tax registration identifier (BT-32) or tax representative VAT identifier (BT-63)'],
-            'L' => ['BR-AF', $sellerIdentified, 'the Seller VAT identifier (BT-31), tax registration identifier (BT-32) or tax representative VAT identifier (BT-63)'],
-            'M' => ['BR-AG', $sellerIdentified, 'the Seller VAT identifier (BT-31), tax registration identifier (BT-32) or tax representative VAT identifier (BT-63)'],
+            'L' => ['BR-IG', $sellerIdentified, 'the Seller VAT identifier (BT-31), tax registration identifier (BT-32) or tax representative VAT identifier (BT-63)'],
+            'M' => ['BR-IP', $sellerIdentified, 'the Seller VAT identifier (BT-31), tax registration identifier (BT-32) or tax representative VAT identifier (BT-63)'],
             'AE' => ['BR-AE', $reverseCharge, 'a Seller VAT/tax identification (BT-31, BT-32 or BT-63) and a Buyer VAT (BT-48) or legal registration identifier (BT-47)'],
             'K' => ['BR-IC', $intraCommunity, 'the Seller (BT-31) or tax representative VAT identifier (BT-63) and the Buyer VAT identifier (BT-48)'],
             'G' => ['BR-G', $export, 'the Seller VAT identifier (BT-31) or tax representative VAT identifier (BT-63)'],
@@ -461,14 +473,14 @@ final class RuleSets
      */
     private static function categoryRules(): array
     {
-        $categoryPrefix = ['S' => 'BR-S', 'Z' => 'BR-Z', 'E' => 'BR-E', 'AE' => 'BR-AE', 'K' => 'BR-IC', 'G' => 'BR-G', 'O' => 'BR-O', 'L' => 'BR-AF', 'M' => 'BR-AG'];
+        $categoryPrefix = ['S' => 'BR-S', 'Z' => 'BR-Z', 'E' => 'BR-E', 'AE' => 'BR-AE', 'K' => 'BR-IC', 'G' => 'BR-G', 'O' => 'BR-O', 'L' => 'BR-IG', 'M' => 'BR-IP'];
         $rules = [];
 
         // BR-*-01: a used VAT category (line, document allowance or charge)
         // must have a matching breakdown group. Officially S, L and M work both
         // ways (usage ⇔ at least one group); every other category requires
         // exactly one group whenever the category appears anywhere.
-        foreach (['S' => 'BR-S', 'L' => 'BR-AF', 'M' => 'BR-AG'] as $category => $id) {
+        foreach (['S' => 'BR-S', 'L' => 'BR-IG', 'M' => 'BR-IP'] as $category => $id) {
             $rules[] = new ConditionalRule("{$id}-01", 'BG-23', "An invoice using VAT category {$category} shall contain at least one matching VAT breakdown group — and none without such usage.", static fn (Invoice $invoice): bool => self::usesCategory($invoice, $category) || self::subtotalHasCategory($invoice, $category), static fn (Invoice $invoice): bool => self::usesCategory($invoice, $category) && self::subtotalHasCategory($invoice, $category));
         }
 
@@ -487,14 +499,14 @@ final class RuleSets
         }
 
         // BR-{S,Z,AF,AG}-10: these groups must NOT carry an exemption reason.
-        foreach (['S' => 'BR-S', 'Z' => 'BR-Z', 'L' => 'BR-AF', 'M' => 'BR-AG'] as $category => $id) {
+        foreach (['S' => 'BR-S', 'Z' => 'BR-Z', 'L' => 'BR-IG', 'M' => 'BR-IP'] as $category => $id) {
             $rules[] = new SubtotalRule("{$id}-10", 'BT-120', "A {$category} VAT breakdown group shall not have a VAT exemption reason.", static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== $category || ! self::hasExemptionReason($taxSubtotal));
         }
 
         // BR-{S,AF,AG}-09: the category tax amount must equal taxable × rate.
         // The official asserts allow the result to be off by strictly less
         // than one unit (abs(BT-117) within ±1 of round(|BT-116| × BT-119)).
-        foreach (['S' => 'BR-S', 'L' => 'BR-AF', 'M' => 'BR-AG'] as $category => $id) {
+        foreach (['S' => 'BR-S', 'L' => 'BR-IG', 'M' => 'BR-IP'] as $category => $id) {
             $rules[] = new SubtotalRule("{$id}-09", 'BT-117', "A {$category} category tax amount (BT-117) shall equal the taxable amount (BT-116) multiplied by the rate (BT-119).", static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== $category || self::categoryTaxWithinTolerance($taxSubtotal));
         }
 
@@ -514,9 +526,9 @@ final class RuleSets
             $rules[] = new AllowanceRule("{$id}-07", 'BT-103', "A document-level charge with VAT category {$category} shall have a VAT rate (BT-103) of 0.", static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory !== $category || self::isZero($documentAllowanceCharge->taxRate), charges: true);
         }
 
-        // BR-AF/AG-05/-06/-07: IGIC (L) and IPSI (M) rates must be present and
+        // BR-IG/AG-05/-06/-07: IGIC (L) and IPSI (M) rates must be present and
         // 0 or greater — these are real taxes with positive rates.
-        foreach (['L' => 'BR-AF', 'M' => 'BR-AG'] as $category => $id) {
+        foreach (['L' => 'BR-IG', 'M' => 'BR-IP'] as $category => $id) {
             $rules[] = new LineRule("{$id}-05", 'BT-152', "A line with VAT category {$category} shall have a VAT rate (BT-152) of 0 or greater.", static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->taxCategory !== $category || self::isZeroOrGreater($invoiceLine->taxRate));
             $rules[] = new AllowanceRule("{$id}-06", 'BT-96', "A document-level allowance with VAT category {$category} shall have a VAT rate (BT-96) of 0 or greater.", static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory !== $category || self::isZeroOrGreater($documentAllowanceCharge->taxRate), charges: false);
             $rules[] = new AllowanceRule("{$id}-07", 'BT-103', "A document-level charge with VAT category {$category} shall have a VAT rate (BT-103) of 0 or greater.", static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory !== $category || self::isZeroOrGreater($documentAllowanceCharge->taxRate), charges: true);

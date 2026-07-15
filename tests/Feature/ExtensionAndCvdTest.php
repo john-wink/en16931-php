@@ -167,3 +167,17 @@ it('requires cva and CVD classification to pair up one-to-one (BR-DE-CVD-06-a/b)
     expect(xr()->validateModel(makeInvoice(customizationId: XR_CVD, contractReference: 'C-1', tenderReference: 'T-1', lines: [$classificationWithoutCva]))->hasViolation('BR-DE-CVD-06-a'))->toBeTrue()
         ->and(xr()->validateModel(makeInvoice(customizationId: XR_CVD, contractReference: 'C-1', tenderReference: 'T-1', lines: [$cvaWithoutClassification]))->hasViolation('BR-DE-CVD-06-b'))->toBeTrue();
 });
+
+it('warns about sub invoice lines under the extension (BR-DEX-15)', function (): void {
+    $line = new InvoiceLine(
+        id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62',
+        taxCategory: 'S', taxRate: '19.00',
+        subLines: [new SubInvoiceLine(netAmount: '100.00', vatCategoryCount: 1)],
+    );
+
+    $ext = xr()->validateModel(makeInvoice(customizationId: XR_EXTENSION, lines: [$line]));
+
+    expect($ext->hasViolation('BR-DEX-15'))->toBeTrue()
+        ->and($ext->isValid())->toBeTrue() // warning only
+        ->and(xr()->validateModel(makeInvoice(lines: [$line]))->hasViolation('BR-DEX-15'))->toBeFalse();
+});

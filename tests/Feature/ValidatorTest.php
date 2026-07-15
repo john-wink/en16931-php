@@ -237,12 +237,12 @@ it('requires city and post code on the deliver-to address under XRechnung (BR-DE
         ->and(xr()->validateModel(makeInvoice())->hasViolation('BR-DE-10'))->toBeFalse();
 });
 
-it('recommends delivery date or period information (BR-DE-TMP-32)', function (): void {
-    $without = xr()->validateModel(makeInvoice(actualDeliveryDate: null));
+it('does not enforce BR-DE-TMP-32 (absent from the KoSIT validator configuration)', function (): void {
+    // The rule is in the schematron source but not shipped in the config, so
+    // enforcing it would reject invoices the official validator accepts.
+    $without = xr()->validateModel(makeInvoice(actualDeliveryDate: null, paymentTerms: 'Zahlbar sofort.'));
 
-    expect($without->hasViolation('BR-DE-TMP-32'))->toBeTrue()
-        ->and($without->isValid())->toBeTrue()
-        ->and(xr()->validateModel(makeInvoice())->hasViolation('BR-DE-TMP-32'))->toBeFalse();
+    expect($without->hasViolation('BR-DE-TMP-32'))->toBeFalse();
 });
 
 it('requires unique attachment filenames (BR-DE-22)', function (): void {

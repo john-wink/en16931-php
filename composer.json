@@ -1,6 +1,6 @@
 {
     "name": "john-wink/en16931-php",
-    "description": "A dependency-free, Java-free PHP validator for EN 16931 electronic invoices (ZUGFeRD / Factur-X / XRechnung, CII syntax) — business rules, calculations and code lists in pure PHP.",
+    "description": "A dependency-free, Java-free PHP validator for EN 16931 electronic invoices (ZUGFeRD / Factur-X / XRechnung, CII and UBL) — full KoSIT rule coverage in pure PHP.",
     "keywords": [
         "en16931",
         "e-invoice",

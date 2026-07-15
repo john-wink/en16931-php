@@ -10,6 +10,34 @@ Pre-1.0: the public API may still change between minor versions.
 
 ### Added
 
+- **Full KoSIT rule coverage (274 / 274).** The coverage reference is now built
+  from the KoSIT validator configuration 3.0.2 — the compiled Schematron the
+  official validator runs, i.e. the legal conformance target — instead of the
+  schematron source repositories, which drift from the shipped configuration.
+- Newly enforced rules that the configuration adds on top of the source:
+  BR-66 / BR-67 (at most one payment card / mandate), BR-CO-27 (registered;
+  vacuous in the config), BR-DEX-15 (CII: sub invoice lines unsupported) and
+  BR-CO-25 (kept by the config).
+- The parity test now runs the **entire official KoSIT test suite**
+  bidirectionally — every UBL and CII instance across standard, extension and
+  technical-cases — asserting verdict parity and zero false positives on all of
+  them (previously only a two-file CII corpus ran bidirectionally).
+
+### Changed
+
+- **IGIC / IPSI rules renamed BR-AF → BR-IG and BR-AG → BR-IP** to match the
+  KoSIT configuration (the logic is unchanged; the ids were outdated). This is a
+  breaking change for anyone matching on the old ids.
+- `Invoice` carries the source syntax (`ubl` / `cii`) so the few genuinely
+  syntax-specific rules (BR-DEX-15) resolve correctly.
+
+### Removed
+
+- **BR-DE-TMP-32 is no longer enforced.** It exists in the XRechnung schematron
+  source but is not shipped in the KoSIT validator configuration 3.0.2, so
+  enforcing it rejected invoices the official validator accepts (32 false
+  positives on the official suite). Documented in COVERAGE.md.
+
 - Full rule coverage: the XRechnung **extension** (BR-DEX-01..14 — sub invoice
   lines, third party payments, DiGA schemes, `application/xml` attachments)
   and the **Clean Vehicles Directive** profile (BR-DE-CVD-01..06, BR-TMP-CVD-01),

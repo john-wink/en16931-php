@@ -72,8 +72,9 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   U+00A0 (a BT-31, for example) as a one-byte value instead of as missing, and
   kept a byte of a framing U+00A0 in names, codes and `@currencyID`. The rules
   that trim a code, a VAT identifier, a card number or a URL (BR-50, BR-51,
-  BR-61, BR-CL-22, BR-CO-09, BR-DE-19 to BR-DE-25, BR-DE-CVD-04/05,
-  BR-TMP-2) judged a value framed by U+00A0 differently than under UTF-8.
+  BR-61, BR-CL-22, BR-CO-09, BR-DE-19, BR-DE-20, BR-DE-23 to BR-DE-25,
+  BR-DE-CVD-04/05, BR-TMP-2) judged a value framed by U+00A0 differently than
+  under UTF-8.
 - **BR-CO-17 fails closed on unreadable values.** A filled BT-116, BT-119 or
   BT-117 that is not an `xs:decimal` used to skip the rule and now fails it. The
   `xs:decimal` forms the engine did not read before (`+19.00`, `.50`, `19.`) are

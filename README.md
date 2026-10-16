@@ -51,8 +51,8 @@ without XML.
 
 Model inputs are UTF-8. Every string in an `Invoice` passed to `validateModel()`
 must be UTF-8 encoded, whatever `mb_internal_encoding()` is set to: the engine
-trims and checks every value as UTF-8 and does not convert other encodings. The
-XML readers always deliver UTF-8.
+trims values as UTF-8 and does not convert other encodings. The XML readers
+always deliver UTF-8.
 
 ## Rule coverage
 

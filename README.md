@@ -65,15 +65,25 @@ their keys (`thirdPartyPayments[0][?]`). The check stops at 64 levels and
 after 1,000,000 counted values. It skips a model object it has checked before
 without a violation, and a list with the same entries as the last list without
 a violation in the same property of the same model class, unless that list
-holds lists. It checks a string that is not valid UTF-8 once, however often it
-appears. In the lists of every model object other than the invoice, an entry
-counts unless it is a model object the check meets for the first time; a model
-object with a violation that the check meets again there counts with all its
-values. Every value outside the model classes counts, including list entries
-skipped as a reference already checked. The result for a model whose model
-objects each appear once, or whose lines share model objects and whole lists,
-therefore does not depend on its size; lines that hold different lists of the
-same model objects count these model objects. A model beyond these limits, or a model object that contains
+holds lists. Comparing with that list weighs one unit per entry plus the bytes
+of its string entries and string keys; up to 64 units the comparison is free,
+above that its weight counts on every comparison, whether the list is the same
+array or a content-equal one built apart. It checks a string that is not valid
+UTF-8 once, however often it appears. In the lists of every model object other
+than the invoice, an entry counts unless it is a model object the check meets
+for the first time; a model object with a violation that the check meets again
+there counts with all its values. Every value outside the model classes counts,
+including list entries skipped as a reference already checked. The result for a
+model whose model objects each appear once, or whose lines share model objects
+and lists of up to 64 units, therefore does not depend on its size; lines that
+hold different lists of the same model objects count these model objects, and
+many model objects that share a longer list end with the limit violation. Every
+violation is reported, without a cap on their number, so memory grows with the
+violations: in the worst case a small model with a shared subtree and a list of
+invalid strings yields close to 1,000,000 violations with paths of several
+hundred characters, measured at about 1.1 GB (969,099 violations, paths up to
+444 characters) and estimated at up to about 2 GB with longer property names in
+the path. A model beyond these limits, or a model object that contains
 itself, is a fatal violation with the rule ID `UTF-8` and a message of its own
 (`… is nested too deep or too large to be checked for valid UTF-8.`, `…
 contains itself and cannot be checked for valid UTF-8.`), even when every

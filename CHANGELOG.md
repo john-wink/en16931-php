@@ -87,7 +87,10 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   content-equal one built apart. The same rule holds for a string that is not
   valid UTF-8: every further place with the same content, whether the same
   string or a content-equal one stored apart, weighs its bytes; up to 64 bytes
-  it is free, above that its weight counts. In the lists of
+  it is free, above that its weight counts. The check recognises that content
+  by an HMAC-SHA256 under a secret it draws anew for every check and never
+  returns, so no sender can choose strings that collide in its table. In the
+  lists of
   every model object other than the invoice, an entry counts unless it is a
   model object the check meets for the first time, and a model object with a
   violation that the check meets again there counts with all its values;

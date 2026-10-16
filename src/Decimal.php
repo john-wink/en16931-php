@@ -19,7 +19,12 @@ final class Decimal
      */
     public static function isNumeric(?string $value): bool
     {
-        return $value !== null && preg_match('/^-?\d+(\.\d+)?$/', mb_trim($value)) === 1;
+        return $value !== null && preg_match('/^-?\d+(\.\d+)?$/D', $value) === 1;
+    }
+
+    public static function isFilledButNotXsDecimal(?string $value): bool
+    {
+        return $value !== null && mb_trim($value) !== '' && self::fromXsDecimal($value) === null;
     }
 
     /**

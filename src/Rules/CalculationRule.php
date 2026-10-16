@@ -14,7 +14,8 @@ use JohnWink\En16931\Violation;
 /**
  * A tolerance-free calculation rule (BR-CO-* etc.): the declared total must
  * equal the computed one once both are rounded to two decimals. Skipped when
- * the declared value is absent (a presence rule owns that). The severity is
+ * the declared value is absent (a presence rule owns that). A filled declared
+ * amount or operand that is not an xs:decimal fails it fatally. The severity is
  * configurable to mirror the KoSIT levels (e.g. BR-CO-16 is informational).
  */
 final readonly class CalculationRule implements Rule
@@ -22,6 +23,7 @@ final readonly class CalculationRule implements Rule
     /**
      * @param  Closure(Invoice): string  $computed
      * @param  Closure(Invoice): ?string  $declared
+     * @param  (Closure(Invoice): list<?string>)|null  $operands
      */
     public function __construct(
         private string $id,
@@ -30,6 +32,7 @@ final readonly class CalculationRule implements Rule
         private Closure $computed,
         private Closure $declared,
         private Severity $severity = Severity::Fatal,
+        private ?Closure $operands = null,
     ) {}
 
     public function id(): string
@@ -39,6 +42,12 @@ final readonly class CalculationRule implements Rule
 
     public function evaluate(Invoice $invoice): array
     {
+        $amounts = [($this->declared)($invoice), ...($this->operands instanceof Closure ? ($this->operands)($invoice) : [])];
+
+        if (array_any($amounts, static fn (?string $amount): bool => Decimal::isFilledButNotXsDecimal($amount))) {
+            return [Violation::fatal($this->id, "{$this->message} (an amount is not an xs:decimal).", $this->flag)];
+        }
+
         $declared = Decimal::fromXsDecimal(($this->declared)($invoice));
 
         if ($declared === null) {

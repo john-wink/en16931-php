@@ -172,15 +172,15 @@ final class RuleSets
             new PresenceRule('BR-14', 'BT-112', 'An Invoice shall have the Invoice total amount with VAT (BT-112).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->grandTotal)),
             new PresenceRule('BR-15', 'BT-115', 'An Invoice shall have the Amount due for payment (BT-115).', static fn (Invoice $invoice): bool => self::filled($invoice->totals->payableAmount)),
             new InvoiceRule('BR-CO-26', 'BT-29', 'The Seller must be identifiable: a Seller identifier (BT-29), legal registration (BT-30) or VAT identifier (BT-31) is required.', static fn (Invoice $invoice): bool => $invoice->seller->hasAnyIdentifier()),
-            new InvoiceRule('BR-CO-25', 'BT-115', 'When the Amount due for payment (BT-115) is positive, a Payment due date (BT-9) or Payment terms (BT-20) shall be present.', static fn (Invoice $invoice): bool => ! self::isPositive($invoice->totals->payableAmount) || self::filled($invoice->paymentDueDate) || self::filled($invoice->paymentTerms)),
+            new InvoiceRule('BR-CO-25', 'BT-115', 'When the Amount due for payment (BT-115) is positive, a Payment due date (BT-9) or Payment terms (BT-20) shall be present.', static fn (Invoice $invoice): bool => ! Decimal::isFilledButNotXsDecimal($invoice->totals->payableAmount) && (! self::isPositive($invoice->totals->payableAmount) || self::filled($invoice->paymentDueDate) || self::filled($invoice->paymentTerms))),
 
-            new CalculationRule('BR-CO-10', 'BT-106', 'Sum of Invoice line net amounts does not equal BT-106', static fn (Invoice $invoice): string => self::sumLineNet($invoice), static fn (Invoice $invoice): ?string => $invoice->totals->lineTotal),
-            new CalculationRule('BR-CO-13', 'BT-109', 'Invoice total without VAT (BT-109) must equal BT-106 − BT-107 + BT-108', static fn (Invoice $invoice): string => Decimal::add(Decimal::sub(self::amount($invoice->totals->lineTotal), self::amount($invoice->totals->allowanceTotal)), self::amount($invoice->totals->chargeTotal)), static fn (Invoice $invoice): ?string => $invoice->totals->taxBasisTotal),
-            new CalculationRule('BR-CO-14', 'BT-110', 'Total VAT (BT-110) must equal the sum of category tax amounts', static fn (Invoice $invoice): string => self::sumTax($invoice), static fn (Invoice $invoice): ?string => $invoice->totals->taxTotal),
-            new CalculationRule('BR-CO-15', 'BT-112', 'Invoice total with VAT (BT-112) must equal BT-109 + BT-110', static fn (Invoice $invoice): string => Decimal::add(self::amount($invoice->totals->taxBasisTotal), self::amount($invoice->totals->taxTotal)), static fn (Invoice $invoice): ?string => $invoice->totals->grandTotal),
+            new CalculationRule('BR-CO-10', 'BT-106', 'Sum of Invoice line net amounts does not equal BT-106', static fn (Invoice $invoice): string => self::sumLineNet($invoice), static fn (Invoice $invoice): ?string => $invoice->totals->lineTotal, operands: static fn (Invoice $invoice): array => array_map(static fn (InvoiceLine $invoiceLine): ?string => $invoiceLine->netAmount, $invoice->lines)),
+            new CalculationRule('BR-CO-13', 'BT-109', 'Invoice total without VAT (BT-109) must equal BT-106 − BT-107 + BT-108', static fn (Invoice $invoice): string => Decimal::add(Decimal::sub(self::amount($invoice->totals->lineTotal), self::amount($invoice->totals->allowanceTotal)), self::amount($invoice->totals->chargeTotal)), static fn (Invoice $invoice): ?string => $invoice->totals->taxBasisTotal, operands: static fn (Invoice $invoice): array => [$invoice->totals->lineTotal, $invoice->totals->allowanceTotal, $invoice->totals->chargeTotal]),
+            new CalculationRule('BR-CO-14', 'BT-110', 'Total VAT (BT-110) must equal the sum of category tax amounts', static fn (Invoice $invoice): string => self::sumTax($invoice), static fn (Invoice $invoice): ?string => $invoice->totals->taxTotal, operands: static fn (Invoice $invoice): array => array_map(static fn (TaxSubtotal $taxSubtotal): ?string => $taxSubtotal->taxAmount, $invoice->taxSubtotals)),
+            new CalculationRule('BR-CO-15', 'BT-112', 'Invoice total with VAT (BT-112) must equal BT-109 + BT-110', static fn (Invoice $invoice): string => Decimal::add(self::amount($invoice->totals->taxBasisTotal), self::amount($invoice->totals->taxTotal)), static fn (Invoice $invoice): ?string => $invoice->totals->grandTotal, operands: static fn (Invoice $invoice): array => [$invoice->totals->taxBasisTotal, $invoice->totals->taxTotal]),
             // BR-CO-16 is informational in the KoSIT/XRechnung configuration (a
             // mismatching amount due does not reject), so it is a warning here.
-            new CalculationRule('BR-CO-16', 'BT-115', 'Amount due for payment (BT-115) must equal BT-112 − BT-113 + BT-114', static fn (Invoice $invoice): string => Decimal::add(Decimal::sub(self::amount($invoice->totals->grandTotal), self::amount($invoice->totals->paidAmount)), self::amount($invoice->totals->roundingAmount)), static fn (Invoice $invoice): ?string => $invoice->totals->payableAmount, Severity::Warning),
+            new CalculationRule('BR-CO-16', 'BT-115', 'Amount due for payment (BT-115) must equal BT-112 − BT-113 + BT-114', static fn (Invoice $invoice): string => Decimal::add(Decimal::sub(self::amount($invoice->totals->grandTotal), self::amount($invoice->totals->paidAmount)), self::amount($invoice->totals->roundingAmount)), static fn (Invoice $invoice): ?string => $invoice->totals->payableAmount, Severity::Warning, operands: static fn (Invoice $invoice): array => [$invoice->totals->grandTotal, $invoice->totals->paidAmount, $invoice->totals->roundingAmount]),
 
             new LineRule('BR-27', 'BT-146', 'The item net price (BT-146) shall not be negative.', static fn (InvoiceLine $invoiceLine): bool => ! self::isNegative($invoiceLine->netPrice)),
             new LineRule('BR-S-05', 'BT-152', 'A Standard-rated line (S) shall have a VAT rate (BT-152) greater than zero.', static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->taxCategory !== 'S' || self::isPositive($invoiceLine->taxRate)),
@@ -254,8 +254,8 @@ final class RuleSets
             new AllowanceRule('BR-CL-17', 'BT-95', 'The document-level allowance VAT category code (BT-95) shall be a valid UNCL5305 code.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory === null || CodeLists::isVatCategory($documentAllowanceCharge->taxCategory), charges: false),
             new AllowanceRule('BR-CL-17', 'BT-102', 'The document-level charge VAT category code (BT-102) shall be a valid UNCL5305 code.', static fn (DocumentAllowanceCharge $documentAllowanceCharge): bool => $documentAllowanceCharge->taxCategory === null || CodeLists::isVatCategory($documentAllowanceCharge->taxCategory), charges: true),
 
-            new CalculationRule('BR-CO-11', 'BT-107', 'Sum of allowances on document level (BT-107) must equal the sum of the document allowance amounts (BT-92)', static fn (Invoice $invoice): string => self::sumAllowanceCharges($invoice, false), static fn (Invoice $invoice): ?string => $invoice->totals->allowanceTotal),
-            new CalculationRule('BR-CO-12', 'BT-108', 'Sum of charges on document level (BT-108) must equal the sum of the document charge amounts (BT-99)', static fn (Invoice $invoice): string => self::sumAllowanceCharges($invoice, true), static fn (Invoice $invoice): ?string => $invoice->totals->chargeTotal),
+            new CalculationRule('BR-CO-11', 'BT-107', 'Sum of allowances on document level (BT-107) must equal the sum of the document allowance amounts (BT-92)', static fn (Invoice $invoice): string => self::sumAllowanceCharges($invoice, false), static fn (Invoice $invoice): ?string => $invoice->totals->allowanceTotal, operands: static fn (Invoice $invoice): array => self::allowanceChargeAmounts($invoice, false)),
+            new CalculationRule('BR-CO-12', 'BT-108', 'Sum of charges on document level (BT-108) must equal the sum of the document charge amounts (BT-99)', static fn (Invoice $invoice): string => self::sumAllowanceCharges($invoice, true), static fn (Invoice $invoice): ?string => $invoice->totals->chargeTotal, operands: static fn (Invoice $invoice): array => self::allowanceChargeAmounts($invoice, true)),
 
             new TaxableSumRule,
 
@@ -800,6 +800,17 @@ final class RuleSets
     private static function thirdPartyBalanced(Invoice $invoice): bool
     {
         $totals = $invoice->totals;
+        $amounts = [
+            $totals->payableAmount,
+            $totals->grandTotal,
+            $totals->paidAmount,
+            $totals->roundingAmount,
+            ...array_map(static fn (ThirdPartyPayment $thirdPartyPayment): ?string => $thirdPartyPayment->amount, $invoice->thirdPartyPayments),
+        ];
+
+        if (array_any($amounts, static fn (?string $amount): bool => Decimal::isFilledButNotXsDecimal($amount))) {
+            return false;
+        }
 
         if (Decimal::fromXsDecimal($totals->payableAmount) === null || Decimal::fromXsDecimal($totals->grandTotal) === null) {
             return true;
@@ -898,7 +909,7 @@ final class RuleSets
         $decimal = Decimal::fromXsDecimal($value);
 
         if ($decimal === null) {
-            return true;
+            return ! Decimal::isFilledButNotXsDecimal($value);
         }
 
         return Decimal::compare($decimal, '0') === 0;
@@ -906,11 +917,30 @@ final class RuleSets
 
     private static function maxTwoDecimals(?string $value): bool
     {
-        if (! Decimal::isNumeric($value)) {
+        if ($value === null) {
             return true;
         }
 
-        return preg_match('/^-?\d+(\.\d{1,2})?$/', mb_trim($value)) === 1;
+        $reading = Decimal::fromXsDecimal($value) ?? trim($value, " \t\r\n");
+        $separator = strpos($reading, '.');
+
+        return $separator === false || mb_strlen(substr($reading, $separator + 1)) <= 2;
+    }
+
+    /**
+     * @return list<?string>
+     */
+    private static function allowanceChargeAmounts(Invoice $invoice, bool $charges): array
+    {
+        $amounts = [];
+
+        foreach ($invoice->allowanceCharges as $allowanceCharge) {
+            if ($allowanceCharge->isCharge === $charges) {
+                $amounts[] = $allowanceCharge->amount;
+            }
+        }
+
+        return $amounts;
     }
 
     private static function sumAllowanceCharges(Invoice $invoice, bool $charges): string

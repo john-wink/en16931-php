@@ -63,6 +63,13 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   string as UTF-8 whatever `mb_internal_encoding()` is set to, so
   `validateModel()` expects every string in the `Invoice` model to be UTF-8.
   The readers deliver UTF-8. The README states the contract.
+- **`validateModel()` fails closed on strings that are not valid UTF-8.** Every
+  string in the `Invoice` model that fails `mb_check_encoding($value, 'UTF-8')`
+  is a fatal violation with the rule ID `UTF-8`, flagged with the path of the
+  field, such as `seller.name`, `notes[1]` or `lines[0].attributes[0].value`.
+  A field of only the ISO-8859-1 byte `0xA0` used to count as filled. Results
+  for models in valid UTF-8 do not change; `validate()` reads XML into UTF-8
+  and is not affected.
 
 ### Fixed
 
@@ -75,6 +82,11 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   BR-61, BR-CL-22, BR-CO-09, BR-DE-19, BR-DE-20, BR-DE-23 to BR-DE-25,
   BR-DE-CVD-04/05, BR-TMP-2) judged a value framed by U+00A0 differently than
   under UTF-8.
+- **BR-51, BR-CL-22 and BR-CO-09 count, upper-case and cut as UTF-8 whatever
+  `mb_internal_encoding()` is set to.** Under ISO-8859-1, BR-51 counted the
+  bytes of a card number instead of its characters and warned on ten non-ASCII
+  digits, and BR-CL-22 rejected a VATEX code that upper-cases to a valid one
+  only under UTF-8, such as `vatex-eu-ı`.
 - **BR-CO-17 fails closed on unreadable values.** A filled BT-116, BT-119 or
   BT-117 that is not an `xs:decimal` used to skip the rule and now fails it. The
   `xs:decimal` forms the engine did not read before (`+19.00`, `.50`, `19.`) are

@@ -54,11 +54,12 @@ must be UTF-8 encoded, whatever `mb_internal_encoding()` is set to: the engine
 trims values as UTF-8 and does not convert other encodings. The XML readers
 always deliver UTF-8.
 
-Keeping that contract is the caller's job. `validateModel()` does not check the
-encoding and does not reject a string in another encoding; it reads the bytes
-as UTF-8 and judges them as such. A single-byte no-break space (`0xA0` in
-ISO-8859-1), for example, is no whitespace there, so a field holding only that
-byte counts as filled. Convert other encodings with `mb_convert_encoding()`
+`validateModel()` fails closed on a broken contract: every string in the model
+that is not valid UTF-8 is a fatal violation with the rule ID `UTF-8`, flagged
+with the path of the field (`seller.name`, `notes[1]`,
+`lines[0].attributes[0].value`). A single-byte no-break space (`0xA0` in
+ISO-8859-1), for example, never counts silently as a filled field. The engine
+does not convert other encodings; convert them with `mb_convert_encoding()`
 before you build the model.
 
 ## Rule coverage

@@ -8,6 +8,16 @@ Pre-1.0: the public API may still change between minor versions.
 
 ## [Unreleased]
 
+### Changed
+
+- **Performance: the UTF-8 check keys only invalid strings of more than 64
+  bytes.** An invalid string of up to 64 bytes never counts against the
+  budget, so it no longer gets an HMAC-SHA256 or an entry in the table of
+  invalid strings. Results do not change. 999,000 notes of 1 to 64 invalid
+  bytes are checked in about 0.8 s again instead of about 3 s (PHP 8.5).
+
+## [0.4.0] - 2026-10-16
+
 Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
 `Decimal::isNumeric()` changes in a backwards-incompatible way, and
 `validateModel()` now fails a model with a string that is not valid UTF-8
@@ -357,5 +367,6 @@ Initial pre-release.
   only as a dev/CI oracle): zero false positives on the 72-instance XRechnung
   test suite, plus matching verdicts on a negative corpus.
 
+[0.4.0]: https://github.com/john-wink/en16931-php/releases/tag/v0.4.0
 [0.2.0]: https://github.com/john-wink/en16931-php/releases/tag/v0.2.0
 [0.1.0]: https://github.com/john-wink/en16931-php/releases/tag/v0.1.0

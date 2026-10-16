@@ -478,6 +478,29 @@ it('keys the strings that are not valid UTF-8 with a secret drawn anew for every
         ->and($firstKeys[0])->not->toBe(hash('xxh128', $invalidString, true));
 });
 
+it('keys only the strings that are not valid UTF-8 of more than 64 bytes and reports every place of a shorter one as invalid UTF-8', function (int $length, int $keyCount): void {
+    $invalidString = str_repeat('a', $length - 1)."\xA0";
+    $invoice = makeInvoice(notes: [$invalidString, $invalidString]);
+
+    [$keys, $violations] = Closure::bind(static function (Invoice $invoice): array {
+        $modelEncoding = new ModelEncoding;
+        $modelEncoding->checkModel($invoice, '', 0, false);
+
+        return [array_keys($modelEncoding->invalidStrings), $modelEncoding->violations];
+    }, null, ModelEncoding::class)($invoice);
+
+    expect($keys)->toHaveCount($keyCount)
+        ->and(array_map(static fn (Violation $violation): array => [$violation->flag, $violation->message], $violations))->toBe([
+            ['notes[0]', 'The value of notes[0] is not valid UTF-8.'],
+            ['notes[1]', 'The value of notes[1] is not valid UTF-8.'],
+        ]);
+})->with([
+    'string of 1 byte' => [1, 0],
+    'string of 32 bytes' => [32, 0],
+    'string of 64 bytes' => [64, 0],
+    'string of 65 bytes' => [65, 1],
+]);
+
 it('reads a valid string of 2 MB in 50000 places without a violation within a second', function (Closure $scenario): void {
     $validString = str_repeat("K\u{00F6}ln \u{2013} ", 200_000);
     $invoice = $scenario($validString);

@@ -10,7 +10,7 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
 
-final class TrimCallScanner
+final class MbCallScanner
 {
     private const array TRIM_FUNCTIONS = ['mb_trim', 'mb_ltrim', 'mb_rtrim'];
 

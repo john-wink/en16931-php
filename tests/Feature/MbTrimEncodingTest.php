@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use JohnWink\En16931\Tests\Support\TrimCallScanner;
+use JohnWink\En16931\Tests\Support\MbCallScanner;
 
 it('passes the encoding UTF-8 to every mb_trim call in src', function (): void {
-    $calls = TrimCallScanner::callsInDirectory(dirname(__DIR__, 2).'/src');
+    $calls = MbCallScanner::callsInDirectory(dirname(__DIR__, 2).'/src');
 
     $withoutUtf8 = array_values(array_map(
         static fn (array $call): string => $call['file'].':'.$call['line'],
@@ -17,7 +17,7 @@ it('passes the encoding UTF-8 to every mb_trim call in src', function (): void {
 });
 
 it('tells an mb_trim call with UTF-8 from one without', function (string $source, array $expected): void {
-    expect(array_column(TrimCallScanner::callsInSource("<?php\n".$source), 'utf8'))->toBe($expected);
+    expect(array_column(MbCallScanner::callsInSource("<?php\n".$source), 'utf8'))->toBe($expected);
 })->with([
     'positional UTF-8' => ["mb_trim(\$value, null, 'UTF-8');", [true]],
     'double-quoted UTF-8' => ['mb_trim($value, null, "UTF-8");', [true]],

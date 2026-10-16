@@ -459,6 +459,41 @@ it('reports a long string that is not valid UTF-8 in many places once and counts
     }, 'lines[0].name', 'lines[1].name'],
 ]);
 
+it('keys the strings that are not valid UTF-8 with a secret drawn anew for every check', function (): void {
+    $invalidString = str_repeat('a', 64)."\xA0";
+    $invoice = makeInvoice(notes: [$invalidString, $invalidString]);
+    $keysOfOneCheck = static fn (): array => Closure::bind(static function (Invoice $invoice): array {
+        $modelEncoding = new ModelEncoding;
+        $modelEncoding->checkModel($invoice, '', 0, false);
+
+        return array_keys($modelEncoding->invalidStrings);
+    }, null, ModelEncoding::class)($invoice);
+
+    $firstKeys = $keysOfOneCheck();
+    $secondKeys = $keysOfOneCheck();
+
+    expect($firstKeys)->toHaveCount(1)
+        ->and($secondKeys)->toHaveCount(1)
+        ->and($firstKeys)->not->toBe($secondKeys)
+        ->and($firstKeys[0])->not->toBe(hash('xxh128', $invalidString, true));
+});
+
+it('reads a valid string of 2 MB in 50000 places without a violation within a second', function (Closure $scenario): void {
+    $validString = str_repeat("K\u{00F6}ln \u{2013} ", 200_000);
+    $invoice = $scenario($validString);
+
+    $startedAt = hrtime(true);
+    $encodingViolations = ModelEncoding::violations($invoice);
+    $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
+
+    expect(strlen($validString))->toBe(2_000_000)
+        ->and($encodingViolations)->toBe([])
+        ->and($elapsedSeconds)->toBeLessThan(1.0);
+})->with([
+    'list entries' => [static fn (string $validString): Invoice => makeInvoice(notes: array_fill(0, 50000, $validString))],
+    'fields of distinct lines' => [static fn (string $validString): Invoice => makeInvoice(lines: array_map(static fn (int $index): InvoiceLine => new InvoiceLine(id: (string) $index, name: $validString), range(0, 49999)))],
+]);
+
 it('checks a string that is not valid UTF-8 of up to 64 bytes in every place without counting and counts a longer one against the budget in every further place', function (int $length, int $limitViolationCount): void {
     $invalidString = str_repeat('a', $length - 1)."\xA0";
     $lines = array_map(static fn (int $index): InvoiceLine => new InvoiceLine(id: (string) $index, name: $invalidString), range(1, 20000));

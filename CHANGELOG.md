@@ -77,12 +77,19 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   nested lists, are checked as well and flagged with `[?]` after the field,
   such as `thirdPartyPayments[0][?]`: every property of such an object,
   private and protected ones included, and the string of a `Stringable`. The
-  check stops at 64 levels and after 1,000,000 counted values: the values of
-  model objects count only when the check meets the same model object again,
+  check stops at 64 levels and after 1,000,000 counted values. It skips a
+  model object it has checked before without a violation and a list with the
+  same entries as the last list without a violation in the same property of
+  the same model class, unless that list holds lists, and it checks a string
+  that is not valid UTF-8 once, however often it appears. In the lists of
+  every model object other than the invoice, an entry counts unless it is a
+  model object the check meets for the first time, and a model object with a
+  violation that the check meets again there counts with all its values;
   every value outside the model classes counts, including list entries
-  skipped as a reference already checked, so the result for a model whose
-  model objects each appear once does not depend on its size. Every violation
-  is reported, without a cap on their number. A model beyond these limits,
+  skipped as a reference already checked. The result for a model whose model
+  objects each appear once, or whose lines share model objects and whole
+  lists, therefore does not depend on its size. Every violation is reported,
+  without a cap on their number. A model beyond these limits,
   or a model object that contains itself, gets a fatal `UTF-8` violation with
   a message of its own (`… is nested too deep or too large to be checked for
   valid UTF-8.`, `… contains itself and cannot be checked for valid UTF-8.`),

@@ -283,6 +283,41 @@ it('treats a mandatory total of only U+00A0 or U+3000 as missing (BR-12 to BR-15
     'BT-115 (BR-15)' => ['payableAmount', 'BR-15'],
 ]);
 
+it('treats a mandatory amount of only U+00A0 or U+3000 as missing (BR-26, BR-41, BR-43, BR-45, BR-53)', function (string $blank, Closure $scenario, string $ruleId) use ($hasFatal): void {
+    $validationResult = core()->validateModel($scenario(null));
+    $actual = core()->validateModel($scenario($blank));
+
+    expect($validationResult->isValid())->toBeTrue()
+        ->and($actual->isValid())->toBeFalse()
+        ->and($hasFatal($actual, $ruleId))->toBeTrue();
+})->with([
+    'only a no-break space' => ["\u{00A0}"],
+    'only an ideographic space' => ["\u{3000}"],
+    'no-break and ideographic spaces' => ["\u{00A0}\u{3000}\u{00A0}"],
+])->with([
+    'BT-146 (BR-26)' => [static fn (?string $blank): Invoice => makeInvoice(lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: $blank ?? '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00')]), 'BR-26'],
+    'BT-116 (BR-45)' => [static fn (?string $blank): Invoice => makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'S', rate: '19.00', taxableAmount: $blank ?? '100.00', taxAmount: '19.00')]), 'BR-45'],
+    'BT-136 (BR-41)' => [static fn (?string $blank): Invoice => makeInvoice(lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', allowanceCharges: [new LineAllowanceCharge(isCharge: false, amount: $blank ?? '5.00', reason: 'Rabatt', baseAmount: '10.00')])]), 'BR-41'],
+    'BT-141 (BR-43)' => [static fn (?string $blank): Invoice => makeInvoice(lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', allowanceCharges: [new LineAllowanceCharge(isCharge: true, amount: $blank ?? '5.00', reason: 'Zuschlag', baseAmount: '10.00')])]), 'BR-43'],
+    'BT-111 (BR-53)' => [static fn (?string $blank): Invoice => makeInvoice(taxCurrency: 'USD', totals: new Totals(lineTotal: '100.00', taxBasisTotal: '100.00', taxTotal: '19.00', grandTotal: '119.00', paidAmount: '0.00', payableAmount: '119.00', taxTotalAccounting: $blank ?? '19.00')), 'BR-53'],
+]);
+
+it('fails BR-DEX-02 closed on a filled line or sub line net amount that is not an xs:decimal', function (string $lineNetAmount, string $subLineNetAmount) use ($extensionId): void {
+    $scenario = static fn (string $lineNetAmount, string $subLineNetAmount): Invoice => makeInvoice(customizationId: $extensionId, lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: $lineNetAmount, netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', subLines: [new SubInvoiceLine(netAmount: '60.00', vatCategoryCount: 1), new SubInvoiceLine(netAmount: $subLineNetAmount, vatCategoryCount: 1)])]);
+
+    $validationResult = xr()->validateModel($scenario('100.00', '40.00'));
+    $actual = xr()->validateModel($scenario($lineNetAmount, $subLineNetAmount));
+
+    expect($validationResult->hasViolation('BR-DEX-02'))->toBeFalse()
+        ->and($actual->hasViolation('BR-DEX-02'))->toBeTrue()
+        ->and(array_any($actual->violations, static fn (Violation $violation): bool => $violation->ruleId === 'BR-DEX-02' && $violation->severity === Severity::Warning))->toBeTrue();
+})->with([
+    'sub line framed by no-break spaces' => ['100.00', "\u{00A0}40.00\u{00A0}"],
+    'sub line framed by ideographic spaces' => ['100.00', "\u{3000}40.00\u{3000}"],
+    'sub line with a decimal comma' => ['100.00', '40,00'],
+    'line framed by no-break spaces' => ["\u{00A0}100.00\u{00A0}", '40.00'],
+]);
+
 it('treats an optional BT-110 of only U+00A0 or U+3000 as absent', function (string $blank) use ($allTotals, $violationIds): void {
     $absent = core()->validateModel(makeInvoice(totals: new Totals(...[...$allTotals, 'taxTotal' => null])));
     $actual = core()->validateModel(makeInvoice(totals: new Totals(...[...$allTotals, 'taxTotal' => $blank])));

@@ -65,6 +65,27 @@ it('reads xs:decimal values and ignores only XML whitespace', function (?string 
     'null' => [null, null],
 ]);
 
+it('treats U+00A0 and U+3000 as blank whatever the internal encoding is', function (string $encoding, string $blank): void {
+    $previous = mb_internal_encoding();
+    mb_internal_encoding($encoding);
+
+    try {
+        $filled = Decimal::isFilled($blank);
+    } finally {
+        mb_internal_encoding($previous);
+    }
+
+    expect($filled)->toBeFalse();
+})->with([
+    'ISO-8859-1' => ['ISO-8859-1'],
+    'Windows-1252' => ['Windows-1252'],
+    'ASCII' => ['ASCII'],
+])->with([
+    'only a no-break space' => ["\u{00A0}"],
+    'only an ideographic space' => ["\u{3000}"],
+    'no-break and ideographic spaces' => ["\u{00A0}\u{3000}\u{00A0}"],
+]);
+
 it('splits every value into missing, filled but not an xs:decimal, or readable', function (?string $value, bool $filled, bool $unreadable, ?string $reading): void {
     expect(Decimal::isFilled($value))->toBe($filled)
         ->and(Decimal::isFilledButNotXsDecimal($value))->toBe($unreadable)

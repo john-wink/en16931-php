@@ -956,20 +956,26 @@ final class RuleSets
         return self::filled($taxSubtotal->exemptionReasonCode);
     }
 
-    /**
-     * BR-CO-17: the category tax amount must equal the taxable amount × the rate
-     * (rounded to two decimals). Skipped when a value is missing — the presence
-     * rules own that.
-     */
     private static function categoryTaxConsistent(TaxSubtotal $taxSubtotal): bool
     {
-        if (! Decimal::isNumeric($taxSubtotal->taxableAmount) || ! Decimal::isNumeric($taxSubtotal->rate) || ! Decimal::isNumeric($taxSubtotal->taxAmount)) {
+        if (! Decimal::isNumeric($taxSubtotal->taxAmount)) {
             return true;
         }
 
-        $expected = Decimal::round(Decimal::mul($taxSubtotal->taxableAmount, Decimal::mul($taxSubtotal->rate, '0.01')));
+        if (! self::filled($taxSubtotal->rate) || self::roundsToZero($taxSubtotal->rate)) {
+            return self::roundsToZero($taxSubtotal->taxAmount);
+        }
 
-        return Decimal::equals($expected, $taxSubtotal->taxAmount);
+        return self::categoryTaxWithinTolerance($taxSubtotal);
+    }
+
+    private static function roundsToZero(?string $value): bool
+    {
+        if (! Decimal::isNumeric($value)) {
+            return false;
+        }
+
+        return Decimal::compare($value, '-0.5', 8) >= 0 && Decimal::compare($value, '0.5', 8) < 0;
     }
 
     private static function sumLineNet(Invoice $invoice): string

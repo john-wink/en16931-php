@@ -2,9 +2,16 @@
 
 declare(strict_types=1);
 
+use JohnWink\En16931\Model\Attachment;
+use JohnWink\En16931\Model\DocumentAllowanceCharge;
 use JohnWink\En16931\Model\InvoiceLine;
+use JohnWink\En16931\Model\ItemAttribute;
+use JohnWink\En16931\Model\ItemClassification;
+use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\Party;
+use JohnWink\En16931\Model\PaymentMeans;
 use JohnWink\En16931\Model\TaxSubtotal;
+use JohnWink\En16931\Model\Totals;
 
 it('flags a missing specification identifier (BR-01)', function (): void {
     expect(core()->validateModel(makeInvoice(customizationId: null))->hasViolation('BR-01'))->toBeTrue();
@@ -30,7 +37,6 @@ it('flags an invalid seller country code (BR-CL-14)', function (): void {
 it('flags a line missing its item name (BR-25)', function (): void {
     $result = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
         id: '1',
-        name: null,
         netAmount: '100.00',
         netPrice: '100.00',
         quantity: '1',
@@ -46,7 +52,6 @@ it('flags a VAT breakdown missing its taxable amount (BR-45)', function (): void
     $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
         category: 'S',
         rate: '19.00',
-        taxableAmount: null,
         taxAmount: '19.00',
     )]));
 
@@ -89,22 +94,117 @@ it('tolerates a category tax amount one cent off the rounded product (BR-CO-17)'
     'one cent below' => ['100.00', '18.99'],
     'credit note one cent off' => ['-100.00', '-19.01'],
     'just under one unit above' => ['100.00', '19.99'],
+    'just under one unit below' => ['100.00', '18.01'],
+    'credit note just under one unit above' => ['-100.00', '-19.99'],
+    'credit note just under one unit below' => ['-100.00', '-18.01'],
 ]);
 
-it('flags a category tax amount off by one unit or more (BR-CO-17)', function (string $taxAmount): void {
+it('flags a category tax amount off by one unit or more (BR-CO-17)', function (string $taxableAmount, string $taxAmount): void {
     $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
         category: 'S',
         rate: '19.00',
-        taxableAmount: '100.00',
+        taxableAmount: $taxableAmount,
         taxAmount: $taxAmount,
     )]));
 
     expect($result->hasViolation('BR-CO-17'))->toBeTrue();
 })->with([
-    'exactly one unit above' => ['20.00'],
-    'exactly one unit below' => ['18.00'],
-    'more than one unit above' => ['20.50'],
+    'exactly one unit above' => ['100.00', '20.00'],
+    'exactly one unit below' => ['100.00', '18.00'],
+    'more than one unit above' => ['100.00', '20.50'],
+    'credit note exactly one unit above' => ['-100.00', '-20.00'],
+    'credit note exactly one unit below' => ['-100.00', '-18.00'],
 ]);
+
+it('requires BT-117 to round to zero when the rate is missing or zero (BR-CO-17)', function (string $category, ?string $rate, string $taxAmount, bool $violates): void {
+    $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
+        category: $category,
+        rate: $rate,
+        taxableAmount: '100.00',
+        taxAmount: $taxAmount,
+    )]));
+
+    expect($result->hasViolation('BR-CO-17'))->toBe($violates);
+})->with([
+    'rate missing, 0.49' => ['O', null, '0.49', false],
+    'rate missing, 0.50' => ['O', null, '0.50', true],
+    'rate missing, -0.50' => ['O', null, '-0.50', false],
+    'rate missing, -0.51' => ['O', null, '-0.51', true],
+    'rate zero, 0.49' => ['Z', '0.00', '0.49', false],
+    'rate zero, 0.50' => ['Z', '0.00', '0.50', true],
+    'rate zero, -0.50' => ['Z', '0.00', '-0.50', false],
+    'rate zero, -0.51' => ['Z', '0.00', '-0.51', true],
+]);
+
+it('treats a rate that rounds to zero like a zero rate (BR-CO-17)', function (string $rate, string $taxAmount, bool $violates): void {
+    $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
+        category: 'S',
+        rate: $rate,
+        taxableAmount: '1000.00',
+        taxAmount: $taxAmount,
+    )]));
+
+    expect($result->hasViolation('BR-CO-17'))->toBe($violates);
+})->with([
+    'rate 0.30, product 3.00' => ['0.30', '3.00', true],
+    'rate 0.30, BT-117 rounds to zero' => ['0.30', '0.40', false],
+    'rate 0.50, product 5.00' => ['0.50', '5.00', false],
+    'rate 0.50, BT-117 zero' => ['0.50', '0.00', true],
+]);
+
+it('flags a filled but unreadable amount or rate instead of skipping it (BR-CO-17)', function (?string $rate, string $taxableAmount, string $taxAmount): void {
+    $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
+        category: 'S',
+        rate: $rate,
+        taxableAmount: $taxableAmount,
+        taxAmount: $taxAmount,
+    )]));
+
+    expect($result->hasViolation('BR-CO-17'))->toBeTrue();
+})->with([
+    'unreadable BT-116' => ['19.00', 'n/a', '19.00'],
+    'unreadable BT-119' => ['19 %', '100.00', '19.00'],
+    'unreadable BT-117' => ['19.00', '100.00', '19,00'],
+    'unreadable BT-117, rate missing' => [null, '100.00', 'zero'],
+    'unreadable BT-116, rate missing' => [null, '1e2', '0.00'],
+]);
+
+it('reads the xs:decimal forms of BT-116, BT-119 and BT-117 (BR-CO-17)', function (string $rate, string $taxableAmount, string $taxAmount, bool $violates): void {
+    $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
+        category: 'S',
+        rate: $rate,
+        taxableAmount: $taxableAmount,
+        taxAmount: $taxAmount,
+    )]));
+
+    expect($result->hasViolation('BR-CO-17'))->toBe($violates);
+})->with([
+    'leading plus' => ['+19.00', '+100.00', '+19.00', false],
+    'no integer digits' => ['.50', '1000', '5', false],
+    'trailing dot' => ['19.', '100.', '19.', false],
+    'credit note with trailing dot' => ['19.', '-100.', '-19.', false],
+]);
+
+it('reads an xs:decimal BT-117 through the full UBL pipeline (BR-CO-17)', function (): void {
+    $xml = str_replace('<cbc:TaxAmount currencyID="EUR">19.00</cbc:TaxAmount>
+            <cac:TaxCategory>', '<cbc:TaxAmount currencyID="EUR">+19.00</cbc:TaxAmount>
+            <cac:TaxCategory>', (string) file_get_contents(__DIR__.'/../Fixtures/valid-ubl.xml'));
+
+    expect($xml)->toContain('+19.00')
+        ->and(en()->validateUbl($xml)->hasViolation('BR-CO-17'))->toBeFalse();
+});
+
+it('rejects an unreadable BT-117 at the XSD stage of the UBL pipeline', function (): void {
+    $xml = str_replace('<cbc:TaxAmount currencyID="EUR">19.00</cbc:TaxAmount>
+            <cac:TaxCategory>', '<cbc:TaxAmount currencyID="EUR">19,00</cbc:TaxAmount>
+            <cac:TaxCategory>', (string) file_get_contents(__DIR__.'/../Fixtures/valid-ubl.xml'));
+
+    $result = en()->validateUbl($xml);
+
+    expect($xml)->toContain('19,00')
+        ->and($result->isValid())->toBeFalse()
+        ->and($result->hasViolation('XSD'))->toBeTrue();
+});
 
 it('requires a zero category tax amount when the rate is zero (BR-CO-17)', function (): void {
     $nonZero = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'Z', rate: '0.00', taxableAmount: '100.00', taxAmount: '1.00')]));
@@ -115,8 +215,8 @@ it('requires a zero category tax amount when the rate is zero (BR-CO-17)', funct
 });
 
 it('requires a zero category tax amount when the rate is missing (BR-CO-17)', function (): void {
-    $nonZero = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'O', rate: null, taxableAmount: '100.00', taxAmount: '1.00')]));
-    $zero = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'O', rate: null, taxableAmount: '100.00', taxAmount: '0.00')]));
+    $nonZero = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'O', taxableAmount: '100.00', taxAmount: '1.00')]));
+    $zero = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'O', taxableAmount: '100.00', taxAmount: '0.00')]));
 
     expect($nonZero->hasViolation('BR-CO-17'))->toBeTrue()
         ->and($zero->hasViolation('BR-CO-17'))->toBeFalse();
@@ -135,9 +235,8 @@ it('keeps BR-CO-14 exact when BR-CO-17 tolerates one cent', function (): void {
 });
 
 it('flags a missing total amount without VAT (BR-13)', function (): void {
-    $result = core()->validateModel(makeInvoice(totals: new JohnWink\En16931\Model\Totals(
+    $result = core()->validateModel(makeInvoice(totals: new Totals(
         lineTotal: '100.00',
-        taxBasisTotal: null,
         taxTotal: '19.00',
         grandTotal: '119.00',
         paidAmount: '0.00',
@@ -178,7 +277,7 @@ it('flags a line allowance without a reason (BR-42)', function (): void {
         unitCode: 'C62',
         taxCategory: 'S',
         taxRate: '19.00',
-        allowanceCharges: [new JohnWink\En16931\Model\LineAllowanceCharge(isCharge: false, amount: '5.00')],
+        allowanceCharges: [new LineAllowanceCharge(isCharge: false, amount: '5.00')],
     )]));
 
     expect($result->hasViolation('BR-42'))->toBeTrue();
@@ -194,7 +293,7 @@ it('flags a seller with no identifier at all (BR-CO-26)', function (): void {
 
 it('flags a Standard document allowance with a zero rate (BR-S-06)', function (): void {
     $result = core()->validateModel(makeInvoice(allowanceCharges: [
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '0.00'),
+        new DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '0.00'),
     ]));
 
     expect($result->hasViolation('BR-S-06'))->toBeTrue();
@@ -262,7 +361,7 @@ it('flags a used line category with no matching breakdown group (BR-S-01)', func
 
 it('reports a Standard document charge with a zero rate under BR-S-07, not BR-S-06', function (): void {
     $result = core()->validateModel(makeInvoice(allowanceCharges: [
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: true, amount: '10.00', taxCategory: 'S', taxRate: '0.00'),
+        new DocumentAllowanceCharge(isCharge: true, amount: '10.00', taxCategory: 'S', taxRate: '0.00'),
     ]));
 
     expect($result->hasViolation('BR-S-07'))->toBeTrue()
@@ -279,7 +378,6 @@ it('flags a zero-rated line with an absent VAT rate (BR-Z-05)', function (): voi
         quantity: '1',
         unitCode: 'C62',
         taxCategory: 'Z',
-        taxRate: null,
     )]));
 
     expect($result->hasViolation('BR-Z-05'))->toBeTrue();
@@ -287,7 +385,7 @@ it('flags a zero-rated line with an absent VAT rate (BR-Z-05)', function (): voi
 
 it('flags an exempt document allowance with an absent VAT rate (BR-E-06)', function (): void {
     $result = core()->validateModel(makeInvoice(allowanceCharges: [
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'E', taxRate: null),
+        new DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'E'),
     ]));
 
     expect($result->hasViolation('BR-E-06'))->toBeTrue();
@@ -308,7 +406,7 @@ it('flags two Zero-rated breakdown groups — BR-Z-01 requires exactly one', fun
 it('triggers BR-Z-01 from a document allowance category as well', function (): void {
     // Default S line + S breakdown; the Z allowance has no Z breakdown group.
     $result = core()->validateModel(makeInvoice(allowanceCharges: [
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'Z', taxRate: '0.00'),
+        new DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'Z', taxRate: '0.00'),
     ]));
 
     expect($result->hasViolation('BR-Z-01'))->toBeTrue();
@@ -364,7 +462,7 @@ it('rejects type code 936, which is not part of UNTDID 1001 (BR-CL-01)', functio
 
 it('flags a document allowance without an amount (BR-31)', function (): void {
     $result = core()->validateModel(makeInvoice(allowanceCharges: [
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, taxCategory: 'S', taxRate: '19.00'),
+        new DocumentAllowanceCharge(isCharge: false, taxCategory: 'S', taxRate: '19.00'),
     ]));
 
     expect($result->hasViolation('BR-31'))->toBeTrue();
@@ -372,15 +470,15 @@ it('flags a document allowance without an amount (BR-31)', function (): void {
 
 it('flags a document allowance without a VAT category (BR-32)', function (): void {
     $result = core()->validateModel(makeInvoice(allowanceCharges: [
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00'),
+        new DocumentAllowanceCharge(isCharge: false, amount: '10.00'),
     ]));
 
     expect($result->hasViolation('BR-32'))->toBeTrue();
 });
 
 it('flags a document allowance without a reason or reason code (BR-33)', function (): void {
-    $allowance = new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00');
-    $withCode = new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00', reasonCode: '95');
+    $allowance = new DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00');
+    $withCode = new DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00', reasonCode: '95');
 
     expect(core()->validateModel(makeInvoice(allowanceCharges: [$allowance]))->hasViolation('BR-33'))->toBeTrue()
         ->and(core()->validateModel(makeInvoice(allowanceCharges: [$withCode]))->hasViolation('BR-33'))->toBeFalse();
@@ -388,7 +486,7 @@ it('flags a document allowance without a reason or reason code (BR-33)', functio
 
 it('flags a document charge without an amount (BR-36), category (BR-37) and reason (BR-38)', function (): void {
     $result = core()->validateModel(makeInvoice(allowanceCharges: [
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: true),
+        new DocumentAllowanceCharge(isCharge: true),
     ]));
 
     expect($result->hasViolation('BR-36'))->toBeTrue()
@@ -448,7 +546,7 @@ it('requires buyer identification on reverse charge (BR-AE-02)', function (): vo
 it('flags a reverse-charge document allowance without buyer identification (BR-AE-03)', function (): void {
     $result = core()->validateModel(makeInvoice(
         buyer: new Party(name: 'B', countryCode: 'DE'),
-        allowanceCharges: [new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'AE', taxRate: '0.00', reason: 'Rabatt')],
+        allowanceCharges: [new DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'AE', taxRate: '0.00', reason: 'Rabatt')],
     ));
 
     expect($result->hasViolation('BR-AE-03'))->toBeTrue();
@@ -561,7 +659,7 @@ it('requires a zero rate on export and intra-community lines (BR-G-05, BR-IC-05)
         id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'G', taxRate: '19.00',
     )]));
     $intraCommunity = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
-        id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'K', taxRate: null,
+        id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'K',
     )]));
 
     expect($export->hasViolation('BR-G-05'))->toBeTrue()
@@ -601,8 +699,8 @@ it('validates the electronic address scheme against the EAS list (BR-CL-25)', fu
 // ---- Schritt 3: Zahlungsinstruktionen (BG-16..19) ----
 
 it('requires a payment means type code (BR-49) from the UNTDID 4461 list (BR-CL-16)', function (): void {
-    $missing = core()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(accountId: 'DE02120300000000202051', hasCreditTransfer: true)]));
-    $unknown = core()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '99')]));
+    $missing = core()->validateModel(makeInvoice(paymentMeans: [new PaymentMeans(accountId: 'DE02120300000000202051', hasCreditTransfer: true)]));
+    $unknown = core()->validateModel(makeInvoice(paymentMeans: [new PaymentMeans(typeCode: '99')]));
 
     expect($missing->hasViolation('BR-49'))->toBeTrue()
         ->and($unknown->hasViolation('BR-CL-16'))->toBeTrue()
@@ -610,8 +708,8 @@ it('requires a payment means type code (BR-49) from the UNTDID 4461 list (BR-CL-
 });
 
 it('requires an account id for credit transfers (BR-61) and on present accounts (BR-50)', function (): void {
-    $noAccount = core()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '58')]));
-    $emptyAccount = core()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '30', hasCreditTransfer: true)]));
+    $noAccount = core()->validateModel(makeInvoice(paymentMeans: [new PaymentMeans(typeCode: '58')]));
+    $emptyAccount = core()->validateModel(makeInvoice(paymentMeans: [new PaymentMeans(typeCode: '30', hasCreditTransfer: true)]));
 
     expect($noAccount->hasViolation('BR-61'))->toBeTrue()
         ->and($emptyAccount->hasViolation('BR-50'))->toBeTrue()
@@ -619,8 +717,8 @@ it('requires an account id for credit transfers (BR-61) and on present accounts 
 });
 
 it('warns about a full card primary account number (BR-51)', function (): void {
-    $full = core()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '48', hasCardInformation: true, cardNumber: '4111111111111111')]));
-    $truncated = core()->validateModel(makeInvoice(paymentMeans: [new JohnWink\En16931\Model\PaymentMeans(typeCode: '48', hasCardInformation: true, cardNumber: '1111')]));
+    $full = core()->validateModel(makeInvoice(paymentMeans: [new PaymentMeans(typeCode: '48', hasCardInformation: true, cardNumber: '4111111111111111')]));
+    $truncated = core()->validateModel(makeInvoice(paymentMeans: [new PaymentMeans(typeCode: '48', hasCardInformation: true, cardNumber: '1111')]));
 
     expect($full->hasViolation('BR-51'))->toBeTrue()
         ->and($truncated->hasViolation('BR-51'))->toBeFalse();
@@ -659,7 +757,7 @@ it('flags an empty invoicing period (BR-CO-19) but accepts a lone description co
 
 it('requires a country on the deliver-to address (BR-57) from ISO 3166 (BR-CL-14)', function (): void {
     $missing = core()->validateModel(makeInvoice(deliverTo: new Party(city: 'Potsdam', postCode: '14467')));
-    $invalid = core()->validateModel(makeInvoice(deliverTo: new Party(city: 'Potsdam', postCode: '14467', countryCode: 'XX')));
+    $invalid = core()->validateModel(makeInvoice(deliverTo: new Party(countryCode: 'XX', city: 'Potsdam', postCode: '14467')));
 
     expect($missing->hasViolation('BR-57'))->toBeTrue()
         ->and($invalid->hasViolation('BR-CL-14'))->toBeTrue();
@@ -673,7 +771,7 @@ it('requires delivery information on intra-community invoices (BR-IC-11, BR-IC-1
     $complete = core()->validateModel(makeInvoice(
         lines: [$line],
         taxSubtotals: [$subtotal],
-        deliverTo: new Party(city: 'Wien', postCode: '1010', countryCode: 'AT'),
+        deliverTo: new Party(countryCode: 'AT', city: 'Wien', postCode: '1010'),
     ));
 
     expect($bare->hasViolation('BR-IC-11'))->toBeTrue()
@@ -698,7 +796,7 @@ it('requires a postal address on the tax representative (BR-19)', function (): v
     $withoutAddress = core()->validateModel(makeInvoice(taxRepresentative: new Party(name: 'Rep', vatId: 'DE999999999')));
 
     expect($withoutAddress->hasViolation('BR-19'))->toBeTrue()
-        ->and(core()->validateModel(makeInvoice(taxRepresentative: new Party(name: 'Rep', vatId: 'DE999999999', countryCode: 'DE')))->hasViolation('BR-19'))->toBeFalse();
+        ->and(core()->validateModel(makeInvoice(taxRepresentative: new Party(name: 'Rep', countryCode: 'DE', vatId: 'DE999999999')))->hasViolation('BR-19'))->toBeFalse();
 });
 
 it('flags a negative gross price (BR-28)', function (): void {
@@ -711,8 +809,8 @@ it('flags a negative gross price (BR-28)', function (): void {
 });
 
 it('requires a reference on every supporting document (BR-52) with a valid MIME code (BR-CL-24)', function (): void {
-    $withoutReference = core()->validateModel(makeInvoice(attachments: [new JohnWink\En16931\Model\Attachment(filename: 'a.pdf', mimeCode: 'application/pdf')]));
-    $badMime = core()->validateModel(makeInvoice(attachments: [new JohnWink\En16931\Model\Attachment(reference: 'DOC-1', mimeCode: 'text/html')]));
+    $withoutReference = core()->validateModel(makeInvoice(attachments: [new Attachment(filename: 'a.pdf', mimeCode: 'application/pdf')]));
+    $badMime = core()->validateModel(makeInvoice(attachments: [new Attachment(reference: 'DOC-1', mimeCode: 'text/html')]));
 
     expect($withoutReference->hasViolation('BR-52'))->toBeTrue()
         ->and($badMime->hasViolation('BR-CL-24'))->toBeTrue()
@@ -721,7 +819,7 @@ it('requires a reference on every supporting document (BR-52) with a valid MIME 
 
 it('requires BT-111 when an accounting currency is set (BR-53, BR-DEC-15)', function (): void {
     $missing = core()->validateModel(makeInvoice(taxCurrency: 'USD'));
-    $tooManyDecimals = core()->validateModel(makeInvoice(taxCurrency: 'USD', totals: new JohnWink\En16931\Model\Totals(
+    $tooManyDecimals = core()->validateModel(makeInvoice(taxCurrency: 'USD', totals: new Totals(
         lineTotal: '100.00', taxBasisTotal: '100.00', taxTotal: '19.00', grandTotal: '119.00',
         paidAmount: '0.00', payableAmount: '119.00', taxTotalAccounting: '20.123',
     )));
@@ -736,8 +834,8 @@ it('requires name and value on item attributes (BR-54) and schemes on item ident
         id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62',
         taxCategory: 'S', taxRate: '19.00',
         itemStandardId: '4012345001235',
-        itemClassifications: [new JohnWink\En16931\Model\ItemClassification(code: '10201000')],
-        attributes: [new JohnWink\En16931\Model\ItemAttribute(name: 'Farbe')],
+        itemClassifications: [new ItemClassification(code: '10201000')],
+        attributes: [new ItemAttribute(name: 'Farbe')],
     );
 
     $result = core()->validateModel(makeInvoice(lines: [$line]));
@@ -761,15 +859,15 @@ it('forbids combining tax point date and code (BR-CO-03)', function (): void {
 
 it('mirrors the reason requirements under the BR-CO ids (BR-CO-21..24)', function (): void {
     $document = core()->validateModel(makeInvoice(allowanceCharges: [
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00'),
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: true, amount: '5.00', taxCategory: 'S', taxRate: '19.00'),
+        new DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00'),
+        new DocumentAllowanceCharge(isCharge: true, amount: '5.00', taxCategory: 'S', taxRate: '19.00'),
     ]));
     $line = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
         id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62',
         taxCategory: 'S', taxRate: '19.00',
         allowanceCharges: [
-            new JohnWink\En16931\Model\LineAllowanceCharge(isCharge: false, amount: '5.00'),
-            new JohnWink\En16931\Model\LineAllowanceCharge(isCharge: true, amount: '2.00'),
+            new LineAllowanceCharge(isCharge: false, amount: '5.00'),
+            new LineAllowanceCharge(isCharge: true, amount: '2.00'),
         ],
     )]));
 
@@ -781,15 +879,15 @@ it('mirrors the reason requirements under the BR-CO ids (BR-CO-21..24)', functio
 
 it('checks decimals on base amounts and line allowances (BR-DEC-02/05/06/24/25/27/28)', function (): void {
     $document = core()->validateModel(makeInvoice(allowanceCharges: [
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.123', taxCategory: 'S', taxRate: '19.00', reason: 'Rabatt', baseAmount: '100.123'),
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: true, amount: '5.123', taxCategory: 'S', taxRate: '19.00', reason: 'Zuschlag', baseAmount: '50.123'),
+        new DocumentAllowanceCharge(isCharge: false, amount: '10.123', taxCategory: 'S', taxRate: '19.00', reason: 'Rabatt', baseAmount: '100.123'),
+        new DocumentAllowanceCharge(isCharge: true, amount: '5.123', taxCategory: 'S', taxRate: '19.00', reason: 'Zuschlag', baseAmount: '50.123'),
     ]));
     $line = core()->validateModel(makeInvoice(lines: [new InvoiceLine(
         id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62',
         taxCategory: 'S', taxRate: '19.00',
         allowanceCharges: [
-            new JohnWink\En16931\Model\LineAllowanceCharge(isCharge: false, amount: '5.123', reason: 'Rabatt', baseAmount: '10.123'),
-            new JohnWink\En16931\Model\LineAllowanceCharge(isCharge: true, amount: '2.123', reason: 'Zuschlag', baseAmount: '20.123'),
+            new LineAllowanceCharge(isCharge: false, amount: '5.123', reason: 'Rabatt', baseAmount: '10.123'),
+            new LineAllowanceCharge(isCharge: true, amount: '2.123', reason: 'Zuschlag', baseAmount: '20.123'),
         ],
     )]));
 
@@ -807,7 +905,7 @@ it('checks decimals on base amounts and line allowances (BR-DEC-02/05/06/24/25/2
 
 it('validates amount currency attributes (BR-CL-03) and the tax currency (BR-CL-05)', function (): void {
     $badAmountCurrency = core()->validateModel(makeInvoice(amountCurrencyCodes: ['EUR', 'FOO']));
-    $badTaxCurrency = core()->validateModel(makeInvoice(taxCurrency: 'ZZZ', totals: new JohnWink\En16931\Model\Totals(
+    $badTaxCurrency = core()->validateModel(makeInvoice(taxCurrency: 'ZZZ', totals: new Totals(
         lineTotal: '100.00', taxBasisTotal: '100.00', taxTotal: '19.00', grandTotal: '119.00',
         paidAmount: '0.00', payableAmount: '119.00', taxTotalAccounting: '19.00',
     )));
@@ -839,7 +937,7 @@ it('validates the tax point date code (BR-CL-06)', function (): void {
 });
 
 it('validates object identifier schemes (BR-CL-07) and note subject codes (BR-CL-08)', function (): void {
-    $badScheme = core()->validateModel(makeInvoice(attachments: [new JohnWink\En16931\Model\Attachment(reference: 'OBJ-1', typeCode: '130', scheme: 'ZZ9')]));
+    $badScheme = core()->validateModel(makeInvoice(attachments: [new Attachment(reference: 'OBJ-1', typeCode: '130', scheme: 'ZZ9')]));
     $badNote = core()->validateModel(makeInvoice(notes: ['#XY9#Hinweistext']));
 
     expect($badScheme->hasViolation('BR-CL-07'))->toBeTrue()
@@ -860,7 +958,7 @@ it('validates item classification and standard identifier schemes (BR-CL-13, BR-
         id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62',
         taxCategory: 'S', taxRate: '19.00',
         itemStandardId: '4012345001235', itemStandardIdScheme: '9999',
-        itemClassifications: [new JohnWink\En16931\Model\ItemClassification(code: '10201000', scheme: 'XYZ1')],
+        itemClassifications: [new ItemClassification(code: '10201000', scheme: 'XYZ1')],
         originCountryCode: 'X1',
     );
 
@@ -873,11 +971,11 @@ it('validates item classification and standard identifier schemes (BR-CL-13, BR-
 
 it('validates allowance and charge reason codes (BR-CL-19, BR-CL-20)', function (): void {
     $document = core()->validateModel(makeInvoice(allowanceCharges: [
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00', reasonCode: '999'),
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: true, amount: '5.00', taxCategory: 'S', taxRate: '19.00', reasonCode: '999'),
+        new DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00', reasonCode: '999'),
+        new DocumentAllowanceCharge(isCharge: true, amount: '5.00', taxCategory: 'S', taxRate: '19.00', reasonCode: '999'),
     ]));
     $valid = core()->validateModel(makeInvoice(allowanceCharges: [
-        new JohnWink\En16931\Model\DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00', reasonCode: '95'),
+        new DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00', reasonCode: '95'),
     ]));
 
     expect($document->hasViolation('BR-CL-19'))->toBeTrue()
@@ -909,7 +1007,7 @@ it('validates unit codes against UN/ECE Rec 20+21 (BR-CL-23)', function (): void
 
 it('validates the delivery location scheme (BR-CL-26)', function (): void {
     $result = core()->validateModel(makeInvoice(deliverTo: new Party(
-        city: 'Potsdam', postCode: '14467', countryCode: 'DE', identifier: 'LOC-1', identifierScheme: '9999',
+        countryCode: 'DE', identifier: 'LOC-1', city: 'Potsdam', postCode: '14467', identifierScheme: '9999',
     )));
 
     expect($result->hasViolation('BR-CL-26'))->toBeTrue();
@@ -919,12 +1017,12 @@ it('validates the delivery location scheme (BR-CL-26)', function (): void {
 
 it('allows at most one payment card account (BR-66) and one mandate (BR-67)', function (): void {
     $twoCards = core()->validateModel(makeInvoice(paymentMeans: [
-        new JohnWink\En16931\Model\PaymentMeans(typeCode: '48', hasCardInformation: true),
-        new JohnWink\En16931\Model\PaymentMeans(typeCode: '48', hasCardInformation: true),
+        new PaymentMeans(typeCode: '48', hasCardInformation: true),
+        new PaymentMeans(typeCode: '48', hasCardInformation: true),
     ]));
     $twoMandates = core()->validateModel(makeInvoice(paymentMeans: [
-        new JohnWink\En16931\Model\PaymentMeans(typeCode: '59', hasDirectDebit: true, debitedAccountId: 'DE02120300000000202051'),
-        new JohnWink\En16931\Model\PaymentMeans(typeCode: '59', hasDirectDebit: true, debitedAccountId: 'DE02120300000000202051'),
+        new PaymentMeans(typeCode: '59', hasDirectDebit: true, debitedAccountId: 'DE02120300000000202051'),
+        new PaymentMeans(typeCode: '59', hasDirectDebit: true, debitedAccountId: 'DE02120300000000202051'),
     ], sepaCreditorId: 'DE98ZZZ09999999999'));
 
     expect($twoCards->hasViolation('BR-66'))->toBeTrue()

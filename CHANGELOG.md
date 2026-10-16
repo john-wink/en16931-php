@@ -72,8 +72,13 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   `mb_check_encoding($value, 'UTF-8')` is a fatal violation with the rule ID
   `UTF-8`, flagged with the path of the field, such as `seller.name`,
   `notes[1]` or `lines[0].attributes[0].value`. The path holds only property
-  names of the model classes and list indexes; any other key shows as `[?]`,
-  and values outside the model classes are not checked. A field of only the
+  names of the 13 model classes and list indexes; any other key shows as `[?]`.
+  Strings in values outside the model classes, such as other objects or
+  nested lists, are checked as well and flagged with `[?]` after the field,
+  such as `thirdPartyPayments[0][?]`; such a value nested deeper than 64
+  levels fails the same way. A model with such a violation gets only the
+  `UTF-8` violations, without the results of the business rules, so no message
+  repeats the raw bytes and `toArray()` stays JSON-encodable. A field of only the
   ISO-8859-1 byte `0xA0` used to count as filled. Results
   for models in valid UTF-8 do not change; `validate()` reads XML into UTF-8
   and is not affected.

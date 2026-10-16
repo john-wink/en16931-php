@@ -57,10 +57,15 @@ always deliver UTF-8.
 `validateModel()` fails closed on a broken contract: every string in the model
 that is not valid UTF-8 is a fatal violation with the rule ID `UTF-8`, flagged
 with the path of the field (`seller.name`, `notes[1]`,
-`lines[0].attributes[0].value`). A single-byte no-break space (`0xA0` in
-ISO-8859-1), for example, never counts silently as a filled field. The engine
-does not convert other encodings; convert them with `mb_convert_encoding()`
-before you build the model.
+`lines[0].attributes[0].value`). Strings in values outside the model classes,
+such as other objects or nested lists, are checked as well; the violation is
+flagged with `[?]` after the field instead of their keys
+(`thirdPartyPayments[0][?]`), and such a value nested deeper than 64 levels
+fails the same way. The result then holds only these violations: the business
+rules do not run, so no message repeats the raw bytes. A single-byte no-break
+space (`0xA0` in ISO-8859-1), for example, never counts silently as a filled
+field. The engine does not convert other encodings; convert them with
+`mb_convert_encoding()` before you build the model.
 
 ## Rule coverage
 

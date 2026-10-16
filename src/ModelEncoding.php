@@ -18,12 +18,15 @@ use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Model\ThirdPartyPayment;
 use JohnWink\En16931\Model\Totals;
 use ReflectionReference;
+use Stringable;
 
 final class ModelEncoding
 {
     public const string RULE_ID = 'UTF-8';
 
-    private const int FOREIGN_DEPTH_LIMIT = 64;
+    private const int DEPTH_LIMIT = 64;
+
+    private const int VALUE_LIMIT = 1_000_000;
 
     private const array MODEL_CLASSES = [
         Attachment::class,
@@ -44,24 +47,50 @@ final class ModelEncoding
     private const string UNDECLARED_KEY = '?';
 
     /**
+     * @var array<int, true>
+     */
+    private array $enclosingModels = [];
+
+    private int $visitedValues = 0;
+
+    private function __construct() {}
+
+    /**
      * @return list<Violation>
      */
     public static function violations(Invoice $invoice): array
     {
-        return self::violationsOfModel($invoice, '');
+        return new self()->violationsOfModel($invoice, '', 0);
     }
 
     /**
      * @return list<Violation>
      */
-    private static function violationsOfModel(object $model, string $path): array
+    private function violationsOfModel(object $model, string $path, int $depth): array
     {
+        $identity = spl_object_id($model);
+
+        if (isset($this->enclosingModels[$identity])) {
+            return [$this->violation('The value of %s contains itself and cannot be checked for valid UTF-8.', $path)];
+        }
+
+        if ($this->exceedsLimits($model, $depth)) {
+            return [$this->limitViolation($path)];
+        }
+
+        $this->enclosingModels[$identity] = true;
         $violations = [];
 
         foreach (get_object_vars($model) as $name => $property) {
+            if ($this->isExhausted()) {
+                break;
+            }
+
             $propertyPath = $path === '' ? $name : $path.'.'.$name;
-            $violations = [...$violations, ...(is_array($property) ? self::violationsOfList($property, $propertyPath) : self::violationsOfItem($property, $propertyPath))];
+            $violations = [...$violations, ...(is_array($property) ? $this->violationsOfList($property, $propertyPath, $depth + 1) : $this->violationsOfItem($property, $propertyPath, $depth + 1))];
         }
+
+        unset($this->enclosingModels[$identity]);
 
         return $violations;
     }
@@ -70,12 +99,20 @@ final class ModelEncoding
      * @param  array<mixed>  $list
      * @return list<Violation>
      */
-    private static function violationsOfList(array $list, string $path): array
+    private function violationsOfList(array $list, string $path, int $depth): array
     {
+        if ($this->exceedsLimits($list, $depth)) {
+            return [$this->limitViolation($path)];
+        }
+
         $violations = [];
 
         foreach ($list as $key => $item) {
-            $violations = [...$violations, ...self::violationsOfItem($item, $path.'['.(is_int($key) ? $key : self::UNDECLARED_KEY).']')];
+            if ($this->isExhausted()) {
+                break;
+            }
+
+            $violations = [...$violations, ...$this->violationsOfItem($item, $path.'['.(is_int($key) ? $key : self::UNDECLARED_KEY).']', $depth + 1)];
         }
 
         return $violations;
@@ -84,67 +121,100 @@ final class ModelEncoding
     /**
      * @return list<Violation>
      */
-    private static function violationsOfItem(mixed $value, string $path): array
+    private function violationsOfItem(mixed $value, string $path, int $depth): array
     {
         if (is_object($value) && in_array($value::class, self::MODEL_CLASSES, true)) {
-            return self::violationsOfModel($value, $path);
+            return $this->violationsOfModel($value, $path, $depth);
         }
 
         $visited = [];
 
-        if (self::isValidUtf8($value, $visited, 0)) {
-            return [];
-        }
-
-        $flag = is_string($value) ? $path : $path.'['.self::UNDECLARED_KEY.']';
-
-        return [Violation::fatal(self::RULE_ID, sprintf('The value of %s is not valid UTF-8.', $flag), $flag)];
+        return $this->violationsOfValue($value, is_string($value) ? $path : $path.'['.self::UNDECLARED_KEY.']', $visited, $depth);
     }
 
     /**
      * @param  array<string, true>  $visited
+     * @return list<Violation>
      */
-    private static function isValidUtf8(mixed $value, array &$visited, int $depth): bool
+    private function violationsOfValue(mixed $value, string $flag, array &$visited, int $depth): array
     {
+        if ($this->exceedsLimits($value, $depth)) {
+            return [$this->limitViolation($flag)];
+        }
+
         if (is_string($value)) {
-            return mb_check_encoding($value, 'UTF-8');
+            return $this->violationsOfString($value, $flag);
         }
 
         if (! is_array($value) && ! is_object($value)) {
-            return true;
-        }
-
-        if ($depth >= self::FOREIGN_DEPTH_LIMIT) {
-            return false;
+            return [];
         }
 
         if (is_object($value)) {
-            if (self::isVisited($visited, 'object:'.spl_object_id($value))) {
-                return true;
+            if ($this->isVisited($visited, 'object:'.spl_object_id($value))) {
+                return [];
             }
 
-            $value = get_object_vars($value);
+            $stringViolations = $value instanceof Stringable ? $this->violationsOfString((string) $value, $flag) : [];
+
+            if ($stringViolations !== []) {
+                return $stringViolations;
+            }
+
+            $value = (array) $value;
         }
 
         foreach (array_keys($value) as $key) {
             $reference = ReflectionReference::fromArrayElement($value, $key);
 
-            if ($reference instanceof ReflectionReference && self::isVisited($visited, 'reference:'.$reference->getId())) {
+            if ($reference instanceof ReflectionReference && $this->isVisited($visited, 'reference:'.$reference->getId())) {
                 continue;
             }
 
-            if (! self::isValidUtf8($value[$key], $visited, $depth + 1)) {
-                return false;
+            $violations = $this->violationsOfValue($value[$key], $flag, $visited, $depth + 1);
+
+            if ($violations !== []) {
+                return $violations;
             }
         }
 
-        return true;
+        return [];
+    }
+
+    private function exceedsLimits(mixed $value, int $depth): bool
+    {
+        $this->visitedValues++;
+
+        return $this->isExhausted() || ((is_array($value) || is_object($value)) && $depth >= self::DEPTH_LIMIT);
+    }
+
+    private function isExhausted(): bool
+    {
+        return $this->visitedValues > self::VALUE_LIMIT;
+    }
+
+    /**
+     * @return list<Violation>
+     */
+    private function violationsOfString(string $value, string $flag): array
+    {
+        return mb_check_encoding($value, 'UTF-8') ? [] : [$this->violation('The value of %s is not valid UTF-8.', $flag)];
+    }
+
+    private function limitViolation(string $flag): Violation
+    {
+        return $this->violation('The value of %s is nested too deep or too large to be checked for valid UTF-8.', $flag);
+    }
+
+    private function violation(string $message, string $flag): Violation
+    {
+        return Violation::fatal(self::RULE_ID, sprintf($message, $flag), $flag);
     }
 
     /**
      * @param  array<string, true>  $visited
      */
-    private static function isVisited(array &$visited, string $identity): bool
+    private function isVisited(array &$visited, string $identity): bool
     {
         if (isset($visited[$identity])) {
             return true;

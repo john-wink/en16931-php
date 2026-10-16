@@ -68,16 +68,22 @@ a violation in the same property of the same model class, unless that list
 holds lists. Comparing with that list weighs one unit per entry plus the bytes
 of its string entries and string keys; up to 64 units the comparison is free,
 above that its weight counts on every comparison, whether the list is the same
-array or a content-equal one built apart. It checks a string that is not valid
-UTF-8 once, however often it appears. In the lists of every model object other
+array or a content-equal one built apart. The same rule holds for a string that
+is not valid UTF-8: every further place with the same content, whether the same
+string or a content-equal one stored apart, weighs its bytes; up to 64 bytes it
+is free, above that its weight counts. In the lists of every model object other
 than the invoice, an entry counts unless it is a model object the check meets
 for the first time; a model object with a violation that the check meets again
 there counts with all its values. Every value outside the model classes counts,
 including list entries skipped as a reference already checked. The result for a
-model whose model objects each appear once, or whose lines share model objects
-and lists of up to 64 units, therefore does not depend on its size; lines that
-hold different lists of the same model objects count these model objects, and
-many model objects that share a longer list end with the limit violation. Every
+model whose lists hold up to 64 units, whose model objects each appear once or
+whose lines share model objects, and whose invalid strings of more than 64 bytes
+each appear once, therefore does not depend on its size. A list
+of more than 64 units counts its weight even when the comparison fails, so lines
+with different lists count as well: lines that each hold 65 distinct model
+objects end with the limit violation after about 15,400 lines. Lines that hold
+different lists of the same model objects count these model objects, and many
+model objects that share a longer list end with the limit violation. Every
 violation is reported, without a cap on their number, so memory grows with the
 violations: in the worst case a small model with a shared subtree and a list of
 invalid strings yields close to 1,000,000 violations with paths of several

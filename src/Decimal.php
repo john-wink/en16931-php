@@ -22,9 +22,14 @@ final class Decimal
         return $value !== null && preg_match('/^-?\d+(\.\d+)?$/D', $value) === 1;
     }
 
+    public static function isFilled(?string $value): bool
+    {
+        return $value !== null && mb_trim($value) !== '';
+    }
+
     public static function isFilledButNotXsDecimal(?string $value): bool
     {
-        return $value !== null && mb_trim($value) !== '' && self::fromXsDecimal($value) === null;
+        return self::isFilled($value) && self::fromXsDecimal($value) === null;
     }
 
     /**

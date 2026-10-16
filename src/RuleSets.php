@@ -150,7 +150,7 @@ final class RuleSets
 
             new ConditionalRule('BR-17', 'BT-59', 'The Payee name (BT-59) shall be provided and differ from the Seller (BG-4).', static fn (Invoice $invoice): bool => $invoice->payee instanceof Party, static fn (Invoice $invoice): bool => self::payeeDiffersFromSeller($invoice)),
             new ConditionalRule('BR-19', 'BG-12', 'The Seller tax representative postal address (BG-12) shall be provided when a tax representative party (BG-11) is present.', static fn (Invoice $invoice): bool => $invoice->taxRepresentative instanceof Party, static fn (Invoice $invoice): bool => $invoice->taxRepresentative?->hasPostalAddress() ?? false),
-            new LineRule('BR-28', 'BT-148', 'The item gross price (BT-148) shall not be negative.', static fn (InvoiceLine $invoiceLine): bool => ! self::isNegative($invoiceLine->grossPrice)),
+            new LineRule('BR-28', 'BT-148', 'The item gross price (BT-148) shall not be negative.', static fn (InvoiceLine $invoiceLine): bool => self::isReadableAndNotNegative($invoiceLine->grossPrice)),
             new InvoiceRule('BR-52', 'BT-122', 'Each additional supporting document (BG-24) shall contain a supporting document reference (BT-122).', static fn (Invoice $invoice): bool => array_all($invoice->attachments, fn (Attachment $attachment): bool => self::filled($attachment->reference))),
             new ConditionalRule('BR-53', 'BT-111', 'When the VAT accounting currency code (BT-6) is present, the invoice total VAT amount in accounting currency (BT-111) shall be provided.', static fn (Invoice $invoice): bool => self::filled($invoice->taxCurrency), static fn (Invoice $invoice): bool => self::filled($invoice->totals->taxTotalAccounting)),
             new LineRule('BR-54', 'BG-32', 'Each item attribute (BG-32) shall contain a name (BT-160) and a value (BT-161).', static fn (InvoiceLine $invoiceLine): bool => array_all($invoiceLine->attributes, fn (ItemAttribute $itemAttribute): bool => self::filled($itemAttribute->name) && self::filled($itemAttribute->value))),
@@ -182,7 +182,7 @@ final class RuleSets
             // mismatching amount due does not reject), so it is a warning here.
             new CalculationRule('BR-CO-16', 'BT-115', 'Amount due for payment (BT-115) must equal BT-112 − BT-113 + BT-114', static fn (Invoice $invoice): string => Decimal::add(Decimal::sub(self::amount($invoice->totals->grandTotal), self::amount($invoice->totals->paidAmount)), self::amount($invoice->totals->roundingAmount)), static fn (Invoice $invoice): ?string => $invoice->totals->payableAmount, Severity::Warning, operands: static fn (Invoice $invoice): array => [$invoice->totals->grandTotal, $invoice->totals->paidAmount, $invoice->totals->roundingAmount]),
 
-            new LineRule('BR-27', 'BT-146', 'The item net price (BT-146) shall not be negative.', static fn (InvoiceLine $invoiceLine): bool => ! self::isNegative($invoiceLine->netPrice)),
+            new LineRule('BR-27', 'BT-146', 'The item net price (BT-146) shall not be negative.', static fn (InvoiceLine $invoiceLine): bool => self::isReadableAndNotNegative($invoiceLine->netPrice)),
             new LineRule('BR-S-05', 'BT-152', 'A Standard-rated line (S) shall have a VAT rate (BT-152) greater than zero.', static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->taxCategory !== 'S' || self::isPositive($invoiceLine->taxRate)),
             new LineRule('BR-CL-18', 'BT-151', 'The line VAT category code (BT-151) shall be a valid UNCL5305 code.', static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->taxCategory === null || CodeLists::isVatCategory($invoiceLine->taxCategory)),
 
@@ -555,7 +555,7 @@ final class RuleSets
 
     private static function filled(?string $value): bool
     {
-        return $value !== null && mb_trim($value) !== '';
+        return Decimal::isFilled($value);
     }
 
     /**
@@ -571,6 +571,11 @@ final class RuleSets
         $decimal = Decimal::fromXsDecimal($value);
 
         return $decimal !== null && Decimal::isNegative($decimal);
+    }
+
+    private static function isReadableAndNotNegative(?string $value): bool
+    {
+        return ! Decimal::isFilledButNotXsDecimal($value) && ! self::isNegative($value);
     }
 
     private static function isPositive(?string $value): bool
@@ -917,14 +922,19 @@ final class RuleSets
 
     private static function maxTwoDecimals(?string $value): bool
     {
-        if ($value === null) {
+        if (! Decimal::isFilled($value)) {
             return true;
         }
 
-        $reading = Decimal::fromXsDecimal($value) ?? trim($value, " \t\r\n");
+        $reading = Decimal::fromXsDecimal($value);
+
+        if ($reading === null) {
+            return false;
+        }
+
         $separator = strpos($reading, '.');
 
-        return $separator === false || mb_strlen(substr($reading, $separator + 1)) <= 2;
+        return $separator === false || strlen(substr($reading, $separator + 1)) <= 2;
     }
 
     /**
@@ -1006,7 +1016,7 @@ final class RuleSets
     {
         $values = [$taxSubtotal->taxableAmount, $taxSubtotal->rate, $taxSubtotal->taxAmount];
 
-        if (array_any($values, static fn (?string $value): bool => self::filled($value) && Decimal::fromXsDecimal($value) === null)) {
+        if (array_any($values, static fn (?string $value): bool => Decimal::isFilledButNotXsDecimal($value))) {
             return false;
         }
 

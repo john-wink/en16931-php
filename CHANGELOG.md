@@ -11,6 +11,17 @@ Pre-1.0: the public API may still change between minor versions.
 Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
 `Decimal::isNumeric()` changes in a backwards-incompatible way (see below).
 
+### Added
+
+- `Decimal::isFilled()`: the one definition of a filled value, for amounts and
+  text fields alike: not null and not only whitespace, U+00A0 and U+3000
+  included. It trims as UTF-8 whatever `mb_internal_encoding()` is set to.
+- `Decimal::isFilledButNotXsDecimal()`: a filled value that
+  `Decimal::fromXsDecimal()` cannot read.
+- `Decimal::fromXsDecimal()`: reads an `xs:decimal`, ignoring only XML
+  whitespace (space, tab, CR, LF), and returns a value `Decimal::isNumeric()`
+  accepts, or `null`.
+
 ### Changed
 
 - **BR-CO-17 now applies the official CEN tolerance instead of exact equality.**
@@ -32,9 +43,13 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   used to pass and then crashed BCMath with a `ValueError`; it now returns
   `false`. Callers that read raw XML text use `Decimal::fromXsDecimal()`, which
   ignores only XML whitespace, reads the forms `+19.00`, `.50` and `19.`, and
-  returns a value `isNumeric()` accepts. New: `Decimal::isFilled()` (the one
-  definition of a filled value: not null and not only whitespace, U+00A0 and
-  U+3000 included) and `Decimal::isFilledButNotXsDecimal()`.
+  returns a value `isNumeric()` accepts.
+- **`Party::hasVatId()`, `hasAnyIdentifier()` and `hasPostalAddress()` use
+  `Decimal::isFilled()`.** They used to count only `''` as empty, so a BT-31
+  of only U+00A0 satisfied BR-S-02, BR-CO-26 and BR-DE-16, and an address of
+  only U+00A0 satisfied BR-08 and BR-10. These rules now fail. BR-O-02 to
+  BR-O-04 still fail on any supplied VAT identifier other than `''`, blank ones
+  included, so they do not pass a VAT identifier of only whitespace.
 
 ### Fixed
 
@@ -65,7 +80,12 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   BR-27 (BT-146) and BR-28 (BT-148), and for the amounts no calculation reads:
   BT-111, BT-93, BT-100, BT-136, BT-137, BT-141 and BT-142 now fail BR-DEC-15,
   -02, -06, -24, -25, -27 and -28, with or without a decimal point. A value of
-  only whitespace, U+00A0 or U+3000 still counts as missing.
+  only whitespace, U+00A0 or U+3000 still counts as missing. Failing a filled
+  value without a `.` is stricter than the official BR-DEC asserts, which let
+  it pass; over XML the XSD rejects such a value first.
+- **BR-DEX-02 fails closed on unreadable amounts.** A filled line or sub line
+  net amount that is not an `xs:decimal` used to skip the warning; it now
+  raises it, as BR-DEX-09 does.
 - **BR-DEC-* and BR-DEX-13 count the decimals of the `xs:decimal` reading.**
   An amount written as `+0.505` or `.505` used to pass them; it now fails them
   like `0.505`. A filled value that is not an `xs:decimal` fails them. Known

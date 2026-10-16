@@ -388,7 +388,7 @@ final class RuleSets
         $reverseCharge = static fn (Invoice $invoice): bool => self::sellerTaxIdentified($invoice) && ($invoice->buyer->hasVatId() || self::filled($invoice->buyer->legalRegistrationId));
         $intraCommunity = static fn (Invoice $invoice): bool => self::sellerVatOrRepresentativeVat($invoice) && $invoice->buyer->hasVatId();
         $export = static fn (Invoice $invoice): bool => self::sellerVatOrRepresentativeVat($invoice);
-        $notSubject = static fn (Invoice $invoice): bool => ! $invoice->seller->hasVatId() && ! ($invoice->taxRepresentative?->hasVatId() ?? false) && ! $invoice->buyer->hasVatId();
+        $notSubject = static fn (Invoice $invoice): bool => ! self::suppliesVatId($invoice->seller) && ! self::suppliesVatId($invoice->taxRepresentative) && ! self::suppliesVatId($invoice->buyer);
 
         $requirements = [
             'S' => ['BR-S', $sellerIdentified, 'the Seller VAT identifier (BT-31), tax registration identifier (BT-32) or tax representative VAT identifier (BT-63)'],
@@ -644,6 +644,17 @@ final class RuleSets
         return $invoice->taxRepresentative?->hasVatId() ?? false;
     }
 
+    /**
+     * BR-O-02..04 require the VAT identifiers to be absent, so a supplied one
+     * counts even when it is only whitespace: the rule fails closed.
+     */
+    private static function suppliesVatId(?Party $party): bool
+    {
+        $vatId = $party?->vatId;
+
+        return $vatId !== null && $vatId !== '';
+    }
+
     private static function sellerVatOrRepresentativeVat(Invoice $invoice): bool
     {
         if ($invoice->seller->hasVatId()) {
@@ -773,13 +784,27 @@ final class RuleSets
 
     /**
      * BR-DEX-02: when a line carries sub lines, its net amount must equal
-     * their sum (unparseable amounts pass — schema territory).
+     * their sum. A filled amount that is not an xs:decimal fails; a missing
+     * one leaves the rule to the presence rules.
      */
     private static function subLineSumMatches(InvoiceLine $invoiceLine): bool
     {
+        if ($invoiceLine->subLines === []) {
+            return true;
+        }
+
+        $amounts = [
+            $invoiceLine->netAmount,
+            ...array_map(static fn (SubInvoiceLine $subInvoiceLine): ?string => $subInvoiceLine->netAmount, $invoiceLine->subLines),
+        ];
+
+        if (array_any($amounts, static fn (?string $amount): bool => Decimal::isFilledButNotXsDecimal($amount))) {
+            return false;
+        }
+
         $netAmount = Decimal::fromXsDecimal($invoiceLine->netAmount);
 
-        if ($invoiceLine->subLines === [] || $netAmount === null) {
+        if ($netAmount === null) {
             return true;
         }
 

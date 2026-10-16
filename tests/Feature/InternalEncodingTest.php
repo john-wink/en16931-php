@@ -106,13 +106,14 @@ it('counts, upper-cases and cuts rule inputs as UTF-8 whatever the internal enco
     $hasViolation = $underEncoding($encoding, static fn (): bool => xr()->validateModel($scenario())->hasViolation($ruleId));
 
     expect($hasViolation)->toBe($violates);
-})->with($encodings)->with([
+})->with([...$encodings, 'UTF-16' => ['UTF-16']])->with([
     'card number of ten non-ASCII digits (BR-51)' => [static fn (): Invoice => makeInvoice(paymentMeans: [new PaymentMeans(typeCode: '48', hasCardInformation: true, cardNumber: str_repeat("\u{0660}", 10))]), 'BR-51', false],
     'card number of eleven non-ASCII digits (BR-51)' => [static fn (): Invoice => makeInvoice(paymentMeans: [new PaymentMeans(typeCode: '48', hasCardInformation: true, cardNumber: str_repeat("\u{0660}", 11))]), 'BR-51', true],
     'VATEX code with a dotless i that upper-cases to I (BR-CL-22)' => [static fn (): Invoice => makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'S', rate: '19.00', taxableAmount: '100.00', taxAmount: '19.00', exemptionReasonCode: "vatex-eu-\u{0131}")]), 'BR-CL-22', false],
     'lower-case VATEX code (BR-CL-22)' => [static fn (): Invoice => makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'S', rate: '19.00', taxableAmount: '100.00', taxAmount: '19.00', exemptionReasonCode: 'vatex-eu-o')]), 'BR-CL-22', false],
     'seller VAT identifier with a non-ASCII country prefix (BR-CO-09)' => [static fn (): Invoice => makeInvoice(seller: new Party(name: 'Seller GmbH', countryCode: 'DE', vatId: "\u{00C4}T123456789", contactName: 'Max Muster', contactPhone: '+49 30 000000', contactEmail: 'billing@example.com', city: 'Berlin', postCode: '10115')), 'BR-CO-09', true],
     'seller VAT identifier with non-ASCII after the country prefix (BR-CO-09)' => [static fn (): Invoice => makeInvoice(seller: new Party(name: 'Seller GmbH', countryCode: 'DE', vatId: "DE\u{00C4}23456789", contactName: 'Max Muster', contactPhone: '+49 30 000000', contactEmail: 'billing@example.com', city: 'Berlin', postCode: '10115')), 'BR-CO-09', false],
+    'seller VAT identifier with an ASCII country prefix (BR-CO-09)' => [static fn (): Invoice => makeInvoice(seller: new Party(name: 'Seller GmbH', countryCode: 'DE', vatId: 'DE123456789', contactName: 'Max Muster', contactPhone: '+49 30 000000', contactEmail: 'billing@example.com', city: 'Berlin', postCode: '10115')), 'BR-CO-09', false],
 ]);
 
 it('reports every model string that is not valid UTF-8 as a fatal violation', function (string $encoding, Closure $scenario, string $field) use ($underEncoding): void {
@@ -148,3 +149,36 @@ it('leaves the result of a model in valid UTF-8 unchanged whatever the internal 
         ->and($validationResult->hasViolation('BR-51'))->toBeTrue()
         ->and($validationResult->violations)->toEqual($ruleResult->violations);
 })->with($encodings);
+
+it('flags a list entry that is not valid UTF-8 without its key when the key is no list index', function (string $key): void {
+    $validationResult = xr()->validateModel(makeInvoice(notes: [$key => "\xA0"]));
+
+    $encodingViolations = array_values(array_filter($validationResult->violations, static fn (Violation $violation): bool => $violation->ruleId === 'UTF-8'));
+
+    expect(array_map(static fn (Violation $violation): array => [$violation->flag, $violation->message], $encodingViolations))->toBe([['notes[?]', 'The value of notes[?] is not valid UTF-8.']])
+        ->and(json_encode($validationResult->toArray(), JSON_THROW_ON_ERROR))->toBeString();
+})->with([
+    'key that is not valid UTF-8' => ["\xFF"],
+    'key that carries customer data' => ['Max Muster, Berlin'],
+]);
+
+it('returns a result for a model that carries values outside the model classes', function (Closure $thirdPartyPayments): void {
+    $validationResult = xr()->validateModel(makeInvoice(thirdPartyPayments: $thirdPartyPayments()));
+
+    expect($validationResult->hasViolation('UTF-8'))->toBeFalse()
+        ->and(json_encode($validationResult->toArray(), JSON_THROW_ON_ERROR))->toBeString();
+})->with([
+    'list that contains itself' => [static function (): array {
+        $thirdPartyPayments = [];
+        $thirdPartyPayments[] = &$thirdPartyPayments;
+
+        return $thirdPartyPayments;
+    }],
+    'object that refers to itself' => [static function (): array {
+        $node = new stdClass;
+        $node->self = $node;
+
+        return [$node];
+    }],
+    'object with a property name that is not valid UTF-8' => [static fn (): array => [(object) ["\xFF" => "\xA0"]]],
+]);

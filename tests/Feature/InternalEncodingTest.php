@@ -10,8 +10,14 @@ use JohnWink\En16931\Model\ItemClassification;
 use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\PaymentMeans;
 use JohnWink\En16931\Model\TaxSubtotal;
+use JohnWink\En16931\Model\Totals;
 use JohnWink\En16931\Reader\CiiInvoiceReader;
 use JohnWink\En16931\Reader\UblInvoiceReader;
+use JohnWink\En16931\RuleSets;
+use JohnWink\En16931\Severity;
+use JohnWink\En16931\ValidationResult;
+use JohnWink\En16931\Validator;
+use JohnWink\En16931\Violation;
 
 $underEncoding = static function (string $encoding, Closure $callback): mixed {
     $previous = mb_internal_encoding();
@@ -95,3 +101,50 @@ it('trims rule inputs framed by U+00A0 as UTF-8 whatever the internal encoding i
     'VATEX code (BR-CL-22)' => [static fn (): Invoice => makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'S', rate: '19.00', taxableAmount: '100.00', taxAmount: '19.00', exemptionReasonCode: "\u{00A0}VATEX-EU-O\u{00A0}")]), 'BR-CL-22', false],
     'external document location (BR-TMP-2)' => [static fn (): Invoice => makeInvoice(attachments: [new Attachment(reference: 'DOC-1', externalUri: "\u{00A0}https://example.com/doc.pdf\u{00A0}")]), 'BR-TMP-2', false],
 ]);
+
+it('counts, upper-cases and cuts rule inputs as UTF-8 whatever the internal encoding is', function (string $encoding, Closure $scenario, string $ruleId, bool $violates) use ($underEncoding): void {
+    $hasViolation = $underEncoding($encoding, static fn (): bool => xr()->validateModel($scenario())->hasViolation($ruleId));
+
+    expect($hasViolation)->toBe($violates);
+})->with($encodings)->with([
+    'card number of ten non-ASCII digits (BR-51)' => [static fn (): Invoice => makeInvoice(paymentMeans: [new PaymentMeans(typeCode: '48', hasCardInformation: true, cardNumber: str_repeat("\u{0660}", 10))]), 'BR-51', false],
+    'card number of eleven non-ASCII digits (BR-51)' => [static fn (): Invoice => makeInvoice(paymentMeans: [new PaymentMeans(typeCode: '48', hasCardInformation: true, cardNumber: str_repeat("\u{0660}", 11))]), 'BR-51', true],
+    'VATEX code with a dotless i that upper-cases to I (BR-CL-22)' => [static fn (): Invoice => makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'S', rate: '19.00', taxableAmount: '100.00', taxAmount: '19.00', exemptionReasonCode: "vatex-eu-\u{0131}")]), 'BR-CL-22', false],
+    'lower-case VATEX code (BR-CL-22)' => [static fn (): Invoice => makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'S', rate: '19.00', taxableAmount: '100.00', taxAmount: '19.00', exemptionReasonCode: 'vatex-eu-o')]), 'BR-CL-22', false],
+    'seller VAT identifier with a non-ASCII country prefix (BR-CO-09)' => [static fn (): Invoice => makeInvoice(seller: new Party(name: 'Seller GmbH', countryCode: 'DE', vatId: "\u{00C4}T123456789", contactName: 'Max Muster', contactPhone: '+49 30 000000', contactEmail: 'billing@example.com', city: 'Berlin', postCode: '10115')), 'BR-CO-09', true],
+    'seller VAT identifier with non-ASCII after the country prefix (BR-CO-09)' => [static fn (): Invoice => makeInvoice(seller: new Party(name: 'Seller GmbH', countryCode: 'DE', vatId: "DE\u{00C4}23456789", contactName: 'Max Muster', contactPhone: '+49 30 000000', contactEmail: 'billing@example.com', city: 'Berlin', postCode: '10115')), 'BR-CO-09', false],
+]);
+
+it('reports every model string that is not valid UTF-8 as a fatal violation', function (string $encoding, Closure $scenario, string $field) use ($underEncoding): void {
+    $validationResult = $underEncoding($encoding, static fn (): ValidationResult => xr()->validateModel($scenario()));
+
+    $encodingViolations = array_values(array_filter($validationResult->violations, static fn (Violation $violation): bool => $violation->ruleId === 'UTF-8'));
+
+    expect(array_map(static fn (Violation $violation): ?string => $violation->flag, $encodingViolations))->toBe([$field])
+        ->and($encodingViolations[0]->severity)->toBe(Severity::Fatal)
+        ->and($validationResult->isValid())->toBeFalse();
+})->with($encodings)->with([
+    'text field of the invoice' => [static fn (): Invoice => makeInvoice(number: "\xA0"), 'number'],
+    'amount of the totals' => [static fn (): Invoice => makeInvoice(totals: new Totals(lineTotal: '100.00', taxBasisTotal: '100.00', taxTotal: '19.00', grandTotal: '119.00', paidAmount: '0.00', payableAmount: "\xA0")), 'totals.payableAmount'],
+    'field of a party' => [static fn (): Invoice => makeInvoice(seller: new Party(name: "\xA0", countryCode: 'DE', vatId: 'DE123456789', contactName: 'Max Muster', contactPhone: '+49 30 000000', contactEmail: 'billing@example.com', city: 'Berlin', postCode: '10115')), 'seller.name'],
+    'field of an optional party' => [static fn (): Invoice => makeInvoice(payee: new Party(name: "\xA0")), 'payee.name'],
+    'entry of a list of strings' => [static fn (): Invoice => makeInvoice(notes: ['Hinweis', "\xA0"]), 'notes[1]'],
+    'entry of a list of nullable strings' => [static fn (): Invoice => makeInvoice(precedingInvoiceReferences: [null, "\xA0"]), 'precedingInvoiceReferences[1]'],
+    'field of a list item' => [static fn (): Invoice => makeInvoice(paymentMeans: [new PaymentMeans(typeCode: '30', accountId: "\xA0", hasCreditTransfer: true)]), 'paymentMeans[0].accountId'],
+    'field of an item nested in a list item' => [static fn (): Invoice => makeInvoice(lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', attributes: [new ItemAttribute(name: 'cva', value: "\xA0")])]), 'lines[0].attributes[0].value'],
+]);
+
+it('leaves the result of a model in valid UTF-8 unchanged whatever the internal encoding is', function (string $encoding) use ($underEncoding): void {
+    $invoice = makeInvoice(
+        seller: new Party(name: "M\u{00FC}ller GmbH", countryCode: 'DE', vatId: 'DE123456789', contactName: "J\u{00FC}rgen Stra\u{00DF}e", contactPhone: '+49 30 000000', contactEmail: 'billing@example.com', city: "K\u{00F6}ln", postCode: '50667'),
+        notes: ["Zahlbar ohne Abzug \u{2013} danke", "\u{00A0}"],
+        paymentMeans: [new PaymentMeans(typeCode: '48', hasCardInformation: true, cardNumber: str_repeat("\u{0660}", 11))],
+    );
+
+    $validationResult = $underEncoding($encoding, static fn (): ValidationResult => xr()->validateModel($invoice));
+    $ruleResult = $underEncoding($encoding, static fn (): ValidationResult => new Validator([...RuleSets::en16931(), ...RuleSets::xrechnung()])->validate($invoice));
+
+    expect($validationResult->hasViolation('UTF-8'))->toBeFalse()
+        ->and($validationResult->hasViolation('BR-51'))->toBeTrue()
+        ->and($validationResult->violations)->toEqual($ruleResult->violations);
+})->with($encodings);

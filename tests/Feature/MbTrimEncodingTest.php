@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use JohnWink\En16931\Tests\Support\MbCallScanner;
 
-it('passes the encoding UTF-8 to every mb_trim call in src', function (): void {
+it('passes the encoding UTF-8 to every mb_* call in src that takes an encoding', function (): void {
     $calls = MbCallScanner::callsInDirectory(dirname(__DIR__, 2).'/src');
 
     $withoutUtf8 = array_values(array_map(
@@ -16,7 +16,7 @@ it('passes the encoding UTF-8 to every mb_trim call in src', function (): void {
         ->and($withoutUtf8)->toBe([]);
 });
 
-it('tells an mb_trim call with UTF-8 from one without', function (string $source, array $expected): void {
+it('tells an mb_* call with UTF-8 from one without', function (string $source, array $expected): void {
     expect(array_column(MbCallScanner::callsInSource("<?php\n".$source), 'utf8'))->toBe($expected);
 })->with([
     'positional UTF-8' => ["mb_trim(\$value, null, 'UTF-8');", [true]],
@@ -36,4 +36,18 @@ it('tells an mb_trim call with UTF-8 from one without', function (string $source
     'string callable' => ["array_map('mb_trim', \$values);", [false]],
     'mb_rtrim without encoding' => ['mb_rtrim($value);', [false]],
     'method of the same name' => ['$string->mb_trim($value); Text::mb_trim($value);', []],
+    'mb_strlen with UTF-8' => ["mb_strlen(\$value, 'UTF-8');", [true]],
+    'mb_strtoupper with UTF-8' => ["mb_strtoupper(\$value, 'UTF-8');", [true]],
+    'mb_substr with UTF-8' => ["mb_substr(\$value, 0, 2, 'UTF-8');", [true]],
+    'mb_substr with named UTF-8' => ["mb_substr(\$value, 0, encoding: 'UTF-8');", [true]],
+    'mb_strlen without encoding' => ['mb_strlen($value);', [false]],
+    'mb_strtoupper without encoding' => ['mb_strtoupper($value);', [false]],
+    'mb_substr with a length only' => ['mb_substr($value, 0, 2);', [false]],
+    'mb_substr with UTF-8 in the place of the length' => ["mb_substr(\$value, 0, 'UTF-8');", [false]],
+    'mb_strlen as a string callable' => ["array_map('mb_strlen', \$values);", [false]],
+    'mb_* function without an encoding parameter' => ['mb_list_encodings();', []],
+    'import with an alias' => ['use function mb_trim as trimValue;', [false]],
+    'fully qualified import with an alias' => ['use function \\mb_substr as cut;', [false]],
+    'import without an alias' => ['use function mb_trim;', []],
+    'declaration of the same name in the package namespace' => ["namespace JohnWink\\En16931;\nfunction mb_trim(string \$string): string { return \$string; }", [false]],
 ]);

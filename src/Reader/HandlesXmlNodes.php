@@ -86,7 +86,7 @@ trait HandlesXmlNodes
 
     private function text(DOMElement $domElement): ?string
     {
-        $text = mb_trim($domElement->nodeValue ?? '');
+        $text = mb_trim($domElement->nodeValue ?? '', null, 'UTF-8');
 
         return $text === '' ? null : $text;
     }

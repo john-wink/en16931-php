@@ -8,6 +8,7 @@ use JohnWink\En16931\Model\ItemAttribute;
 use JohnWink\En16931\Model\ItemClassification;
 use JohnWink\En16931\Model\SubInvoiceLine;
 use JohnWink\En16931\Model\ThirdPartyPayment;
+use JohnWink\En16931\Model\Totals;
 
 const XR_CIUS = 'urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0';
 const XR_EXTENSION = XR_CIUS.'#conformant#urn:xeinkauf.de:kosit:extension:xrechnung_3.0';
@@ -60,7 +61,7 @@ it('reconciles the amount due with third party payments (BR-DEX-09)', function (
     // Grand total 119.00 + 19.00 third party → amount due 138.00.
     $balanced = xr()->validateModel(makeInvoice(
         customizationId: XR_EXTENSION,
-        totals: new JohnWink\En16931\Model\Totals(
+        totals: new Totals(
             lineTotal: '100.00', taxBasisTotal: '100.00', taxTotal: '19.00', grandTotal: '119.00',
             paidAmount: '0.00', payableAmount: '138.00',
         ),
@@ -89,6 +90,24 @@ it('warns when a line net amount does not match its sub lines (BR-DEX-02)', func
 
     expect($result->hasViolation('BR-DEX-02'))->toBeTrue()
         ->and($result->isValid())->toBeTrue(); // warning only
+});
+
+it('skips BR-DEX-02 and adds no violation when a sub line net amount is missing in the model', function (): void {
+    $line = static fn (?string $subLineNetAmount): InvoiceLine => new InvoiceLine(
+        id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62',
+        taxCategory: 'S', taxRate: '19.00',
+        subLines: [
+            new SubInvoiceLine(netAmount: '60.00', vatCategoryCount: 1),
+            new SubInvoiceLine(netAmount: $subLineNetAmount, vatCategoryCount: 1),
+        ],
+    );
+
+    $complete = xr()->validateModel(makeInvoice(customizationId: XR_EXTENSION, lines: [$line('40.00')]));
+    $missing = xr()->validateModel(makeInvoice(customizationId: XR_EXTENSION, lines: [$line(null)]));
+
+    expect($missing->hasViolation('BR-DEX-02'))->toBeFalse()
+        ->and($missing->isValid())->toBeTrue()
+        ->and($missing->violations)->toEqual($complete->violations);
 });
 
 it('requires exactly one VAT information per sub line (BR-DEX-03)', function (): void {

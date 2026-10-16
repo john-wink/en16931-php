@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
 use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\TaxSubtotal;
@@ -18,7 +19,7 @@ $seller = static fn (?string $vatId = 'DE123456789', ?string $identifier = null)
     identifier: $identifier,
     contactName: 'Max Muster',
     contactPhone: '+49 30 000000',
-    contactEmail: 'billing@seller.de',
+    contactEmail: 'billing@example.com',
     city: 'Berlin',
     postCode: '10115',
 );
@@ -82,4 +83,31 @@ it('keeps BR-O-02 failing on any supplied seller VAT identifier, blank ones incl
     'only a no-break space' => ["\u{00A0}", true],
     'only an ideographic space' => ["\u{3000}", true],
     'filled' => ['DE123456789', true],
+]);
+
+it('keeps BR-O-02 failing on a buyer (BT-48) or tax representative (BT-63) VAT identifier of only U+00A0 or U+3000', function (string $blank, Closure $scenario): void {
+    $validationResult = core()->validateModel($scenario(null));
+    $actual = core()->validateModel($scenario($blank));
+
+    expect($validationResult->hasViolation('BR-O-02'))->toBeFalse()
+        ->and($actual->hasViolation('BR-O-02'))->toBeTrue();
+})->with([
+    'only a no-break space' => ["\u{00A0}"],
+    'only an ideographic space' => ["\u{3000}"],
+])->with([
+    'BT-48' => [static fn (?string $vatId): Invoice => makeInvoice(
+        seller: new Party(name: 'Seller GmbH', countryCode: 'DE', identifier: 'fixture-seller-id', city: 'Berlin', postCode: '10115'),
+        buyer: new Party(name: 'Buyer AG', countryCode: 'DE', vatId: $vatId, city: 'Hamburg', postCode: '20095'),
+        totals: new Totals(lineTotal: '100.00', taxBasisTotal: '100.00', taxTotal: '0.00', grandTotal: '100.00', paidAmount: '0.00', payableAmount: '100.00'),
+        lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'O')],
+        taxSubtotals: [new TaxSubtotal(category: 'O', taxableAmount: '100.00', taxAmount: '0.00', exemptionReason: 'Not subject to VAT')],
+    )],
+    'BT-63' => [static fn (?string $vatId): Invoice => makeInvoice(
+        seller: new Party(name: 'Seller GmbH', countryCode: 'DE', identifier: 'fixture-seller-id', city: 'Berlin', postCode: '10115'),
+        buyer: new Party(name: 'Buyer AG', countryCode: 'DE', city: 'Hamburg', postCode: '20095'),
+        taxRepresentative: new Party(name: 'Tax Representative GmbH', countryCode: 'DE', vatId: $vatId, city: 'Berlin', postCode: '10117'),
+        totals: new Totals(lineTotal: '100.00', taxBasisTotal: '100.00', taxTotal: '0.00', grandTotal: '100.00', paidAmount: '0.00', payableAmount: '100.00'),
+        lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'O')],
+        taxSubtotals: [new TaxSubtotal(category: 'O', taxableAmount: '100.00', taxAmount: '0.00', exemptionReason: 'Not subject to VAT')],
+    )],
 ]);

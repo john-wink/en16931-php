@@ -132,7 +132,7 @@ final class UblInvoiceReader
 
         if ($list !== false) {
             foreach ($list as $attributeNode) {
-                $value = mb_trim($attributeNode->nodeValue ?? '');
+                $value = mb_trim($attributeNode->nodeValue ?? '', null, 'UTF-8');
 
                 if ($value !== '') {
                     $codes[$value] = true;

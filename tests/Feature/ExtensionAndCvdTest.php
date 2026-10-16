@@ -8,6 +8,7 @@ use JohnWink\En16931\Model\ItemAttribute;
 use JohnWink\En16931\Model\ItemClassification;
 use JohnWink\En16931\Model\SubInvoiceLine;
 use JohnWink\En16931\Model\ThirdPartyPayment;
+use JohnWink\En16931\Model\Totals;
 
 const XR_CIUS = 'urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0';
 const XR_EXTENSION = XR_CIUS.'#conformant#urn:xeinkauf.de:kosit:extension:xrechnung_3.0';
@@ -60,7 +61,7 @@ it('reconciles the amount due with third party payments (BR-DEX-09)', function (
     // Grand total 119.00 + 19.00 third party → amount due 138.00.
     $balanced = xr()->validateModel(makeInvoice(
         customizationId: XR_EXTENSION,
-        totals: new JohnWink\En16931\Model\Totals(
+        totals: new Totals(
             lineTotal: '100.00', taxBasisTotal: '100.00', taxTotal: '19.00', grandTotal: '119.00',
             paidAmount: '0.00', payableAmount: '138.00',
         ),

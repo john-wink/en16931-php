@@ -45,14 +45,35 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   ignores only XML whitespace, reads the forms `+19.00`, `.50` and `19.`, and
   returns a value `isNumeric()` accepts.
 - **`Party::hasVatId()`, `hasAnyIdentifier()` and `hasPostalAddress()` use
-  `Decimal::isFilled()`.** They used to count only `''` as empty, so a BT-31
-  of only U+00A0 satisfied BR-S-02, BR-CO-26 and BR-DE-16, and an address of
-  only U+00A0 satisfied BR-08 and BR-10. These rules now fail. BR-O-02 to
-  BR-O-04 still fail on any supplied VAT identifier other than `''`, blank ones
-  included, so they do not pass a VAT identifier of only whitespace.
+  `Decimal::isFilled()`.** They used to count only `''` as empty. A VAT
+  identifier (BT-31, BT-48, BT-63) or a Seller identifier (BT-29, BT-30) of
+  only U+00A0 or U+3000 no longer counts as present, so the rules that require
+  one now fail on it: BR-S/Z/E/IG/IP/AE-02 to -04, BR-IC-02 to -04,
+  BR-G-02 to -04, BR-CO-26 and BR-DE-16. A Seller, Buyer or tax representative
+  postal address of only such spaces no longer counts as present: BR-08, BR-10
+  and BR-19 now fail on it. BR-DE-3, BR-DE-4, BR-DE-8 and BR-DE-9 check city
+  and post code only when an address is present, so they no longer fire on an
+  address of only whitespace; BR-08 or BR-10 fails it as fatal instead.
+- **BR-O-02 to BR-O-04 keep failing on a blank VAT identifier in
+  `validateModel`.** They fail on any supplied BT-31, BT-48 or BT-63 other than
+  `''`, a value of only whitespace included. Over XML this does not arise: the
+  readers trim Unicode whitespace and read such a VAT identifier as absent, so
+  these rules pass on it.
+- **Model inputs are UTF-8.** `Decimal::isFilled()` and the rules trim every
+  string as UTF-8 whatever `mb_internal_encoding()` is set to, so
+  `validateModel()` expects every string in the `Invoice` model to be UTF-8.
+  The readers deliver UTF-8. The README states the contract.
 
 ### Fixed
 
+- **The readers and the rules trim as UTF-8 whatever `mb_internal_encoding()`
+  is set to.** With an internal encoding such as ISO-8859-1, `mb_trim()` cut
+  only the last byte of a U+00A0. The readers then read an element of only
+  U+00A0 (a BT-31, for example) as a one-byte value instead of as missing, and
+  kept a byte of a framing U+00A0 in names, codes and `@currencyID`. The rules
+  that trim a code, a VAT identifier, a card number or a URL (BR-50, BR-51,
+  BR-61, BR-CL-22, BR-CO-09, BR-DE-19 to BR-DE-25, BR-DE-CVD-04/05,
+  BR-TMP-2) judged a value framed by U+00A0 differently than under UTF-8.
 - **BR-CO-17 fails closed on unreadable values.** A filled BT-116, BT-119 or
   BT-117 that is not an `xs:decimal` used to skip the rule and now fails it. The
   `xs:decimal` forms the engine did not read before (`+19.00`, `.50`, `19.`) are

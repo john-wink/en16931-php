@@ -22,3 +22,20 @@ it('recognises decimal strings', function (): void {
         ->and(Decimal::isNumeric('1,00'))->toBeFalse()
         ->and(Decimal::isNumeric(null))->toBeFalse();
 });
+
+it('reads xs:decimal values and ignores only XML whitespace', function (?string $value, ?string $expected): void {
+    expect(Decimal::fromXsDecimal($value))->toBe($expected);
+})->with([
+    'plain' => ['19.00', '19.00'],
+    'spaces' => [' 19.00 ', '19.00'],
+    'tab, carriage return and line feed' => ["\t-19.00\r\n", '-19.00'],
+    'leading plus' => ['+19.00', '19.00'],
+    'no integer digits' => ['.50', '0.50'],
+    'trailing dot' => ['19.', '19'],
+    'no-break space' => ["\u{00A0}19.00\u{00A0}", null],
+    'decimal comma' => ['19,00', null],
+    'exponent' => ['1e2', null],
+    'sign only' => ['-', null],
+    'empty' => ['', null],
+    'null' => [null, null],
+]);

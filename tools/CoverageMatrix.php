@@ -61,7 +61,7 @@ final class CoverageMatrix
         'BR-CL-24' => 'Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check.',
         'BR-CL-25' => 'Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check.',
         'BR-CL-26' => 'Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check.',
-        'BR-CO-17' => 'Stricter than official: exact equality required, the official artefacts allow a ±0.01 rounding tolerance.',
+        'BR-CO-17' => 'Official tolerance: |BT-117| must lie strictly within ±1 of round(|BT-116| × BT-119 / 100); with a missing rate or one that rounds to zero, BT-117 must round to zero. A missing BT-116 passes (presence is owned by BR-45); a filled BT-116, BT-119 or BT-117 that is not an xs:decimal fails instead of being skipped.',
         'BR-S-08' => 'Grouped per (category, rate) for every category; officially only S splits per rate — equivalent in practice since the other categories carry rate 0.',
         'BR-Z-08' => 'Grouped per (category, rate) for every category; officially only S splits per rate — equivalent in practice since the other categories carry rate 0.',
         'BR-E-08' => 'Grouped per (category, rate) for every category; officially only S splits per rate — equivalent in practice since the other categories carry rate 0.',
@@ -203,7 +203,7 @@ final class CoverageMatrix
      */
     private static function syntaxCounts(): array
     {
-        $path = dirname(__DIR__).'/resources/syntax-rules.json';
+        $path = __DIR__.'/../resources/syntax-rules.json';
         $json = file_get_contents($path);
 
         if ($json === false) {
@@ -255,12 +255,12 @@ final class CoverageMatrix
     {
         $done = $partial = $open = $total = 0;
 
-        foreach ($groups as $rules) {
-            [$groupDone, $groupPartial, $groupOpen] = self::countStatuses($rules, $implemented);
+        foreach ($groups as $group) {
+            [$groupDone, $groupPartial, $groupOpen] = self::countStatuses($group, $implemented);
             $done += $groupDone;
             $partial += $groupPartial;
             $open += $groupOpen;
-            $total += count($rules);
+            $total += count($group);
         }
 
         return [$done, $partial, $open, $total];
@@ -371,7 +371,7 @@ final class CoverageMatrix
      */
     private static function reference(): array
     {
-        $path = dirname(__DIR__).'/resources/rules-reference.json';
+        $path = __DIR__.'/../resources/rules-reference.json';
         $json = file_get_contents($path);
 
         if ($json === false) {

@@ -8,6 +8,23 @@ Pre-1.0: the public API may still change between minor versions.
 
 ## [Unreleased]
 
+### Changed
+
+- **BR-CO-17 now applies the official CEN tolerance instead of exact equality.**
+  The VAT category tax amount (BT-117) passes when its absolute value lies
+  strictly within ±1 of round(|BT-116| × BT-119 / 100), exactly as the official
+  artefacts assert. BR-CO-14 and BR-CO-15 stay exact.
+- **BR-CO-17 with a missing rate, or one that rounds to zero, now requires
+  BT-117 to round to zero.** A missing BT-119 used to skip the rule; a BT-117
+  of 0.50 or more (or below -0.50) is now fatal, as in the official artefacts.
+
+### Fixed
+
+- **BR-CO-17 fails closed on unreadable values.** A filled BT-116, BT-119 or
+  BT-117 that is not an `xs:decimal` used to skip the rule and now fails it. The
+  `xs:decimal` forms the engine did not read before (`+19.00`, `.50`, `19.`) are
+  normalised and validated instead of skipped.
+
 ## [0.3.0] - 2026-07-15
 
 ### Added

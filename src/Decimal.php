@@ -8,7 +8,8 @@ namespace JohnWink\En16931;
  * Exact decimal arithmetic over BCMath for the EN 16931 calculation rules. All
  * amounts are handled as strings straight from the XML — never floats — so the
  * tolerance-free (BR-CO-*) comparisons are exact. The engine works at the
- * EN 16931 default of two decimal places.
+ * EN 16931 default of two decimal places. isFilled() is the one definition of
+ * a filled value for every field, text fields included.
  */
 final class Decimal
 {
@@ -24,7 +25,7 @@ final class Decimal
 
     public static function isFilled(?string $value): bool
     {
-        return $value !== null && mb_trim($value) !== '';
+        return $value !== null && mb_trim($value, null, 'UTF-8') !== '';
     }
 
     public static function isFilledButNotXsDecimal(?string $value): bool

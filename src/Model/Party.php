@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace JohnWink\En16931\Model;
 
+use JohnWink\En16931\Decimal;
+
 /**
  * A trade party (seller BG-4 / buyer BG-7) as read from the invoice.
  */
@@ -34,12 +36,12 @@ final readonly class Party
      */
     public function hasPostalAddress(): bool
     {
-        return array_any([$this->street, $this->city, $this->postCode, $this->countryCode], fn (?string $value): bool => $value !== null && $value !== '');
+        return array_any([$this->street, $this->city, $this->postCode, $this->countryCode], Decimal::isFilled(...));
     }
 
     public function hasVatId(): bool
     {
-        return $this->vatId !== null && $this->vatId !== '';
+        return Decimal::isFilled($this->vatId);
     }
 
     /**
@@ -48,6 +50,6 @@ final readonly class Party
      */
     public function hasAnyIdentifier(): bool
     {
-        return array_any([$this->identifier, $this->legalRegistrationId, $this->vatId], fn (?string $value): bool => $value !== null && $value !== '');
+        return array_any([$this->identifier, $this->legalRegistrationId, $this->vatId], Decimal::isFilled(...));
     }
 }

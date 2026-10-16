@@ -9,7 +9,9 @@ Pre-1.0: the public API may still change between minor versions.
 ## [Unreleased]
 
 Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
-`Decimal::isNumeric()` changes in a backwards-incompatible way (see below).
+`Decimal::isNumeric()` changes in a backwards-incompatible way, and
+`validateModel()` now fails a model with a string that is not valid UTF-8
+(both see below).
 
 ### Added
 
@@ -63,11 +65,16 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   string as UTF-8 whatever `mb_internal_encoding()` is set to, so
   `validateModel()` expects every string in the `Invoice` model to be UTF-8.
   The readers deliver UTF-8. The README states the contract.
-- **`validateModel()` fails closed on strings that are not valid UTF-8.** Every
-  string in the `Invoice` model that fails `mb_check_encoding($value, 'UTF-8')`
-  is a fatal violation with the rule ID `UTF-8`, flagged with the path of the
-  field, such as `seller.name`, `notes[1]` or `lines[0].attributes[0].value`.
-  A field of only the ISO-8859-1 byte `0xA0` used to count as filled. Results
+- **`validateModel()` fails closed on strings that are not valid UTF-8
+  (breaking).** A caller that passes ISO-8859-1 strings, such as a name with
+  `ü` as the byte `0xFC`, used to get a result and now gets a fatal violation.
+  Every string in the `Invoice` model that fails
+  `mb_check_encoding($value, 'UTF-8')` is a fatal violation with the rule ID
+  `UTF-8`, flagged with the path of the field, such as `seller.name`,
+  `notes[1]` or `lines[0].attributes[0].value`. The path holds only property
+  names of the model classes and list indexes; any other key shows as `[?]`,
+  and values outside the model classes are not checked. A field of only the
+  ISO-8859-1 byte `0xA0` used to count as filled. Results
   for models in valid UTF-8 do not change; `validate()` reads XML into UTF-8
   and is not affected.
 

@@ -61,7 +61,7 @@ final class CoverageMatrix
         'BR-CL-24' => 'Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check.',
         'BR-CL-25' => 'Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check.',
         'BR-CL-26' => 'Severity: warning — the KoSIT/XRechnung scenarios downgrade this code-list check.',
-        'BR-CO-17' => 'Official tolerance: |BT-117| must lie strictly within ±1 of round(|BT-116| × BT-119 / 100); with a missing rate or one that rounds to zero, BT-117 must round to zero. A missing BT-116 passes (presence is owned by BR-45); a filled BT-116, BT-119 or BT-117 that is not an xs:decimal fails instead of being skipped.',
+        'BR-CO-17' => 'Official tolerance per syntax: |BT-117| must lie within ±1 of round(|BT-116| × BT-119 / 100), inclusive for CII and strict for UBL; a model without a source syntax uses the strict UBL check. With a missing rate or one that rounds to zero, BT-117 must round to zero. A missing BT-116 passes (presence is owned by BR-45); a filled BT-116, BT-119 or BT-117 that is not an xs:decimal fails instead of being skipped (only space, tab, CR and LF around a value are trimmed).',
         'BR-S-08' => 'Grouped per (category, rate) for every category; officially only S splits per rate — equivalent in practice since the other categories carry rate 0.',
         'BR-Z-08' => 'Grouped per (category, rate) for every category; officially only S splits per rate — equivalent in practice since the other categories carry rate 0.',
         'BR-E-08' => 'Grouped per (category, rate) for every category; officially only S splits per rate — equivalent in practice since the other categories carry rate 0.',

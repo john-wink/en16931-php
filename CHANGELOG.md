@@ -30,6 +30,18 @@ Pre-1.0: the public API may still change between minor versions.
   normalised and validated instead of skipped. Only XML whitespace (space, tab,
   CR, LF) around a value is ignored; a value framed by other Unicode spaces
   such as U+00A0 is not an `xs:decimal` and fails.
+- **`validateModel` no longer throws a `ValueError` on amounts framed by XML
+  whitespace.** A BT-117 such as `' 19.00 '` crashed BCMath in BR-CO-14 and in
+  BR-S-09, BR-IG-09 and BR-IP-09; the same happened in BR-CO-10 to BR-CO-16,
+  BR-S/Z/E/AE/IC/G/O/IG/IP-08, the VAT-rate rules BR-S/Z/E/AE/IC/G/IG/IP-05,
+  -06 and -07, the zero-tax rules BR-Z/E/AE/IC/G/O-09, BR-27, BR-28,
+  BR-CO-25, BR-DEX-02 and BR-DEX-09. Every amount and rate that reaches a
+  calculation is now read as an `xs:decimal` through the new
+  `Decimal::fromXsDecimal()`, the reader BR-CO-17 already used: space, tab, CR
+  and LF around a value are ignored, and the forms `+19.00`, `.50` and `19.`
+  are read instead of being treated as unreadable. A value framed by other
+  Unicode spaces such as U+00A0 stays unreadable. BR-CO-14 and BR-CO-15 stay
+  exact.
 
 ## [0.3.0] - 2026-07-15
 

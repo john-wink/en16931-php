@@ -357,6 +357,7 @@ it('checks lines that share their model objects with the result of the business 
 })->with([
     '50000 lines' => [50000],
     '200000 lines' => [200000],
+    '300000 lines' => [300000],
 ])->with([
     'that hold the same lists' => [static function (int $lineCount): array {
         $allowanceCharges = [new LineAllowanceCharge(isCharge: false, amount: '5.00', reason: 'Rabatt'), new LineAllowanceCharge(isCharge: true, amount: '5.00', reason: 'Fracht')];
@@ -380,24 +381,23 @@ it('checks lines that share their model objects with the result of the business 
     }],
 ]);
 
-it('checks many model objects that share a long list in linear time', function (Closure $entries): void {
-    $sharedList = $entries();
-    $lines = array_map(static fn (int $index): InvoiceLine => new InvoiceLine(id: (string) $index, name: 'Beratung', attributes: $sharedList), range(1, 10000));
+it('compares a list of up to 64 units without counting and counts a longer list against the budget on every comparison', function (Closure $entries, array $limitViolations): void {
+    $lines = array_map(static fn (int $index): InvoiceLine => new InvoiceLine(id: (string) $index, name: 'Beratung', attributes: $entries()), range(1, 20000));
 
-    $startedAt = hrtime(true);
     $encodingViolations = ModelEncoding::violations(makeInvoice(lines: $lines));
-    $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
 
-    expect($encodingViolations)->toBe([])
-        ->and($elapsedSeconds)->toBeLessThan(1.0);
+    expect(array_map(static fn (Violation $violation): bool => $violation->message === "The value of {$violation->flag} is nested too deep or too large to be checked for valid UTF-8.", $encodingViolations))->toBe($limitViolations);
 })->with([
-    'list of strings' => [static fn (): array => array_fill(0, 10000, 'Hinweis')],
-    'list of one model object' => [static fn (): array => array_fill(0, 10000, new ItemAttribute(name: 'cva', value: 'clean'))],
-    'list of distinct model objects' => [static fn (): array => array_map(static fn (int $index): ItemAttribute => new ItemAttribute(name: 'cva', value: (string) $index), range(1, 10000))],
+    '64 entries' => [static fn (): array => range(1, 64), []],
+    '65 entries' => [static fn (): array => range(1, 65), [true]],
+    'entry of 63 bytes' => [static fn (): array => [str_repeat('a', 63)], []],
+    'entry of 64 bytes' => [static fn (): array => [str_repeat('a', 64)], [true]],
+    'key of 63 bytes' => [static fn (): array => [str_repeat('k', 63) => 1], []],
+    'key of 64 bytes' => [static fn (): array => [str_repeat('k', 64) => 1], [true]],
 ]);
 
-it('reports many model objects that hold one of two long lists in turn with a limit violation within a second', function (Closure $entries): void {
-    $sharedLists = [$entries('clean'), $entries('dirty')];
+it('reports many model objects that hold the same, content-equal or alternating long lists with a limit violation within a second', function (Closure $entries): void {
+    $sharedLists = $entries();
     $lines = array_map(static fn (int $index): InvoiceLine => new InvoiceLine(id: (string) $index, name: 'Beratung', attributes: $sharedLists[$index % 2]), range(1, 10000));
 
     $startedAt = hrtime(true);
@@ -408,12 +408,25 @@ it('reports many model objects that hold one of two long lists in turn with a li
         ->and($validationResult->violations[0]->message)->toBe("The value of {$validationResult->violations[0]->flag} is nested too deep or too large to be checked for valid UTF-8.")
         ->and($elapsedSeconds)->toBeLessThan(1.0);
 })->with([
-    'lists of strings' => [static fn (string $value): array => array_fill(0, 10000, $value)],
-    'lists of model objects' => [static function (string $value): array {
-        $itemAttribute = new ItemAttribute(name: 'cva', value: $value);
+    'the same list of strings' => [static function (): array {
+        $list = array_fill(0, 10000, 'Hinweis');
 
-        return array_fill(0, 10000, $itemAttribute);
+        return [$list, $list];
     }],
+    'the same list of one model object' => [static function (): array {
+        $list = array_fill(0, 10000, new ItemAttribute(name: 'cva', value: 'clean'));
+
+        return [$list, $list];
+    }],
+    'the same list of distinct model objects' => [static function (): array {
+        $list = array_map(static fn (int $index): ItemAttribute => new ItemAttribute(name: 'cva', value: (string) $index), range(1, 10000));
+
+        return [$list, $list];
+    }],
+    'content-equal lists of scalars built apart' => [static fn (): array => [range(1, 10000), range(1, 10000)]],
+    'content-equal lists of long strings in separate places' => [static fn (): array => [array_fill(0, 100, str_repeat('a', 10000)), array_fill(0, 100, str_repeat('a', 10000))]],
+    'one of two lists of strings in turn' => [static fn (): array => [array_fill(0, 10000, 'clean'), array_fill(0, 10000, 'dirty')]],
+    'one of two lists of model objects in turn' => [static fn (): array => [array_fill(0, 10000, new ItemAttribute(name: 'cva', value: 'clean')), array_fill(0, 10000, new ItemAttribute(name: 'cva', value: 'dirty'))]],
 ]);
 
 it('reports a long string that is not valid UTF-8 in many places within a second', function (Closure $scenario, string $firstField, string $lastField): void {

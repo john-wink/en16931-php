@@ -8,6 +8,8 @@ Pre-1.0: the public API may still change between minor versions.
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-10-16
+
 ### Changed
 
 - **Performance: the UTF-8 check keys only invalid strings of more than 64
@@ -367,6 +369,8 @@ Initial pre-release.
   only as a dev/CI oracle): zero false positives on the 72-instance XRechnung
   test suite, plus matching verdicts on a negative corpus.
 
+[Unreleased]: https://github.com/john-wink/en16931-php/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/john-wink/en16931-php/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/john-wink/en16931-php/releases/tag/v0.4.0
 [0.2.0]: https://github.com/john-wink/en16931-php/releases/tag/v0.2.0
 [0.1.0]: https://github.com/john-wink/en16931-php/releases/tag/v0.1.0

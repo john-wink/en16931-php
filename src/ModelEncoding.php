@@ -57,6 +57,21 @@ final class ModelEncoding
     private array $checkedModels = [];
 
     /**
+     * @var array<int, int>
+     */
+    private array $validModelDepths = [];
+
+    /**
+     * @var array<string, array{list: array<mixed>, depth: int}>
+     */
+    private array $validLists = [];
+
+    /**
+     * @var array<array-key, true>
+     */
+    private array $invalidStrings = [];
+
+    /**
      * @var list<Violation>
      */
     private array $violations = [];
@@ -76,7 +91,7 @@ final class ModelEncoding
         return $modelEncoding->violations;
     }
 
-    private function checkModel(object $model, string $path, int $depth, bool $isRepeated): void
+    private function checkModel(object $model, string $path, int $depth, bool $isCounted): void
     {
         $identity = spl_object_id($model);
 
@@ -86,7 +101,7 @@ final class ModelEncoding
             return;
         }
 
-        $isRepeated = $isRepeated || isset($this->checkedModels[$identity]);
+        $isRepeated = $isCounted && isset($this->checkedModels[$identity]);
 
         if ($this->exceedsLimits($model, $depth, $isRepeated)) {
             $this->violations[] = $this->limitViolation($path);
@@ -94,8 +109,13 @@ final class ModelEncoding
             return;
         }
 
+        if ($depth <= ($this->validModelDepths[$identity] ?? -1)) {
+            return;
+        }
+
         $this->enclosingModels[$identity] = true;
         $this->checkedModels[$identity] = true;
+        $violationCount = count($this->violations);
 
         foreach (get_object_vars($model) as $name => $property) {
             if ($this->isExhausted()) {
@@ -105,45 +125,63 @@ final class ModelEncoding
             $propertyPath = $path === '' ? $name : $path.'.'.$name;
 
             if (is_array($property)) {
-                $this->checkList($property, $propertyPath, $depth + 1, $isRepeated);
+                $this->checkList($property, $model::class.'::'.$name, $propertyPath, $depth + 1, $isRepeated || $depth > 0);
             } else {
                 $this->checkItem($property, $propertyPath, $depth + 1, $isRepeated);
             }
         }
 
         unset($this->enclosingModels[$identity]);
+
+        if (count($this->violations) === $violationCount) {
+            $this->validModelDepths[$identity] = $depth;
+        }
     }
 
     /**
      * @param  array<mixed>  $list
      */
-    private function checkList(array $list, string $path, int $depth, bool $isRepeated): void
+    private function checkList(array $list, string $field, string $path, int $depth, bool $isCounted): void
     {
-        if ($this->exceedsLimits($list, $depth, $isRepeated)) {
+        $validList = $this->validLists[$field] ?? null;
+
+        if ($validList !== null && $depth <= $validList['depth'] && $validList['list'] === $list) {
+            return;
+        }
+
+        if ($this->exceedsLimits($list, $depth, false)) {
             $this->violations[] = $this->limitViolation($path);
 
             return;
         }
+
+        $violationCount = count($this->violations);
+        $isComparable = true;
 
         foreach ($list as $key => $item) {
             if ($this->isExhausted()) {
                 break;
             }
 
-            $this->checkItem($item, $path.'['.(is_int($key) ? $key : self::UNDECLARED_KEY).']', $depth + 1, $isRepeated);
+            $isComparable = $isComparable && ! is_array($item);
+            $this->checkItem($item, $path.'['.(is_int($key) ? $key : self::UNDECLARED_KEY).']', $depth + 1, $isCounted);
+        }
+
+        if ($isComparable && count($this->violations) === $violationCount) {
+            $this->validLists[$field] = ['list' => $list, 'depth' => $depth];
         }
     }
 
-    private function checkItem(mixed $value, string $path, int $depth, bool $isRepeated): void
+    private function checkItem(mixed $value, string $path, int $depth, bool $isCounted): void
     {
         if (is_object($value) && in_array($value::class, self::MODEL_CLASSES, true)) {
-            $this->checkModel($value, $path, $depth, $isRepeated);
+            $this->checkModel($value, $path, $depth, $isCounted);
 
             return;
         }
 
         $visited = [];
-        $violation = $this->violationOfValue($value, is_string($value) ? $path : $path.'['.self::UNDECLARED_KEY.']', $visited, $depth, $isRepeated);
+        $violation = $this->violationOfValue($value, is_string($value) ? $path : $path.'['.self::UNDECLARED_KEY.']', $visited, $depth, $isCounted);
 
         if ($violation instanceof Violation) {
             $this->violations[] = $violation;
@@ -221,7 +259,13 @@ final class ModelEncoding
 
     private function violationOfString(string $value, string $flag): ?Violation
     {
-        return mb_check_encoding($value, 'UTF-8') ? null : $this->violation('The value of %s is not valid UTF-8.', $flag);
+        if (! isset($this->invalidStrings[$value]) && mb_check_encoding($value, 'UTF-8')) {
+            return null;
+        }
+
+        $this->invalidStrings[$value] = true;
+
+        return $this->violation('The value of %s is not valid UTF-8.', $flag);
     }
 
     private function limitViolation(string $flag): Violation

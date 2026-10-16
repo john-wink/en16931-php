@@ -75,6 +75,65 @@ it('accepts a correct category tax amount', function (): void {
     expect($result->hasViolation('BR-CO-17'))->toBeFalse();
 });
 
+it('tolerates a category tax amount one cent off the rounded product (BR-CO-17)', function (string $taxableAmount, string $taxAmount): void {
+    $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
+        category: 'S',
+        rate: '19.00',
+        taxableAmount: $taxableAmount,
+        taxAmount: $taxAmount,
+    )]));
+
+    expect($result->hasViolation('BR-CO-17'))->toBeFalse();
+})->with([
+    'one cent above' => ['100.00', '19.01'],
+    'one cent below' => ['100.00', '18.99'],
+    'credit note one cent off' => ['-100.00', '-19.01'],
+    'just under one unit above' => ['100.00', '19.99'],
+]);
+
+it('flags a category tax amount off by one unit or more (BR-CO-17)', function (string $taxAmount): void {
+    $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
+        category: 'S',
+        rate: '19.00',
+        taxableAmount: '100.00',
+        taxAmount: $taxAmount,
+    )]));
+
+    expect($result->hasViolation('BR-CO-17'))->toBeTrue();
+})->with([
+    'exactly one unit above' => ['20.00'],
+    'exactly one unit below' => ['18.00'],
+    'more than one unit above' => ['20.50'],
+]);
+
+it('requires a zero category tax amount when the rate is zero (BR-CO-17)', function (): void {
+    $nonZero = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'Z', rate: '0.00', taxableAmount: '100.00', taxAmount: '1.00')]));
+    $zero = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'Z', rate: '0.00', taxableAmount: '100.00', taxAmount: '0.00')]));
+
+    expect($nonZero->hasViolation('BR-CO-17'))->toBeTrue()
+        ->and($zero->hasViolation('BR-CO-17'))->toBeFalse();
+});
+
+it('requires a zero category tax amount when the rate is missing (BR-CO-17)', function (): void {
+    $nonZero = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'O', rate: null, taxableAmount: '100.00', taxAmount: '1.00')]));
+    $zero = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(category: 'O', rate: null, taxableAmount: '100.00', taxAmount: '0.00')]));
+
+    expect($nonZero->hasViolation('BR-CO-17'))->toBeTrue()
+        ->and($zero->hasViolation('BR-CO-17'))->toBeFalse();
+});
+
+it('keeps BR-CO-14 exact when BR-CO-17 tolerates one cent', function (): void {
+    $result = core()->validateModel(makeInvoice(taxSubtotals: [new TaxSubtotal(
+        category: 'S',
+        rate: '19.00',
+        taxableAmount: '100.00',
+        taxAmount: '19.01',
+    )]));
+
+    expect($result->hasViolation('BR-CO-17'))->toBeFalse()
+        ->and($result->hasViolation('BR-CO-14'))->toBeTrue();
+});
+
 it('flags a missing total amount without VAT (BR-13)', function (): void {
     $result = core()->validateModel(makeInvoice(totals: new JohnWink\En16931\Model\Totals(
         lineTotal: '100.00',

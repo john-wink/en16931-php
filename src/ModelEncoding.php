@@ -288,11 +288,17 @@ final class ModelEncoding
             return null;
         }
 
-        if ($this->isVisited($this->invalidStrings, hash_hmac('sha256', $value, $this->invalidStringSecret, true)) && $this->exceedsBudgetToCompare(strlen($value))) {
+        if ($this->isCountedRepeat($value) && $this->exceedsBudgetToCompare(strlen($value))) {
             return $this->limitViolation($flag);
         }
 
         return $this->violation('The value of %s is not valid UTF-8.', $flag);
+    }
+
+    private function isCountedRepeat(string $invalidString): bool
+    {
+        return strlen($invalidString) > self::UNCOUNTED_COMPARISON_WEIGHT
+            && $this->isVisited($this->invalidStrings, hash_hmac('sha256', $invalidString, $this->invalidStringSecret, true));
     }
 
     private function limitViolation(string $flag): Violation

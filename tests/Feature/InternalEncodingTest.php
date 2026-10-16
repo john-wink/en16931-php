@@ -12,6 +12,7 @@ use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\PaymentMeans;
 use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Model\Totals;
+use JohnWink\En16931\ModelEncoding;
 use JohnWink\En16931\Reader\CiiInvoiceReader;
 use JohnWink\En16931\Reader\UblInvoiceReader;
 use JohnWink\En16931\RuleSets;
@@ -214,8 +215,81 @@ it('reports a string that is not valid UTF-8 in a value outside the model classe
 
         return makeInvoice(notes: [$notes]);
     }, 'notes[0][?]'],
-    'string nested deeper than the depth limit' => [static fn (): Invoice => makeInvoice(notes: [array_reduce(range(1, 100), static fn (array $list): array => [$list], ["\xA0"])]), 'notes[0][?]'],
+    'string in a private property of an object' => [static fn (): Invoice => makeInvoice(thirdPartyPayments: [new readonly class("\xA0")
+    {
+        public function __construct(private string $description) {}
+
+        public function hasDescription(): bool
+        {
+            return $this->description !== '';
+        }
+    }]), 'thirdPartyPayments[0][?]'],
+    'string in a protected property of an object' => [static fn (): Invoice => makeInvoice(thirdPartyPayments: [new readonly class("\xA0")
+    {
+        public function __construct(protected string $description) {}
+    }]), 'thirdPartyPayments[0][?]'],
+    'string of a Stringable list entry' => [static fn (): Invoice => makeInvoice(notes: [new class implements Stringable
+    {
+        public function __toString(): string
+        {
+            return "\xA0";
+        }
+    }]), 'notes[0][?]'],
+]);
+
+it('reports a value that exceeds the depth or size limit of the check without calling it invalid UTF-8', function (Closure $scenario, string $field): void {
+    $startedAt = hrtime(true);
+    $validationResult = xr()->validateModel($scenario());
+    $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
+
+    expect(array_map(static fn (Violation $violation): array => [$violation->ruleId, $violation->severity, $violation->flag, $violation->message], $validationResult->violations))->toBe([['UTF-8', Severity::Fatal, $field, "The value of {$field} is nested too deep or too large to be checked for valid UTF-8."]])
+        ->and($elapsedSeconds)->toBeLessThan(1.0);
+})->with([
+    'string not valid UTF-8 nested deeper than the depth limit' => [static fn (): Invoice => makeInvoice(notes: [array_reduce(range(1, 100), static fn (array $list): array => [$list], ["\xA0"])]), 'notes[0][?]'],
     'valid string nested deeper than the depth limit' => [static fn (): Invoice => makeInvoice(notes: [array_reduce(range(1, 100), static fn (array $list): array => [$list], ['Hinweis'])]), 'notes[0][?]'],
+    'list shared by value on every one of 40 levels' => [static fn (): Invoice => makeInvoice(thirdPartyPayments: [(object) ['data' => array_reduce(range(1, 40), static fn (array $list): array => [$list, $list], ['x'])]]), 'thirdPartyPayments[0][?]'],
+    'wide list shared by value' => [static function (): Invoice {
+        $row = array_fill(0, 2000, 'Hinweis');
+
+        return makeInvoice(thirdPartyPayments: [(object) ['rows' => array_fill(0, 2000, $row)]]);
+    }, 'thirdPartyPayments[0][?]'],
+]);
+
+it('checks a model of 25000 lines in valid UTF-8 within the limits', function (): void {
+    $line = new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', itemClassifications: [new ItemClassification(code: 'M1', scheme: 'CVD')], attributes: [new ItemAttribute(name: 'cva', value: 'clean')]);
+
+    expect(ModelEncoding::violations(makeInvoice(lines: array_fill(0, 25000, $line))))->toBe([]);
+});
+
+it('reports model objects that share a subtree on every level as too large to be checked', function (): void {
+    $line = static fn (array $attributes): InvoiceLine => new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', attributes: $attributes);
+    $invoiceLine = array_reduce(range(1, 30), static fn (InvoiceLine $invoiceLine): InvoiceLine => $line([$invoiceLine, $invoiceLine]), $line([]));
+
+    $startedAt = hrtime(true);
+    $validationResult = xr()->validateModel(makeInvoice(lines: [$invoiceLine]));
+    $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
+
+    expect($validationResult->violations)->toHaveCount(1)
+        ->and($validationResult->violations[0]->ruleId)->toBe('UTF-8')
+        ->and($validationResult->violations[0]->severity)->toBe(Severity::Fatal)
+        ->and($validationResult->violations[0]->message)->toBe("The value of {$validationResult->violations[0]->flag} is nested too deep or too large to be checked for valid UTF-8.")
+        ->and($elapsedSeconds)->toBeLessThan(1.0);
+});
+
+it('returns a result with a violation for a model object that contains itself or a chain of model objects deeper than the depth limit', function (Closure $scenario, string $field, string $message): void {
+    $validationResult = xr()->validateModel($scenario());
+
+    expect(array_map(static fn (Violation $violation): array => [$violation->ruleId, $violation->severity, $violation->flag, $violation->message], $validationResult->violations))->toBe([['UTF-8', Severity::Fatal, $field, sprintf($message, $field)]]);
+})->with([
+    'model object that contains itself through a reference in its list' => [static function (): Invoice {
+        $attributes = [];
+        $attributes[0] = &$slot;
+        $line = new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', attributes: $attributes);
+        $slot = $line;
+
+        return makeInvoice(lines: [$line]);
+    }, 'lines[0].attributes[0]', 'The value of %s contains itself and cannot be checked for valid UTF-8.'],
+    'chain of model objects deeper than the depth limit' => [static fn (): Invoice => makeInvoice(lines: [array_reduce(range(1, 40), static fn (InvoiceLine $invoiceLine): InvoiceLine => new InvoiceLine(id: '1', name: 'Beratung', attributes: [$invoiceLine]), new InvoiceLine(id: '1', name: 'Beratung'))]), 'lines[0]'.str_repeat('.attributes[0]', 31), 'The value of %s is nested too deep or too large to be checked for valid UTF-8.'],
 ]);
 
 it('reports a string that is not valid UTF-8 in an object of the model namespace that is no model class without its property names', function (): void {

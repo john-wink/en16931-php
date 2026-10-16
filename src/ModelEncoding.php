@@ -69,7 +69,7 @@ final class ModelEncoding
     private array $validLists = [];
 
     /**
-     * @var array<array-key, true>
+     * @var array<string, true>
      */
     private array $invalidStrings = [];
 
@@ -277,11 +277,13 @@ final class ModelEncoding
 
     private function violationOfString(string $value, string $flag): ?Violation
     {
-        if (! isset($this->invalidStrings[$value]) && mb_check_encoding($value, 'UTF-8')) {
+        if (mb_check_encoding($value, 'UTF-8')) {
             return null;
         }
 
-        $this->invalidStrings[$value] = true;
+        if ($this->isVisited($this->invalidStrings, hash('xxh128', $value, true)) && $this->exceedsBudgetToCompare(strlen($value))) {
+            return $this->limitViolation($flag);
+        }
 
         return $this->violation('The value of %s is not valid UTF-8.', $flag);
     }

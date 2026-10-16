@@ -20,6 +20,8 @@ final class MbCallScanner
 
     private const array FORBIDDEN_PREFIXES = ['mb_ereg', 'mb_split', 'mb_regex_'];
 
+    private const array ENCODING_FREE_FUNCTIONS = ['mb_get_info', 'mb_language', 'mb_list_encodings', 'mb_substitute_character'];
+
     private const array CLASS_KEYWORDS = [T_CLASS, T_TRAIT, T_INTERFACE, T_ENUM];
 
     private const array IMPORT_LIST_TOKENS = [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_AS];
@@ -88,7 +90,9 @@ final class MbCallScanner
 
     private static function isChecked(string $name): bool
     {
-        return self::isForbidden($name) || self::encodingParameter($name) instanceof ReflectionParameter;
+        $function = self::mbFunction($name);
+
+        return $function !== null && ! in_array($function, self::ENCODING_FREE_FUNCTIONS, true);
     }
 
     private static function isForbidden(string $name): bool

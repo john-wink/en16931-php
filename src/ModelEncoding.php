@@ -28,6 +28,8 @@ final class ModelEncoding
 
     private const int VALUE_LIMIT = 1_000_000;
 
+    private const int UNCOUNTED_COMPARISON_WEIGHT = 64;
+
     private const array MODEL_CLASSES = [
         Attachment::class,
         DocumentAllowanceCharge::class,
@@ -62,7 +64,7 @@ final class ModelEncoding
     private array $validModelDepths = [];
 
     /**
-     * @var array<string, array{list: array<mixed>, depth: int}>
+     * @var array<string, array{list: array<mixed>, depth: int, weight: int}>
      */
     private array $validLists = [];
 
@@ -145,7 +147,7 @@ final class ModelEncoding
     {
         $validList = $this->validLists[$field] ?? null;
 
-        if ($validList !== null && $depth <= $validList['depth'] && $validList['list'] === $list) {
+        if ($validList !== null && $depth <= $validList['depth'] && ! $this->exceedsBudgetToCompare($validList['weight']) && $validList['list'] === $list) {
             return;
         }
 
@@ -157,6 +159,7 @@ final class ModelEncoding
 
         $violationCount = count($this->violations);
         $isComparable = true;
+        $weight = 0;
 
         foreach ($list as $key => $item) {
             if ($this->isExhausted()) {
@@ -164,12 +167,27 @@ final class ModelEncoding
             }
 
             $isComparable = $isComparable && ! is_array($item);
+            $weight += $this->comparisonWeight($key, $item);
             $this->checkItem($item, $path.'['.(is_int($key) ? $key : self::UNDECLARED_KEY).']', $depth + 1, $isCounted);
         }
 
         if ($isComparable && count($this->violations) === $violationCount) {
-            $this->validLists[$field] = ['list' => $list, 'depth' => $depth];
+            $this->validLists[$field] = ['list' => $list, 'depth' => $depth, 'weight' => $weight];
         }
+    }
+
+    private function comparisonWeight(int|string $key, mixed $item): int
+    {
+        return 1 + (is_string($key) ? strlen($key) : 0) + (is_string($item) ? strlen($item) : 0);
+    }
+
+    private function exceedsBudgetToCompare(int $weight): bool
+    {
+        if ($weight > self::UNCOUNTED_COMPARISON_WEIGHT) {
+            $this->countedValues += $weight;
+        }
+
+        return $this->isExhausted();
     }
 
     private function checkItem(mixed $value, string $path, int $depth, bool $isCounted): void

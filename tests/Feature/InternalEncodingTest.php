@@ -8,6 +8,7 @@ use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
 use JohnWink\En16931\Model\ItemAttribute;
 use JohnWink\En16931\Model\ItemClassification;
+use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\Party;
 use JohnWink\En16931\Model\PaymentMeans;
 use JohnWink\En16931\Model\TaxSubtotal;
@@ -253,7 +254,48 @@ it('reports a value that exceeds the depth or size limit of the check without ca
 
         return makeInvoice(thirdPartyPayments: [(object) ['rows' => array_fill(0, 2000, $row)]]);
     }, 'thirdPartyPayments[0][?]'],
+    'wide list of references shared by value on every one of 40 levels' => [static function (): Invoice {
+        $target = 'Hinweis';
+        $references = [];
+
+        while (count($references) < 2000) {
+            $references[] = &$target;
+        }
+
+        return makeInvoice(thirdPartyPayments: [(object) ['data' => array_reduce(range(1, 40), static fn (array $list): array => [$list, $list], $references)]]);
+    }, 'thirdPartyPayments[0][?]'],
 ]);
+
+it('checks a model of 50000 full lines with the result of the business rules and no limit violation', function (): void {
+    $lines = array_map(static fn (int $index): InvoiceLine => new InvoiceLine(
+        id: (string) $index, name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00',
+        allowanceCharges: [new LineAllowanceCharge(isCharge: false, amount: '5.00', reason: 'Rabatt'), new LineAllowanceCharge(isCharge: true, amount: '5.00', reason: 'Fracht')],
+        hasPeriod: true, periodStart: '2026-01-01', periodEnd: '2026-01-31',
+        itemClassifications: [new ItemClassification(code: '8471', scheme: 'HS'), new ItemClassification(code: '7311', scheme: 'STI')],
+        attributes: [new ItemAttribute(name: 'cva', value: 'clean'), new ItemAttribute(name: 'Farbe', value: 'Blau'), new ItemAttribute(name: 'Größe', value: 'M')],
+    ), range(1, 50000));
+    $invoice = makeInvoice(lines: $lines);
+
+    $startedAt = hrtime(true);
+    $encodingViolations = ModelEncoding::violations($invoice);
+    $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
+
+    expect($encodingViolations)->toBe([])
+        ->and($elapsedSeconds)->toBeLessThan(2.0)
+        ->and(xr()->validateModel($invoice)->violations)->toEqual(new Validator([...RuleSets::en16931(), ...RuleSets::xrechnung()])->validate($invoice)->violations);
+});
+
+it('reports every one of 100000 list entries that are not valid UTF-8 within a second', function (): void {
+    $startedAt = hrtime(true);
+    $validationResult = xr()->validateModel(makeInvoice(notes: array_fill(0, 100000, "\xA0")));
+    $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
+
+    expect($validationResult->violations)->toHaveCount(100000)
+        ->and($validationResult->violations[0]->flag)->toBe('notes[0]')
+        ->and($validationResult->violations[99999]->flag)->toBe('notes[99999]')
+        ->and($validationResult->violations[99999]->message)->toBe('The value of notes[99999] is not valid UTF-8.')
+        ->and($elapsedSeconds)->toBeLessThan(1.0);
+});
 
 it('checks a model of 25000 lines in valid UTF-8 within the limits', function (): void {
     $line = new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', itemClassifications: [new ItemClassification(code: 'M1', scheme: 'CVD')], attributes: [new ItemAttribute(name: 'cva', value: 'clean')]);

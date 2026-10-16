@@ -54,12 +54,53 @@ must be UTF-8 encoded, whatever `mb_internal_encoding()` is set to: the engine
 trims values as UTF-8 and does not convert other encodings. The XML readers
 always deliver UTF-8.
 
-Keeping that contract is the caller's job. `validateModel()` does not check the
-encoding and does not reject a string in another encoding; it reads the bytes
-as UTF-8 and judges them as such. A single-byte no-break space (`0xA0` in
-ISO-8859-1), for example, is no whitespace there, so a field holding only that
-byte counts as filled. Convert other encodings with `mb_convert_encoding()`
-before you build the model.
+`validateModel()` fails closed on a broken contract: every string in the model
+that is not valid UTF-8 is a fatal violation with the rule ID `UTF-8`, flagged
+with the path of the field (`seller.name`, `notes[1]`,
+`lines[0].attributes[0].value`). Strings in values outside the model classes,
+such as other objects or nested lists, are checked as well: every property of
+such an object, private and protected ones included, and the string of a
+`Stringable`. The violation is flagged with `[?]` after the field instead of
+their keys (`thirdPartyPayments[0][?]`). The check stops at 64 levels and
+after 1,000,000 counted values. It skips a model object it has checked before
+without a violation, and a list with the same entries as the last list without
+a violation in the same property of the same model class, unless that list
+holds lists. Comparing with that list weighs one unit per entry plus the bytes
+of its string entries and string keys; up to 64 units the comparison is free,
+above that its weight counts on every comparison, whether the list is the same
+array or a content-equal one built apart. The same rule holds for a string that
+is not valid UTF-8: every further place with the same content, whether the same
+string or a content-equal one stored apart, weighs its bytes; up to 64 bytes it
+is free, above that its weight counts. The check recognises that content by an
+HMAC-SHA256 under a secret it draws anew for every check and never returns, so
+no sender can choose strings that collide in its table. In the lists of every
+model object other
+than the invoice, an entry counts unless it is a model object the check meets
+for the first time; a model object with a violation that the check meets again
+there counts with all its values. Every value outside the model classes counts,
+including list entries skipped as a reference already checked. The result for a
+model whose lists hold up to 64 units, whose model objects each appear once or
+whose lines share model objects, and whose invalid strings of more than 64 bytes
+each appear once, therefore does not depend on its size. A list
+of more than 64 units counts its weight even when the comparison fails, so lines
+with different lists count as well: lines that each hold 65 distinct model
+objects end with the limit violation after about 15,400 lines. Lines that hold
+different lists of the same model objects count these model objects, and many
+model objects that share a longer list end with the limit violation. Every
+violation is reported, without a cap on their number, so memory grows with the
+violations: in the worst case a small model with a shared subtree and a list of
+invalid strings yields close to 1,000,000 violations with paths of several
+hundred characters, measured at about 1.1 GB (969,099 violations, paths up to
+444 characters) and estimated at up to about 2 GB with longer property names in
+the path. A model beyond these limits, or a model object that contains
+itself, is a fatal violation with the rule ID `UTF-8` and a message of its own
+(`… is nested too deep or too large to be checked for valid UTF-8.`, `…
+contains itself and cannot be checked for valid UTF-8.`), even when every
+string is valid UTF-8. The result then holds only these violations: the business
+rules do not run, so no message repeats the raw bytes. A single-byte no-break
+space (`0xA0` in ISO-8859-1), for example, never counts silently as a filled
+field. The engine does not convert other encodings; convert them with
+`mb_convert_encoding()` before you build the model.
 
 ## Rule coverage
 

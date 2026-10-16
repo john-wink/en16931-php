@@ -9,7 +9,9 @@ Pre-1.0: the public API may still change between minor versions.
 ## [Unreleased]
 
 Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
-`Decimal::isNumeric()` changes in a backwards-incompatible way (see below).
+`Decimal::isNumeric()` changes in a backwards-incompatible way, and
+`validateModel()` now fails a model with a string that is not valid UTF-8
+(both see below).
 
 ### Added
 
@@ -63,6 +65,59 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   string as UTF-8 whatever `mb_internal_encoding()` is set to, so
   `validateModel()` expects every string in the `Invoice` model to be UTF-8.
   The readers deliver UTF-8. The README states the contract.
+- **`validateModel()` fails closed on strings that are not valid UTF-8
+  (breaking).** A caller that passes ISO-8859-1 strings, such as a name with
+  `ü` as the byte `0xFC`, used to get a result and now gets a fatal violation.
+  Every string in the `Invoice` model that fails
+  `mb_check_encoding($value, 'UTF-8')` is a fatal violation with the rule ID
+  `UTF-8`, flagged with the path of the field, such as `seller.name`,
+  `notes[1]` or `lines[0].attributes[0].value`. The path holds only property
+  names of the 13 model classes and list indexes; any other key shows as `[?]`.
+  Strings in values outside the model classes, such as other objects or
+  nested lists, are checked as well and flagged with `[?]` after the field,
+  such as `thirdPartyPayments[0][?]`: every property of such an object,
+  private and protected ones included, and the string of a `Stringable`. The
+  check stops at 64 levels and after 1,000,000 counted values. It skips a
+  model object it has checked before without a violation and a list with the
+  same entries as the last list without a violation in the same property of
+  the same model class, unless that list holds lists. Comparing with that
+  list weighs one unit per entry plus the bytes of its string entries and
+  string keys; up to 64 units the comparison is free, above that its weight
+  counts on every comparison, whether the list is the same array or a
+  content-equal one built apart. The same rule holds for a string that is not
+  valid UTF-8: every further place with the same content, whether the same
+  string or a content-equal one stored apart, weighs its bytes; up to 64 bytes
+  it is free, above that its weight counts. The check recognises that content
+  by an HMAC-SHA256 under a secret it draws anew for every check and never
+  returns, so no sender can choose strings that collide in its table. In the
+  lists of
+  every model object other than the invoice, an entry counts unless it is a
+  model object the check meets for the first time, and a model object with a
+  violation that the check meets again there counts with all its values;
+  every value outside the model classes counts, including list entries
+  skipped as a reference already checked. The result for a model whose lists
+  hold up to 64 units, whose model objects each appear once or whose lines
+  share model objects, and whose invalid strings of more than 64 bytes each
+  appear once, therefore does not depend on its size. A list of more
+  than 64 units counts its weight even when the comparison fails, so lines
+  with different lists count as well: lines that each hold 65 distinct model
+  objects end with the limit violation after about 15,400 lines. Many model
+  objects that share a longer list end with the limit violation. Every
+  violation is reported, without a cap on their number, so memory grows with
+  the violations: in the worst case a small model with a shared subtree and a
+  list of invalid strings yields close to 1,000,000 violations with paths of
+  several hundred characters, measured at about 1.1 GB (969,099 violations,
+  paths up to 444 characters) and estimated at up to about 2 GB with longer
+  property names in the path. A model beyond these limits,
+  or a model object that contains itself, gets a fatal `UTF-8` violation with
+  a message of its own (`… is nested too deep or too large to be checked for
+  valid UTF-8.`, `… contains itself and cannot be checked for valid UTF-8.`),
+  even when every string is valid UTF-8. A model with such a violation gets only the
+  `UTF-8` violations, without the results of the business rules, so no message
+  repeats the raw bytes and `toArray()` stays JSON-encodable. A field of only the
+  ISO-8859-1 byte `0xA0` used to count as filled. Results for models in valid
+  UTF-8 within these limits do not change; `validate()` reads XML into UTF-8
+  and is not affected.
 
 ### Fixed
 
@@ -75,6 +130,11 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   BR-61, BR-CL-22, BR-CO-09, BR-DE-19, BR-DE-20, BR-DE-23 to BR-DE-25,
   BR-DE-CVD-04/05, BR-TMP-2) judged a value framed by U+00A0 differently than
   under UTF-8.
+- **BR-51, BR-CL-22 and BR-CO-09 count, upper-case and cut as UTF-8 whatever
+  `mb_internal_encoding()` is set to.** Under ISO-8859-1, BR-51 counted the
+  bytes of a card number instead of its characters and warned on ten non-ASCII
+  digits, and BR-CL-22 rejected a VATEX code that upper-cases to a valid one
+  only under UTF-8, such as `vatex-eu-ı`.
 - **BR-CO-17 fails closed on unreadable values.** A filled BT-116, BT-119 or
   BT-117 that is not an `xs:decimal` used to skip the rule and now fails it. The
   `xs:decimal` forms the engine did not read before (`+19.00`, `.50`, `19.`) are

@@ -8,13 +8,12 @@ use FilesystemIterator;
 use PhpToken;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use ReflectionFunction;
 use SplFileInfo;
 
 final class MbCallScanner
 {
-    private const array TRIM_FUNCTIONS = ['mb_trim', 'mb_ltrim', 'mb_rtrim'];
-
-    private const array SKIPPED_PREDECESSORS = [T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR, T_DOUBLE_COLON, T_FUNCTION, T_NEW];
+    private const array SKIPPED_PREDECESSORS = [T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR, T_DOUBLE_COLON, T_NEW];
 
     /**
      * @return list<array{file: string, line: int, utf8: bool}>
@@ -47,22 +46,28 @@ final class MbCallScanner
         $calls = [];
 
         foreach ($tokens as $index => $token) {
-            if ($token->is(T_CONSTANT_ENCAPSED_STRING) && self::isTrimFunction(mb_substr($token->text, 1, -1))) {
+            if ($token->is(T_CONSTANT_ENCAPSED_STRING) && self::encodingPosition(mb_substr($token->text, 1, -1)) !== null) {
                 $calls[] = ['line' => $token->line, 'utf8' => false];
 
                 continue;
             }
 
-            if (! $token->is([T_STRING, T_NAME_FULLY_QUALIFIED]) || ! self::isTrimFunction($token->text)) {
+            if (! $token->is([T_STRING, T_NAME_FULLY_QUALIFIED])) {
                 continue;
             }
 
-            if ($index > 0 && $tokens[$index - 1]->is(self::SKIPPED_PREDECESSORS)) {
-                continue;
-            }
-
+            $encodingPosition = self::encodingPosition($token->text);
+            $previous = $tokens[$index - 1] ?? null;
             $next = $tokens[$index + 1] ?? null;
-            $utf8 = $next instanceof PhpToken && $next->text === '(' && self::passesUtf8(self::arguments($tokens, $index + 1));
+
+            if ($encodingPosition === null || $previous?->is(self::SKIPPED_PREDECESSORS) === true || self::isPlainImport($tokens, $index)) {
+                continue;
+            }
+
+            $utf8 = $previous?->is(T_FUNCTION) !== true
+                && $next instanceof PhpToken
+                && $next->text === '('
+                && self::passesUtf8(self::arguments($tokens, $index + 1), $encodingPosition);
 
             $calls[] = ['line' => $token->line, 'utf8' => $utf8];
         }
@@ -70,9 +75,32 @@ final class MbCallScanner
         return $calls;
     }
 
-    private static function isTrimFunction(string $name): bool
+    private static function encodingPosition(string $name): ?int
     {
-        return in_array(mb_strtolower(ltrim($name, '\\')), self::TRIM_FUNCTIONS, true);
+        $function = mb_strtolower(ltrim($name, '\\'));
+
+        if (! str_starts_with($function, 'mb_') || ! function_exists($function)) {
+            return null;
+        }
+
+        foreach (new ReflectionFunction($function)->getParameters() as $reflectionParameter) {
+            if ($reflectionParameter->getName() === 'encoding') {
+                return $reflectionParameter->getPosition();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<PhpToken>  $tokens
+     */
+    private static function isPlainImport(array $tokens, int $index): bool
+    {
+        return $index > 1
+            && $tokens[$index - 1]->is(T_FUNCTION)
+            && $tokens[$index - 2]->is(T_USE)
+            && ($tokens[$index + 1] ?? null)?->is(T_AS) !== true;
     }
 
     /**
@@ -114,7 +142,7 @@ final class MbCallScanner
     /**
      * @param  list<list<PhpToken>>  $arguments
      */
-    private static function passesUtf8(array $arguments): bool
+    private static function passesUtf8(array $arguments, int $encodingPosition): bool
     {
         foreach ($arguments as $argument) {
             if ($argument[0]->is(T_ELLIPSIS)) {
@@ -126,7 +154,7 @@ final class MbCallScanner
             }
         }
 
-        return isset($arguments[2]) && self::isUtf8Literal($arguments[2]);
+        return isset($arguments[$encodingPosition]) && self::isUtf8Literal($arguments[$encodingPosition]);
     }
 
     /**

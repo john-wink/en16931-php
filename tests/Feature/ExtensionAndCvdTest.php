@@ -91,6 +91,24 @@ it('warns when a line net amount does not match its sub lines (BR-DEX-02)', func
         ->and($result->isValid())->toBeTrue(); // warning only
 });
 
+it('skips BR-DEX-02 and adds no violation when a sub line net amount is missing in the model', function (): void {
+    $line = static fn (?string $subLineNetAmount): InvoiceLine => new InvoiceLine(
+        id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62',
+        taxCategory: 'S', taxRate: '19.00',
+        subLines: [
+            new SubInvoiceLine(netAmount: '60.00', vatCategoryCount: 1),
+            new SubInvoiceLine(netAmount: $subLineNetAmount, vatCategoryCount: 1),
+        ],
+    );
+
+    $complete = xr()->validateModel(makeInvoice(customizationId: XR_EXTENSION, lines: [$line('40.00')]));
+    $missing = xr()->validateModel(makeInvoice(customizationId: XR_EXTENSION, lines: [$line(null)]));
+
+    expect($missing->hasViolation('BR-DEX-02'))->toBeFalse()
+        ->and($missing->isValid())->toBeTrue()
+        ->and($missing->violations)->toEqual($complete->violations);
+});
+
 it('requires exactly one VAT information per sub line (BR-DEX-03)', function (): void {
     $line = new InvoiceLine(
         id: '1', name: 'x', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62',

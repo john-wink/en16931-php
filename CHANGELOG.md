@@ -87,9 +87,10 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   content-equal one built apart. The same rule holds for a string that is not
   valid UTF-8: every further place with the same content, whether the same
   string or a content-equal one stored apart, weighs its bytes; up to 64 bytes
-  it is free, above that its weight counts. The check recognises that content
-  by an HMAC-SHA256 under a secret it draws anew for every check and never
-  returns, so no sender can choose strings that collide in its table. In the
+  it is free, above that its weight counts. The check recognises the content
+  of such a string of more than 64 bytes by an HMAC-SHA256 under a secret it
+  draws anew for every check and never returns, so no sender can choose
+  strings that collide in its table. In the
   lists of
   every model object other than the invoice, an entry counts unless it is a
   model object the check meets for the first time, and a model object with a
@@ -118,6 +119,11 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   ISO-8859-1 byte `0xA0` used to count as filled. Results for models in valid
   UTF-8 within these limits do not change; `validate()` reads XML into UTF-8
   and is not affected.
+- **Performance: the UTF-8 check keys only invalid strings of more than 64
+  bytes.** An invalid string of up to 64 bytes never counts against the
+  budget, so it no longer gets an HMAC-SHA256 or an entry in the table of
+  invalid strings. Results do not change. 999,000 notes of 1 to 64 invalid
+  bytes are checked in about 0.8 s again instead of about 3 s (PHP 8.5).
 
 ### Fixed
 

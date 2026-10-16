@@ -9,11 +9,20 @@ use PhpToken;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionFunction;
+use ReflectionParameter;
 use SplFileInfo;
 
 final class MbCallScanner
 {
     private const array SKIPPED_PREDECESSORS = [T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR, T_DOUBLE_COLON, T_NEW];
+
+    private const array ENCODING_PARAMETERS = ['encoding', 'from_encoding', 'encodings'];
+
+    private const array FORBIDDEN_PREFIXES = ['mb_ereg', 'mb_split', 'mb_regex_'];
+
+    private const array CLASS_KEYWORDS = [T_CLASS, T_TRAIT, T_INTERFACE, T_ENUM];
+
+    private const array IMPORT_LIST_TOKENS = [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_AS];
 
     /**
      * @return list<array{file: string, line: int, utf8: bool}>
@@ -46,7 +55,7 @@ final class MbCallScanner
         $calls = [];
 
         foreach ($tokens as $index => $token) {
-            if ($token->is(T_CONSTANT_ENCAPSED_STRING) && self::encodingPosition(mb_substr($token->text, 1, -1)) !== null) {
+            if ($token->is(T_CONSTANT_ENCAPSED_STRING) && self::isChecked(mb_substr($token->text, 1, -1))) {
                 $calls[] = ['line' => $token->line, 'utf8' => false];
 
                 continue;
@@ -56,18 +65,20 @@ final class MbCallScanner
                 continue;
             }
 
-            $encodingPosition = self::encodingPosition($token->text);
             $previous = $tokens[$index - 1] ?? null;
             $next = $tokens[$index + 1] ?? null;
 
-            if ($encodingPosition === null || $previous?->is(self::SKIPPED_PREDECESSORS) === true || self::isPlainImport($tokens, $index)) {
+            if (! self::isChecked($token->text) || $previous?->is(self::SKIPPED_PREDECESSORS) === true || self::isPlainImport($tokens, $index) || self::isMethodDeclaration($tokens, $index)) {
                 continue;
             }
 
-            $utf8 = $previous?->is(T_FUNCTION) !== true
+            $encodingParameter = self::encodingParameter($token->text);
+
+            $utf8 = $encodingParameter instanceof ReflectionParameter
+                && $previous?->is(T_FUNCTION) !== true
                 && $next instanceof PhpToken
                 && $next->text === '('
-                && self::passesUtf8(self::arguments($tokens, $index + 1), $encodingPosition);
+                && self::passesUtf8(self::arguments($tokens, $index + 1), $encodingParameter);
 
             $calls[] = ['line' => $token->line, 'utf8' => $utf8];
         }
@@ -75,21 +86,34 @@ final class MbCallScanner
         return $calls;
     }
 
-    private static function encodingPosition(string $name): ?int
+    private static function isChecked(string $name): bool
     {
-        $function = mb_strtolower(ltrim($name, '\\'));
+        return self::isForbidden($name) || self::encodingParameter($name) instanceof ReflectionParameter;
+    }
 
-        if (! str_starts_with($function, 'mb_') || ! function_exists($function)) {
+    private static function isForbidden(string $name): bool
+    {
+        $function = self::mbFunction($name);
+
+        return $function !== null && array_any(self::FORBIDDEN_PREFIXES, static fn (string $prefix): bool => str_starts_with($function, $prefix));
+    }
+
+    private static function encodingParameter(string $name): ?ReflectionParameter
+    {
+        $function = self::mbFunction($name);
+
+        if ($function === null || self::isForbidden($function)) {
             return null;
         }
 
-        foreach (new ReflectionFunction($function)->getParameters() as $reflectionParameter) {
-            if ($reflectionParameter->getName() === 'encoding') {
-                return $reflectionParameter->getPosition();
-            }
-        }
+        return array_find(new ReflectionFunction($function)->getParameters(), static fn (ReflectionParameter $reflectionParameter): bool => in_array($reflectionParameter->getName(), self::ENCODING_PARAMETERS, true));
+    }
 
-        return null;
+    private static function mbFunction(string $name): ?string
+    {
+        $function = mb_strtolower(ltrim($name, '\\'));
+
+        return str_starts_with($function, 'mb_') && function_exists($function) ? $function : null;
     }
 
     /**
@@ -97,10 +121,45 @@ final class MbCallScanner
      */
     private static function isPlainImport(array $tokens, int $index): bool
     {
-        return $index > 1
-            && $tokens[$index - 1]->is(T_FUNCTION)
-            && $tokens[$index - 2]->is(T_USE)
-            && ($tokens[$index + 1] ?? null)?->is(T_AS) !== true;
+        if (($tokens[$index + 1] ?? null)?->is(T_AS) === true) {
+            return false;
+        }
+
+        $position = $index - 1;
+
+        while ($position > 1 && ($tokens[$position]->text === ',' || $tokens[$position]->is(self::IMPORT_LIST_TOKENS))) {
+            $position--;
+        }
+
+        return $position > 0
+            && $tokens[$position]->is(T_FUNCTION)
+            && $tokens[$position - 1]->is(T_USE);
+    }
+
+    /**
+     * @param  list<PhpToken>  $tokens
+     */
+    private static function isMethodDeclaration(array $tokens, int $index): bool
+    {
+        if (($tokens[$index - 1] ?? null)?->is(T_FUNCTION) !== true) {
+            return false;
+        }
+
+        $openings = [];
+        $classPending = false;
+
+        foreach (array_slice($tokens, 0, $index) as $position => $phpToken) {
+            if ($phpToken->is(self::CLASS_KEYWORDS) && ($tokens[$position - 1] ?? null)?->is(T_DOUBLE_COLON) !== true) {
+                $classPending = true;
+            } elseif ($phpToken->text === '{' || $phpToken->is(T_DOLLAR_OPEN_CURLY_BRACES)) {
+                $openings[] = $classPending;
+                $classPending = false;
+            } elseif ($phpToken->text === '}') {
+                array_pop($openings);
+            }
+        }
+
+        return $openings !== [] && $openings[array_key_last($openings)];
     }
 
     /**
@@ -142,19 +201,21 @@ final class MbCallScanner
     /**
      * @param  list<list<PhpToken>>  $arguments
      */
-    private static function passesUtf8(array $arguments, int $encodingPosition): bool
+    private static function passesUtf8(array $arguments, ReflectionParameter $reflectionParameter): bool
     {
         foreach ($arguments as $argument) {
             if ($argument[0]->is(T_ELLIPSIS)) {
                 return false;
             }
 
-            if (count($argument) > 2 && $argument[0]->is(T_STRING) && $argument[0]->text === 'encoding' && $argument[1]->text === ':') {
+            if (count($argument) > 2 && $argument[0]->is(T_STRING) && $argument[0]->text === $reflectionParameter->getName() && $argument[1]->text === ':') {
                 return self::isUtf8Literal(array_slice($argument, 2));
             }
         }
 
-        return isset($arguments[$encodingPosition]) && self::isUtf8Literal($arguments[$encodingPosition]);
+        $position = $reflectionParameter->getPosition();
+
+        return isset($arguments[$position]) && self::isUtf8Literal($arguments[$position]);
     }
 
     /**

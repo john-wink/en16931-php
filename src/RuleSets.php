@@ -130,7 +130,7 @@ final class RuleSets
 
             new PaymentMeansRule('BR-49', 'BT-81', 'Each payment instruction (BG-16) shall specify the payment means type code (BT-81).', static fn (PaymentMeans $paymentMeans): bool => self::filled($paymentMeans->typeCode)),
             new PaymentMeansRule('BR-50', 'BT-84', 'A payment account identifier (BT-84) shall be present when credit transfer information is given.', static fn (PaymentMeans $paymentMeans): bool => ! $paymentMeans->hasCreditTransfer || ! in_array(mb_trim((string) $paymentMeans->typeCode, null, 'UTF-8'), ['30', '58'], true) || self::filled($paymentMeans->accountId)),
-            new PaymentMeansRule('BR-51', 'BT-87', 'An invoice should never include a full card primary account number (BT-87) — at most 10 characters.', static fn (PaymentMeans $paymentMeans): bool => $paymentMeans->cardNumber === null || mb_strlen(mb_trim($paymentMeans->cardNumber, null, 'UTF-8')) <= 10, Severity::Warning),
+            new PaymentMeansRule('BR-51', 'BT-87', 'An invoice should never include a full card primary account number (BT-87) — at most 10 characters.', static fn (PaymentMeans $paymentMeans): bool => $paymentMeans->cardNumber === null || mb_strlen(mb_trim($paymentMeans->cardNumber, null, 'UTF-8'), 'UTF-8') <= 10, Severity::Warning),
             new PaymentMeansRule('BR-61', 'BT-84', 'A credit transfer (payment means code 30 or 58) shall carry a payment account identifier (BT-84).', static fn (PaymentMeans $paymentMeans): bool => ! in_array(mb_trim((string) $paymentMeans->typeCode, null, 'UTF-8'), ['30', '58'], true) || $paymentMeans->accountId !== null),
             new PaymentMeansRule('BR-CL-16', 'BT-81', 'The payment means type code (BT-81) shall be a valid UNTDID 4461 code.', static fn (PaymentMeans $paymentMeans): bool => $paymentMeans->typeCode === null || in_array($paymentMeans->typeCode, CodeLists::PAYMENT_MEANS_CODES, true)),
 
@@ -244,7 +244,7 @@ final class RuleSets
             new LineAllowanceRule('BR-CL-19', 'BT-140', 'A coded line allowance reason (BT-140) shall be a valid UNTDID 5189 code.', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => $lineAllowanceCharge->isCharge || $lineAllowanceCharge->reasonCode === null || in_array($lineAllowanceCharge->reasonCode, CodeLists::ALLOWANCE_REASON_CODES, true)),
             new LineAllowanceRule('BR-CL-20', 'BT-145', 'A coded line charge reason (BT-145) shall be a valid UNTDID 7161 code.', static fn (LineAllowanceCharge $lineAllowanceCharge): bool => ! $lineAllowanceCharge->isCharge || $lineAllowanceCharge->reasonCode === null || in_array($lineAllowanceCharge->reasonCode, CodeLists::CHARGE_REASON_CODES, true)),
             new LineRule('BR-CL-21', 'BT-157', 'The item standard identifier scheme (BT-157) shall be from the ISO 6523 ICD list.', static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->itemStandardIdScheme === null || in_array($invoiceLine->itemStandardIdScheme, IcdSchemes::CODES, true), Severity::Warning),
-            new SubtotalRule('BR-CL-22', 'BT-121', 'The VAT exemption reason code (BT-121) shall be a valid VATEX code.', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->exemptionReasonCode === null || in_array(mb_strtoupper(mb_trim($taxSubtotal->exemptionReasonCode, null, 'UTF-8')), CodeLists::VATEX_CODES, true)),
+            new SubtotalRule('BR-CL-22', 'BT-121', 'The VAT exemption reason code (BT-121) shall be a valid VATEX code.', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->exemptionReasonCode === null || in_array(mb_strtoupper(mb_trim($taxSubtotal->exemptionReasonCode, null, 'UTF-8'), 'UTF-8'), CodeLists::VATEX_CODES, true)),
             new LineRule('BR-CL-23', 'BT-130', 'The unit of measure code (BT-130) shall be a valid UN/ECE Rec 20/21 code.', static fn (InvoiceLine $invoiceLine): bool => $invoiceLine->unitCode === null || in_array($invoiceLine->unitCode, UnitCodes::CODES, true), Severity::Warning),
             new CodeListRule('BR-CL-26', 'BT-71', 'The delivery location scheme (BT-71) shall be from the ISO 6523 ICD list', static fn (Invoice $invoice): ?string => $invoice->deliverTo?->identifierScheme, IcdSchemes::CODES, Severity::Warning),
 
@@ -675,7 +675,7 @@ final class RuleSets
                 continue;
             }
 
-            $prefix = mb_substr(mb_trim((string) $vatId, null, 'UTF-8'), 0, 2);
+            $prefix = mb_substr(mb_trim((string) $vatId, null, 'UTF-8'), 0, 2, 'UTF-8');
 
             if (! in_array($prefix, CountryCodes::CODES, true) && ! in_array($prefix, CodeLists::VAT_PREFIX_EXTRAS, true)) {
                 return false;

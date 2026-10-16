@@ -75,12 +75,17 @@ Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
   names of the 13 model classes and list indexes; any other key shows as `[?]`.
   Strings in values outside the model classes, such as other objects or
   nested lists, are checked as well and flagged with `[?]` after the field,
-  such as `thirdPartyPayments[0][?]`; such a value nested deeper than 64
-  levels fails the same way. A model with such a violation gets only the
+  such as `thirdPartyPayments[0][?]`: every property of such an object,
+  private and protected ones included, and the string of a `Stringable`. The
+  check stops at 64 levels and 1,000,000 values; a model beyond these limits,
+  or a model object that contains itself, gets a fatal `UTF-8` violation with
+  a message of its own (`… is nested too deep or too large to be checked for
+  valid UTF-8.`, `… contains itself and cannot be checked for valid UTF-8.`),
+  even when every string is valid UTF-8. A model with such a violation gets only the
   `UTF-8` violations, without the results of the business rules, so no message
   repeats the raw bytes and `toArray()` stays JSON-encodable. A field of only the
-  ISO-8859-1 byte `0xA0` used to count as filled. Results
-  for models in valid UTF-8 do not change; `validate()` reads XML into UTF-8
+  ISO-8859-1 byte `0xA0` used to count as filled. Results for models in valid
+  UTF-8 within these limits do not change; `validate()` reads XML into UTF-8
   and is not affected.
 
 ### Fixed

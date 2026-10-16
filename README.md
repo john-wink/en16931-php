@@ -58,10 +58,15 @@ always deliver UTF-8.
 that is not valid UTF-8 is a fatal violation with the rule ID `UTF-8`, flagged
 with the path of the field (`seller.name`, `notes[1]`,
 `lines[0].attributes[0].value`). Strings in values outside the model classes,
-such as other objects or nested lists, are checked as well; the violation is
-flagged with `[?]` after the field instead of their keys
-(`thirdPartyPayments[0][?]`), and such a value nested deeper than 64 levels
-fails the same way. The result then holds only these violations: the business
+such as other objects or nested lists, are checked as well: every property of
+such an object, private and protected ones included, and the string of a
+`Stringable`. The violation is flagged with `[?]` after the field instead of
+their keys (`thirdPartyPayments[0][?]`). The check stops at 64 levels and
+1,000,000 values; a model beyond these limits, or a model object that contains
+itself, is a fatal violation with the rule ID `UTF-8` and a message of its own
+(`… is nested too deep or too large to be checked for valid UTF-8.`, `…
+contains itself and cannot be checked for valid UTF-8.`), even when every
+string is valid UTF-8. The result then holds only these violations: the business
 rules do not run, so no message repeats the raw bytes. A single-byte no-break
 space (`0xA0` in ISO-8859-1), for example, never counts silently as a filled
 field. The engine does not convert other encodings; convert them with

@@ -310,11 +310,34 @@ it('reports every list entry that is not valid UTF-8 within a second', function 
         ->and($elapsedSeconds)->toBeLessThan(1.0);
 })->with([
     'one of 100000 entries' => [static fn (): array => array_fill(0, 100000, "\xA0"), 100000],
-    'many distinct strings that are not valid UTF-8 with the same hash value' => [static fn (): array => array_map(
-        static fn (string $collidingBlocks): string => str_repeat('a', 30).$collidingBlocks."\xA0",
-        array_reduce(range(1, 15), static fn (array $prefixes): array => [...array_map(static fn (string $prefix): string => $prefix.'Ez', $prefixes), ...array_map(static fn (string $prefix): string => $prefix.'FY', $prefixes)], ['']),
-    ), 32768],
 ]);
+
+it('keys every one of many distinct strings of more than 64 bytes that are not valid UTF-8 with the same hash value anew for every check and reports each within a second', function (): void {
+    $notes = array_map(
+        static fn (string $collidingBlocks): string => str_repeat('a', 34).$collidingBlocks."\xA0",
+        array_reduce(range(1, 15), static fn (array $prefixes): array => [...array_map(static fn (string $prefix): string => $prefix.'Ez', $prefixes), ...array_map(static fn (string $prefix): string => $prefix.'FY', $prefixes)], ['']),
+    );
+    $invoice = makeInvoice(notes: $notes);
+    $keysOfOneCheck = static fn (): array => Closure::bind(static function (Invoice $invoice): array {
+        $modelEncoding = new ModelEncoding;
+        $modelEncoding->checkModel($invoice, '', 0, false);
+
+        return array_keys($modelEncoding->invalidStrings);
+    }, null, ModelEncoding::class)($invoice);
+
+    $startedAt = hrtime(true);
+    $validationResult = xr()->validateModel($invoice);
+    $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
+
+    expect(array_filter($notes, static fn (string $note): bool => strlen($note) <= 64))->toBe([])
+        ->and(array_unique($notes))->toHaveCount(32768)
+        ->and($validationResult->violations)->toHaveCount(32768)
+        ->and($validationResult->violations[0]->flag)->toBe('notes[0]')
+        ->and($validationResult->violations[32767]->message)->toBe('The value of notes[32767] is not valid UTF-8.')
+        ->and($elapsedSeconds)->toBeLessThan(1.0)
+        ->and($keysOfOneCheck())->toHaveCount(32768)
+        ->and(array_intersect($keysOfOneCheck(), $keysOfOneCheck()))->toBe([]);
+});
 
 it('checks a model of 25000 lines in valid UTF-8 within the limits', function (): void {
     $line = new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', itemClassifications: [new ItemClassification(code: 'M1', scheme: 'CVD')], attributes: [new ItemAttribute(name: 'cva', value: 'clean')]);

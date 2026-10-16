@@ -784,8 +784,11 @@ final class RuleSets
 
     /**
      * BR-DEX-02: when a line carries sub lines, its net amount must equal
-     * their sum. A filled amount that is not an xs:decimal fails; a missing
-     * one leaves the rule to the presence rules.
+     * their sum. A filled amount that is not an xs:decimal fails. A missing
+     * line net amount skips the rule and is left to BR-24. A missing sub line
+     * net amount also skips the rule; no business rule requires it, over UBL
+     * the XSD does (cac:SubInvoiceLine is an InvoiceLineType with a mandatory
+     * cbc:LineExtensionAmount), and validateModel passes it.
      */
     private static function subLineSumMatches(InvoiceLine $invoiceLine): bool
     {

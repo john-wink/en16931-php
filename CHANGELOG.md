@@ -21,6 +21,13 @@ Pre-1.0: the public API may still change between minor versions.
 - **BR-CO-17 with a missing rate, or one that rounds to zero, now requires
   BT-117 to round to zero.** A missing BT-119 used to skip the rule; a BT-117
   of 0.50 or more (or below -0.50) is now fatal, as in the official artefacts.
+- **`Decimal::isNumeric()` no longer trims.** It accepts exactly what BCMath
+  accepts (an optional `-`, digits, an optional fraction), so every value it
+  accepts can go into `Decimal::add()`, `sub()`, `mul()` and `compare()`. A
+  value framed by whitespace, including U+00A0 and U+3000, used to pass and then
+  crashed BCMath with a `ValueError`; it now returns `false`. Callers that read
+  raw XML text use `Decimal::fromXsDecimal()`, which ignores only XML
+  whitespace. New: `Decimal::isFilledButNotXsDecimal()`.
 
 ### Fixed
 
@@ -39,9 +46,19 @@ Pre-1.0: the public API may still change between minor versions.
   calculation is now read as an `xs:decimal` through the new
   `Decimal::fromXsDecimal()`, the reader BR-CO-17 already used: space, tab, CR
   and LF around a value are ignored, and the forms `+19.00`, `.50` and `19.`
-  are read instead of being treated as unreadable. A value framed by other
-  Unicode spaces such as U+00A0 stays unreadable. BR-CO-14 and BR-CO-15 stay
+  are read instead of being treated as unreadable. BR-CO-14 and BR-CO-15 stay
   exact.
+- **A filled amount that is not an `xs:decimal` now fails closed.** A value
+  such as U+00A0 + `999.00` + U+00A0 used to count as missing, so the rule
+  passed silently. It is now a fatal violation of BR-CO-10 to BR-CO-16 (as the
+  declared total or as one of its operands, including BR-CO-16, which is
+  otherwise a warning), of BR-CO-25 (BT-115), of BR-DEX-09 (BT-112 to BT-115
+  and the third party payment amounts) and of the zero-tax rules
+  BR-Z/E/AE/IC/G/O-09 (BT-117), in addition to BR-CO-17.
+- **BR-DEC-* and BR-DEX-13 count the decimals of the `xs:decimal` reading.**
+  An amount written as `+0.505` or `.505` used to pass them; it now fails them
+  like `0.505`. A filled value that is not an `xs:decimal` is counted as in the
+  official artefacts, by the characters after its first `.`.
 
 ## [0.3.0] - 2026-07-15
 

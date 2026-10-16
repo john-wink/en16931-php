@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use JohnWink\En16931\Model\Attachment;
+use JohnWink\En16931\Model\CustomerRecord;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
 use JohnWink\En16931\Model\ItemAttribute;
@@ -174,11 +175,66 @@ it('returns a result for a model that carries values outside the model classes',
 
         return $thirdPartyPayments;
     }],
+    'list that contains itself twice' => [static function (): array {
+        $thirdPartyPayments = [];
+        $thirdPartyPayments[] = &$thirdPartyPayments;
+        $thirdPartyPayments[] = &$thirdPartyPayments;
+
+        return $thirdPartyPayments;
+    }],
     'object that refers to itself' => [static function (): array {
         $node = new stdClass;
         $node->self = $node;
 
         return [$node];
     }],
-    'object with a property name that is not valid UTF-8' => [static fn (): array => [(object) ["\xFF" => "\xA0"]]],
+    'object with a property name that is not valid UTF-8' => [static fn (): array => [(object) ["\xFF" => 'Hinweis']]],
+]);
+
+it('reports a string that is not valid UTF-8 in a value outside the model classes without its keys', function (Closure $scenario, string $field): void {
+    $validationResult = xr()->validateModel($scenario());
+
+    expect(array_map(static fn (Violation $violation): array => [$violation->ruleId, $violation->severity, $violation->flag, $violation->message], $validationResult->violations))->toBe([['UTF-8', Severity::Fatal, $field, "The value of {$field} is not valid UTF-8."]])
+        ->and(json_encode($validationResult->toArray(), JSON_THROW_ON_ERROR))->toBeString();
+})->with([
+    'string in an object that is a list item' => [static fn (): Invoice => makeInvoice(thirdPartyPayments: [(object) ['description' => "\xA0"]]), 'thirdPartyPayments[0][?]'],
+    'string in a nested list' => [static fn (): Invoice => makeInvoice(notes: [['Hinweis', "\xA0"]]), 'notes[0][?]'],
+    'string in an object with a property name that is not valid UTF-8' => [static fn (): Invoice => makeInvoice(thirdPartyPayments: [(object) ["\xFF" => "\xA0"]]), 'thirdPartyPayments[0][?]'],
+    'string in a list inside an object inside a nested list' => [static fn (): Invoice => makeInvoice(lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', attributes: [[(object) ['values' => ['ok', "\xA0"]]]])]), 'lines[0].attributes[0][?]'],
+    'string in an object that refers to itself' => [static function (): Invoice {
+        $node = new stdClass;
+        $node->self = $node;
+        $node->description = "\xA0";
+
+        return makeInvoice(thirdPartyPayments: [$node]);
+    }, 'thirdPartyPayments[0][?]'],
+    'string in a list that contains itself' => [static function (): Invoice {
+        $notes = ["\xA0"];
+        $notes[] = &$notes;
+
+        return makeInvoice(notes: [$notes]);
+    }, 'notes[0][?]'],
+    'string nested deeper than the depth limit' => [static fn (): Invoice => makeInvoice(notes: [array_reduce(range(1, 100), static fn (array $list): array => [$list], ["\xA0"])]), 'notes[0][?]'],
+    'valid string nested deeper than the depth limit' => [static fn (): Invoice => makeInvoice(notes: [array_reduce(range(1, 100), static fn (array $list): array => [$list], ['Hinweis'])]), 'notes[0][?]'],
+]);
+
+it('reports a string that is not valid UTF-8 in an object of the model namespace that is no model class without its property names', function (): void {
+    require_once __DIR__.'/../Support/CustomerRecord.php';
+
+    $validationResult = xr()->validateModel(makeInvoice(thirdPartyPayments: [new CustomerRecord("\xA0")]));
+
+    expect(array_map(static fn (Violation $violation): array => [$violation->flag, $violation->message], $validationResult->violations))->toBe([['thirdPartyPayments[0][?]', 'The value of thirdPartyPayments[0][?] is not valid UTF-8.']]);
+});
+
+it('returns only the UTF-8 violations, without the raw bytes, when a code-list field is not valid UTF-8', function (Closure $scenario, string $field): void {
+    $validationResult = xr()->validateModel($scenario());
+
+    $messages = array_map(static fn (Violation $violation): string => $violation->message, $validationResult->violations);
+
+    expect(array_map(static fn (Violation $violation): array => [$violation->ruleId, $violation->flag], $validationResult->violations))->toBe([['UTF-8', $field]])
+        ->and(json_encode($validationResult->toArray(), JSON_THROW_ON_ERROR))->toBeString()
+        ->and(array_filter($messages, static fn (string $message): bool => str_contains($message, "\xFF")))->toBe([]);
+})->with([
+    'invoice currency code (BR-CL-04)' => [static fn (): Invoice => makeInvoice(currency: "EU\xFF"), 'currency'],
+    'seller country code (BR-CL-14)' => [static fn (): Invoice => makeInvoice(seller: new Party(name: 'Seller GmbH', countryCode: "D\xFF", vatId: 'DE123456789', contactName: 'Max Muster', contactPhone: '+49 30 000000', contactEmail: 'billing@example.com', city: 'Berlin', postCode: '10115')), 'seller.countryCode'],
 ]);

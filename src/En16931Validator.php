@@ -93,10 +93,9 @@ final readonly class En16931Validator
 
     public function validateModel(Invoice $invoice): ValidationResult
     {
-        return new ValidationResult([
-            ...ModelEncoding::violations($invoice),
-            ...$this->validator->validate($invoice)->violations,
-        ]);
+        $encodingViolations = ModelEncoding::violations($invoice);
+
+        return $encodingViolations === [] ? $this->validator->validate($invoice) : new ValidationResult($encodingViolations);
     }
 
     /**

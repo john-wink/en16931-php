@@ -48,6 +48,10 @@ final class ModelEncoding
 
     private const string UNDECLARED_KEY = '?';
 
+    private const int INVALID_STRING_SECRET_BYTES = 32;
+
+    private readonly string $invalidStringSecret;
+
     /**
      * @var array<int, true>
      */
@@ -80,7 +84,10 @@ final class ModelEncoding
 
     private int $countedValues = 0;
 
-    private function __construct() {}
+    private function __construct()
+    {
+        $this->invalidStringSecret = random_bytes(self::INVALID_STRING_SECRET_BYTES);
+    }
 
     /**
      * @return list<Violation>
@@ -281,7 +288,7 @@ final class ModelEncoding
             return null;
         }
 
-        if ($this->isVisited($this->invalidStrings, hash('xxh128', $value, true)) && $this->exceedsBudgetToCompare(strlen($value))) {
+        if ($this->isVisited($this->invalidStrings, hash_hmac('sha256', $value, $this->invalidStringSecret, true)) && $this->exceedsBudgetToCompare(strlen($value))) {
             return $this->limitViolation($flag);
         }
 

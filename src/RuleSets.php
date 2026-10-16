@@ -958,15 +958,49 @@ final class RuleSets
 
     private static function categoryTaxConsistent(TaxSubtotal $taxSubtotal): bool
     {
-        if (! Decimal::isNumeric($taxSubtotal->taxAmount)) {
+        $values = [$taxSubtotal->taxableAmount, $taxSubtotal->rate, $taxSubtotal->taxAmount];
+
+        if (array_any($values, static fn (?string $value): bool => self::filled($value) && self::xsDecimal($value) === null)) {
+            return false;
+        }
+
+        $readable = new TaxSubtotal(
+            category: $taxSubtotal->category,
+            rate: self::xsDecimal($taxSubtotal->rate),
+            taxableAmount: self::xsDecimal($taxSubtotal->taxableAmount),
+            taxAmount: self::xsDecimal($taxSubtotal->taxAmount),
+        );
+
+        if (! Decimal::isNumeric($readable->taxAmount)) {
             return true;
         }
 
-        if (! self::filled($taxSubtotal->rate) || self::roundsToZero($taxSubtotal->rate)) {
-            return self::roundsToZero($taxSubtotal->taxAmount);
+        if (! self::filled($readable->rate) || self::roundsToZero($readable->rate)) {
+            return self::roundsToZero($readable->taxAmount);
         }
 
-        return self::categoryTaxWithinTolerance($taxSubtotal);
+        return self::categoryTaxWithinTolerance($readable);
+    }
+
+    /**
+     * @return numeric-string|null
+     */
+    private static function xsDecimal(?string $value): ?string
+    {
+        if ($value === null || preg_match('/^([+-]?)(\d*)(?:\.(\d*))?$/', mb_trim($value), $parts, PREG_UNMATCHED_AS_NULL) !== 1) {
+            return null;
+        }
+
+        $integerDigits = $parts[2];
+        $fractionDigits = $parts[3] ?? '';
+
+        if ($integerDigits.$fractionDigits === '') {
+            return null;
+        }
+
+        $normalised = ($parts[1] === '-' ? '-' : '').($integerDigits === '' ? '0' : $integerDigits).($fractionDigits === '' ? '' : '.'.$fractionDigits);
+
+        return Decimal::isNumeric($normalised) ? $normalised : null;
     }
 
     private static function roundsToZero(?string $value): bool

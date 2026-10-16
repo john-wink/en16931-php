@@ -23,6 +23,31 @@ it('recognises decimal strings', function (): void {
         ->and(Decimal::isNumeric(null))->toBeFalse();
 });
 
+it('accepts only values that BCMath accepts', function (string $value, bool $numeric): void {
+    expect(Decimal::isNumeric($value))->toBe($numeric);
+
+    if (Decimal::isNumeric($value)) {
+        expect(Decimal::add($value, '0'))->toBeString()
+            ->and(Decimal::compare($value, '0'))->toBeInt();
+    }
+})->with([
+    'plain' => ['19.00', true],
+    'negative' => ['-19.00', true],
+    'integer' => ['19', true],
+    'spaces' => [' 19.00 ', false],
+    'leading space' => [' 19.00', false],
+    'trailing line feed' => ["19.00\n", false],
+    'tab' => ["\t19.00", false],
+    'no-break space' => ["\u{00A0}19.00\u{00A0}", false],
+    'ideographic space' => ["\u{3000}19.00\u{3000}", false],
+    'leading plus' => ['+19.00', false],
+    'no integer digits' => ['.50', false],
+    'trailing dot' => ['19.', false],
+    'decimal comma' => ['19,00', false],
+    'exponent' => ['1e2', false],
+    'empty' => ['', false],
+]);
+
 it('reads xs:decimal values and ignores only XML whitespace', function (?string $value, ?string $expected): void {
     expect(Decimal::fromXsDecimal($value))->toBe($expected);
 })->with([

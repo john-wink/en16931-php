@@ -5,6 +5,7 @@ declare(strict_types=1);
 use JohnWink\En16931\Model\DocumentAllowanceCharge;
 use JohnWink\En16931\Model\Invoice;
 use JohnWink\En16931\Model\InvoiceLine;
+use JohnWink\En16931\Model\LineAllowanceCharge;
 use JohnWink\En16931\Model\SubInvoiceLine;
 use JohnWink\En16931\Model\TaxSubtotal;
 use JohnWink\En16931\Model\ThirdPartyPayment;
@@ -163,7 +164,7 @@ it('fails closed on a filled total that is not an xs:decimal', function (array $
     'BT-109 as an operand (BR-CO-15)' => [['taxBasisTotal' => "\u{00A0}100.00\u{00A0}"], 'BR-CO-15'],
     'BT-110 (BR-CO-14)' => [['taxTotal' => "\u{00A0}19.00\u{00A0}"], 'BR-CO-14'],
     'BT-110 as an operand (BR-CO-15)' => [['taxTotal' => "\u{00A0}19.00\u{00A0}"], 'BR-CO-15'],
-    'BT-111 (BR-DEC-15)' => [['taxTotalAccounting' => "\u{00A0}19.00\u{00A0}"], 'BR-DEC-15'],
+    'BT-111 (BR-DEC-15)' => [['taxTotalAccounting' => "\u{00A0}19\u{00A0}"], 'BR-DEC-15'],
     'BT-112 (BR-CO-15)' => [['grandTotal' => "\u{00A0}119.00\u{00A0}"], 'BR-CO-15'],
     'BT-112 as an operand (BR-CO-16)' => [['grandTotal' => "\u{00A0}119.00\u{00A0}"], 'BR-CO-16'],
     'BT-113 as an operand (BR-CO-16)' => [['paidAmount' => "\u{00A0}0.00\u{00A0}"], 'BR-CO-16'],
@@ -240,4 +241,57 @@ it('fails closed on a zero-tax BT-117 that is not an xs:decimal (BR-CO-17, BR-*-
     'zero framed by XML whitespace' => [" 0.00\t", false],
     'zero framed by a no-break space' => ["\u{00A0}0.00\u{00A0}", true],
     'one framed by a no-break space' => ["\u{00A0}1.00\u{00A0}", true],
+]);
+
+it('fails closed on a filled amount without a decimal point that is not an xs:decimal', function (Closure $frame, Closure $scenario, string $ruleId) use ($hasFatal): void {
+    $validationResult = core()->validateModel($scenario(static fn (string $value): string => $value));
+    $actual = core()->validateModel($scenario($frame));
+
+    expect($validationResult->isValid())->toBeTrue()
+        ->and($actual->isValid())->toBeFalse()
+        ->and($hasFatal($actual, $ruleId))->toBeTrue();
+})->with([
+    'framed by no-break spaces' => [static fn (string $value): string => "\u{00A0}{$value}\u{00A0}"],
+    'framed by ideographic spaces' => [static fn (string $value): string => "\u{3000}{$value}\u{3000}"],
+])->with([
+    'BT-146 (BR-27)' => [static fn (Closure $frame): Invoice => makeInvoice(lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: $frame('100'), quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00')]), 'BR-27'],
+    'BT-148 (BR-28)' => [static fn (Closure $frame): Invoice => makeInvoice(lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', grossPrice: $frame('100'))]), 'BR-28'],
+    'BT-111 (BR-DEC-15)' => [static fn (Closure $frame): Invoice => makeInvoice(taxCurrency: 'USD', totals: new Totals(lineTotal: '100.00', taxBasisTotal: '100.00', taxTotal: '19.00', taxTotalAccounting: $frame('19'), grandTotal: '119.00', paidAmount: '0.00', payableAmount: '119.00')), 'BR-DEC-15'],
+    'BT-93 (BR-DEC-02)' => [static fn (Closure $frame): Invoice => makeInvoice(totals: new Totals(lineTotal: '100.00', allowanceTotal: '10.00', taxBasisTotal: '90.00', taxTotal: '17.10', grandTotal: '107.10', paidAmount: '0.00', payableAmount: '107.10'), taxSubtotals: [new TaxSubtotal(category: 'S', rate: '19.00', taxableAmount: '90.00', taxAmount: '17.10')], allowanceCharges: [new DocumentAllowanceCharge(isCharge: false, amount: '10.00', taxCategory: 'S', taxRate: '19.00', reason: 'Rabatt', baseAmount: $frame('100'))]), 'BR-DEC-02'],
+    'BT-100 (BR-DEC-06)' => [static fn (Closure $frame): Invoice => makeInvoice(totals: new Totals(lineTotal: '100.00', chargeTotal: '10.00', taxBasisTotal: '110.00', taxTotal: '20.90', grandTotal: '130.90', paidAmount: '0.00', payableAmount: '130.90'), taxSubtotals: [new TaxSubtotal(category: 'S', rate: '19.00', taxableAmount: '110.00', taxAmount: '20.90')], allowanceCharges: [new DocumentAllowanceCharge(isCharge: true, amount: '10.00', taxCategory: 'S', taxRate: '19.00', reason: 'Fracht', baseAmount: $frame('100'))]), 'BR-DEC-06'],
+    'BT-136 (BR-DEC-24)' => [static fn (Closure $frame): Invoice => makeInvoice(lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', allowanceCharges: [new LineAllowanceCharge(isCharge: false, amount: $frame('5'), reason: 'Rabatt', baseAmount: '10.00')])]), 'BR-DEC-24'],
+    'BT-137 (BR-DEC-25)' => [static fn (Closure $frame): Invoice => makeInvoice(lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', allowanceCharges: [new LineAllowanceCharge(isCharge: false, amount: '5.00', reason: 'Rabatt', baseAmount: $frame('10'))])]), 'BR-DEC-25'],
+    'BT-141 (BR-DEC-27)' => [static fn (Closure $frame): Invoice => makeInvoice(lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', allowanceCharges: [new LineAllowanceCharge(isCharge: true, amount: $frame('5'), reason: 'Zuschlag', baseAmount: '10.00')])]), 'BR-DEC-27'],
+    'BT-142 (BR-DEC-28)' => [static fn (Closure $frame): Invoice => makeInvoice(lines: [new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', allowanceCharges: [new LineAllowanceCharge(isCharge: true, amount: '5.00', reason: 'Zuschlag', baseAmount: $frame('10'))])]), 'BR-DEC-28'],
+]);
+
+it('treats a mandatory total of only U+00A0 or U+3000 as missing (BR-12 to BR-15)', function (string $blank, string $field, string $ruleId) use ($allTotals, $hasFatal): void {
+    $validationResult = core()->validateModel(makeInvoice(totals: new Totals(...$allTotals)));
+    $actual = core()->validateModel(makeInvoice(totals: new Totals(...[...$allTotals, $field => $blank])));
+
+    expect($validationResult->isValid())->toBeTrue()
+        ->and($actual->isValid())->toBeFalse()
+        ->and($hasFatal($actual, $ruleId))->toBeTrue();
+})->with([
+    'only a no-break space' => ["\u{00A0}"],
+    'only an ideographic space' => ["\u{3000}"],
+    'no-break and ideographic spaces' => ["\u{00A0}\u{3000}\u{00A0}"],
+])->with([
+    'BT-106 (BR-12)' => ['lineTotal', 'BR-12'],
+    'BT-109 (BR-13)' => ['taxBasisTotal', 'BR-13'],
+    'BT-112 (BR-14)' => ['grandTotal', 'BR-14'],
+    'BT-115 (BR-15)' => ['payableAmount', 'BR-15'],
+]);
+
+it('treats an optional BT-110 of only U+00A0 or U+3000 as absent', function (string $blank) use ($allTotals, $violationIds): void {
+    $absent = core()->validateModel(makeInvoice(totals: new Totals(...[...$allTotals, 'taxTotal' => null])));
+    $actual = core()->validateModel(makeInvoice(totals: new Totals(...[...$allTotals, 'taxTotal' => $blank])));
+
+    expect($absent->hasViolation('BR-CO-15'))->toBeTrue()
+        ->and($actual->isValid())->toBeFalse()
+        ->and($violationIds($actual))->toBe($violationIds($absent));
+})->with([
+    'only a no-break space' => ["\u{00A0}"],
+    'only an ideographic space' => ["\u{3000}"],
+    'no-break and ideographic spaces' => ["\u{00A0}\u{3000}\u{00A0}"],
 ]);

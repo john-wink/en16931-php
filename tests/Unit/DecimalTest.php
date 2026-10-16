@@ -64,3 +64,28 @@ it('reads xs:decimal values and ignores only XML whitespace', function (?string 
     'empty' => ['', null],
     'null' => [null, null],
 ]);
+
+it('splits every value into missing, filled but not an xs:decimal, or readable', function (?string $value, bool $filled, bool $unreadable, ?string $reading): void {
+    expect(Decimal::isFilled($value))->toBe($filled)
+        ->and(Decimal::isFilledButNotXsDecimal($value))->toBe($unreadable)
+        ->and(Decimal::fromXsDecimal($value))->toBe($reading)
+        ->and(Decimal::isFilledButNotXsDecimal($value))->toBe(Decimal::isFilled($value) && Decimal::fromXsDecimal($value) === null)
+        ->and(Decimal::fromXsDecimal($value) === null || Decimal::isFilled($value))->toBeTrue();
+})->with([
+    'null' => [null, false, false, null],
+    'empty' => ['', false, false, null],
+    'only XML whitespace' => [" \t\r\n", false, false, null],
+    'only a no-break space' => ["\u{00A0}", false, false, null],
+    'only an ideographic space' => ["\u{3000}", false, false, null],
+    'no-break and ideographic space mixed with XML whitespace' => ["\u{00A0} \u{3000}\t", false, false, null],
+    'framed by no-break spaces' => ["\u{00A0}19\u{00A0}", true, true, null],
+    'framed by no-break spaces with decimals' => ["\u{00A0}19.00\u{00A0}", true, true, null],
+    'framed by ideographic spaces' => ["\u{3000}19\u{3000}", true, true, null],
+    'no-break space inside XML whitespace' => [" \u{00A0}19 ", true, true, null],
+    'decimal comma' => ['19,00', true, true, null],
+    'sign only' => ['-', true, true, null],
+    'text' => ['abc', true, true, null],
+    'readable' => ['19.00', true, false, '19.00'],
+    'readable inside XML whitespace' => [" \t19\r\n", true, false, '19'],
+    'readable with a leading plus' => ['+19', true, false, '19'],
+]);

@@ -95,6 +95,7 @@ function makeInvoice(mixed ...$overrides): Invoice
         attachments: $pick('attachments', []),
         precedingInvoiceReferences: $pick('precedingInvoiceReferences', []),
         amountCurrencyCodes: $pick('amountCurrencyCodes', []),
+        sourceSyntax: $pick('sourceSyntax', null),
         contractReference: $pick('contractReference', null),
         tenderReference: $pick('tenderReference', null),
         thirdPartyPayments: $pick('thirdPartyPayments', []),

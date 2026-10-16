@@ -211,7 +211,7 @@ final class RuleSets
             new SubtotalRule('BR-45', 'BT-116', 'Each VAT breakdown group shall have a taxable amount (BT-116).', static fn (TaxSubtotal $taxSubtotal): bool => self::filled($taxSubtotal->taxableAmount)),
             new SubtotalRule('BR-46', 'BT-117', 'Each VAT breakdown group shall have a tax amount (BT-117).', static fn (TaxSubtotal $taxSubtotal): bool => self::filled($taxSubtotal->taxAmount)),
             new SubtotalRule('BR-47', 'BT-118', 'Each VAT breakdown group shall have a VAT category code (BT-118).', static fn (TaxSubtotal $taxSubtotal): bool => self::filled($taxSubtotal->category)),
-            new SubtotalRule('BR-CO-17', 'BT-117', 'The category tax amount (BT-117) must equal the taxable amount (BT-116) × rate (BT-119).', static fn (TaxSubtotal $taxSubtotal): bool => self::categoryTaxConsistent($taxSubtotal)),
+            new SubtotalRule('BR-CO-17', 'BT-117', 'The category tax amount (BT-117) must equal the taxable amount (BT-116) × rate (BT-119).', static fn (TaxSubtotal $taxSubtotal, Invoice $invoice): bool => self::categoryTaxConsistent($taxSubtotal, $invoice->sourceSyntax)),
             new SubtotalRule('BR-E-10', 'BT-120', 'A VAT-exempt (E) breakdown group shall have a VAT exemption reason (BT-120/BT-121).', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== 'E' || self::hasExemptionReason($taxSubtotal)),
             new SubtotalRule('BR-AE-10', 'BT-120', 'A reverse-charge (AE) breakdown group shall have a VAT exemption reason (BT-120/BT-121).', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category !== 'AE' || self::hasExemptionReason($taxSubtotal)),
             new SubtotalRule('BR-48', 'BT-119', 'Each VAT breakdown group shall have a VAT category rate (BT-119), except for category O.', static fn (TaxSubtotal $taxSubtotal): bool => $taxSubtotal->category === 'O' || self::filled($taxSubtotal->rate)),
@@ -956,7 +956,7 @@ final class RuleSets
         return self::filled($taxSubtotal->exemptionReasonCode);
     }
 
-    private static function categoryTaxConsistent(TaxSubtotal $taxSubtotal): bool
+    private static function categoryTaxConsistent(TaxSubtotal $taxSubtotal, ?string $sourceSyntax): bool
     {
         $values = [$taxSubtotal->taxableAmount, $taxSubtotal->rate, $taxSubtotal->taxAmount];
 
@@ -979,7 +979,23 @@ final class RuleSets
             return self::roundsToZero($readable->taxAmount);
         }
 
+        if ($sourceSyntax === 'cii') {
+            return self::categoryTaxWithinInclusiveTolerance($readable);
+        }
+
         return self::categoryTaxWithinTolerance($readable);
+    }
+
+    private static function categoryTaxWithinInclusiveTolerance(TaxSubtotal $taxSubtotal): bool
+    {
+        if (! Decimal::isNumeric($taxSubtotal->taxableAmount) || ! Decimal::isNumeric($taxSubtotal->rate) || ! Decimal::isNumeric($taxSubtotal->taxAmount)) {
+            return true;
+        }
+
+        $expected = Decimal::round(Decimal::mul(self::absolute($taxSubtotal->taxableAmount), Decimal::mul($taxSubtotal->rate, '0.01')));
+        $difference = Decimal::sub(self::absolute($taxSubtotal->taxAmount), $expected);
+
+        return Decimal::compare(self::absolute($difference), '1') <= 0;
     }
 
     /**
@@ -987,7 +1003,7 @@ final class RuleSets
      */
     private static function xsDecimal(?string $value): ?string
     {
-        if ($value === null || preg_match('/^([+-]?)(\d*)(?:\.(\d*))?$/', mb_trim($value), $parts, PREG_UNMATCHED_AS_NULL) !== 1) {
+        if ($value === null || preg_match('/^([+-]?)(\d*)(?:\.(\d*))?$/', trim($value, " \t\r\n"), $parts, PREG_UNMATCHED_AS_NULL) !== 1) {
             return null;
         }
 

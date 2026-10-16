@@ -17,7 +17,7 @@ use JohnWink\En16931\Violation;
 final readonly class SubtotalRule implements Rule
 {
     /**
-     * @param  Closure(TaxSubtotal): bool  $ok
+     * @param  Closure(TaxSubtotal, Invoice): bool  $ok
      */
     public function __construct(
         private string $id,
@@ -36,7 +36,7 @@ final readonly class SubtotalRule implements Rule
         $violations = [];
 
         foreach ($invoice->taxSubtotals as $subtotal) {
-            if (! ($this->ok)($subtotal)) {
+            if (! ($this->ok)($subtotal, $invoice)) {
                 $violations[] = Violation::fatal($this->id, $this->message, $this->flag);
             }
         }

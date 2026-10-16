@@ -563,27 +563,35 @@ final class RuleSets
      */
     private static function amount(?string $value): string
     {
-        return Decimal::isNumeric($value) ? $value : '0';
+        return Decimal::fromXsDecimal($value) ?? '0';
     }
 
     private static function isNegative(?string $value): bool
     {
-        return Decimal::isNumeric($value) && Decimal::isNegative($value);
+        $decimal = Decimal::fromXsDecimal($value);
+
+        return $decimal !== null && Decimal::isNegative($decimal);
     }
 
     private static function isPositive(?string $value): bool
     {
-        return Decimal::isNumeric($value) && Decimal::compare($value, '0') > 0;
+        $decimal = Decimal::fromXsDecimal($value);
+
+        return $decimal !== null && Decimal::compare($decimal, '0') > 0;
     }
 
     private static function isZero(?string $value): bool
     {
-        return Decimal::isNumeric($value) && Decimal::compare($value, '0') === 0;
+        $decimal = Decimal::fromXsDecimal($value);
+
+        return $decimal !== null && Decimal::compare($decimal, '0') === 0;
     }
 
     private static function isZeroOrGreater(?string $value): bool
     {
-        return Decimal::isNumeric($value) && Decimal::compare($value, '0') >= 0;
+        $decimal = Decimal::fromXsDecimal($value);
+
+        return $decimal !== null && Decimal::compare($decimal, '0') >= 0;
     }
 
     /**
@@ -605,12 +613,16 @@ final class RuleSets
      */
     private static function categoryTaxWithinTolerance(TaxSubtotal $taxSubtotal): bool
     {
-        if (! Decimal::isNumeric($taxSubtotal->taxableAmount) || ! Decimal::isNumeric($taxSubtotal->rate) || ! Decimal::isNumeric($taxSubtotal->taxAmount)) {
+        $taxableAmount = Decimal::fromXsDecimal($taxSubtotal->taxableAmount);
+        $rate = Decimal::fromXsDecimal($taxSubtotal->rate);
+        $taxAmount = Decimal::fromXsDecimal($taxSubtotal->taxAmount);
+
+        if ($taxableAmount === null || $rate === null || $taxAmount === null) {
             return true;
         }
 
-        $expected = Decimal::round(Decimal::mul(self::absolute($taxSubtotal->taxableAmount), Decimal::mul($taxSubtotal->rate, '0.01')));
-        $difference = Decimal::sub(self::absolute($taxSubtotal->taxAmount), $expected);
+        $expected = Decimal::round(Decimal::mul(self::absolute($taxableAmount), Decimal::mul($rate, '0.01')));
+        $difference = Decimal::sub(self::absolute($taxAmount), $expected);
 
         return Decimal::compare(self::absolute($difference), '1') < 0;
     }
@@ -760,21 +772,25 @@ final class RuleSets
      */
     private static function subLineSumMatches(InvoiceLine $invoiceLine): bool
     {
-        if ($invoiceLine->subLines === [] || ! Decimal::isNumeric($invoiceLine->netAmount)) {
+        $netAmount = Decimal::fromXsDecimal($invoiceLine->netAmount);
+
+        if ($invoiceLine->subLines === [] || $netAmount === null) {
             return true;
         }
 
         $sum = '0';
 
         foreach ($invoiceLine->subLines as $subLine) {
-            if (! Decimal::isNumeric($subLine->netAmount)) {
+            $subLineNetAmount = Decimal::fromXsDecimal($subLine->netAmount);
+
+            if ($subLineNetAmount === null) {
                 return true;
             }
 
-            $sum = Decimal::add($sum, $subLine->netAmount);
+            $sum = Decimal::add($sum, $subLineNetAmount);
         }
 
-        return Decimal::equals($sum, $invoiceLine->netAmount);
+        return Decimal::equals($sum, $netAmount);
     }
 
     /**
@@ -785,16 +801,14 @@ final class RuleSets
     {
         $totals = $invoice->totals;
 
-        if (! Decimal::isNumeric($totals->payableAmount) || ! Decimal::isNumeric($totals->grandTotal)) {
+        if (Decimal::fromXsDecimal($totals->payableAmount) === null || Decimal::fromXsDecimal($totals->grandTotal) === null) {
             return true;
         }
 
         $thirdParty = '0';
 
         foreach ($invoice->thirdPartyPayments as $payment) {
-            if (Decimal::isNumeric($payment->amount)) {
-                $thirdParty = Decimal::add($thirdParty, $payment->amount);
-            }
+            $thirdParty = Decimal::add($thirdParty, self::amount($payment->amount));
         }
 
         $left = Decimal::round(Decimal::sub(self::amount($totals->payableAmount), self::amount($totals->roundingAmount)));
@@ -881,11 +895,13 @@ final class RuleSets
 
     private static function isZeroOrMissing(?string $value): bool
     {
-        if (! Decimal::isNumeric($value)) {
+        $decimal = Decimal::fromXsDecimal($value);
+
+        if ($decimal === null) {
             return true;
         }
 
-        return Decimal::compare($value, '0') === 0;
+        return Decimal::compare($decimal, '0') === 0;
     }
 
     private static function maxTwoDecimals(?string $value): bool
@@ -902,8 +918,8 @@ final class RuleSets
         $sum = '0';
 
         foreach ($invoice->allowanceCharges as $allowanceCharge) {
-            if ($allowanceCharge->isCharge === $charges && Decimal::isNumeric($allowanceCharge->amount)) {
-                $sum = Decimal::add($sum, $allowanceCharge->amount);
+            if ($allowanceCharge->isCharge === $charges) {
+                $sum = Decimal::add($sum, self::amount($allowanceCharge->amount));
             }
         }
 
@@ -960,15 +976,15 @@ final class RuleSets
     {
         $values = [$taxSubtotal->taxableAmount, $taxSubtotal->rate, $taxSubtotal->taxAmount];
 
-        if (array_any($values, static fn (?string $value): bool => self::filled($value) && self::xsDecimal($value) === null)) {
+        if (array_any($values, static fn (?string $value): bool => self::filled($value) && Decimal::fromXsDecimal($value) === null)) {
             return false;
         }
 
         $readable = new TaxSubtotal(
             category: $taxSubtotal->category,
-            rate: self::xsDecimal($taxSubtotal->rate),
-            taxableAmount: self::xsDecimal($taxSubtotal->taxableAmount),
-            taxAmount: self::xsDecimal($taxSubtotal->taxAmount),
+            rate: Decimal::fromXsDecimal($taxSubtotal->rate),
+            taxableAmount: Decimal::fromXsDecimal($taxSubtotal->taxableAmount),
+            taxAmount: Decimal::fromXsDecimal($taxSubtotal->taxAmount),
         );
 
         if (! Decimal::isNumeric($readable->taxAmount)) {
@@ -996,27 +1012,6 @@ final class RuleSets
         $difference = Decimal::sub(self::absolute($taxSubtotal->taxAmount), $expected);
 
         return Decimal::compare(self::absolute($difference), '1') <= 0;
-    }
-
-    /**
-     * @return numeric-string|null
-     */
-    private static function xsDecimal(?string $value): ?string
-    {
-        if ($value === null || preg_match('/^([+-]?)(\d*)(?:\.(\d*))?$/', trim($value, " \t\r\n"), $parts, PREG_UNMATCHED_AS_NULL) !== 1) {
-            return null;
-        }
-
-        $integerDigits = $parts[2];
-        $fractionDigits = $parts[3] ?? '';
-
-        if ($integerDigits.$fractionDigits === '') {
-            return null;
-        }
-
-        $normalised = ($parts[1] === '-' ? '-' : '').($integerDigits === '' ? '0' : $integerDigits).($fractionDigits === '' ? '' : '.'.$fractionDigits);
-
-        return Decimal::isNumeric($normalised) ? $normalised : null;
     }
 
     private static function roundsToZero(?string $value): bool

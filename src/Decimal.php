@@ -23,6 +23,27 @@ final class Decimal
     }
 
     /**
+     * @return numeric-string|null
+     */
+    public static function fromXsDecimal(?string $value): ?string
+    {
+        if ($value === null || preg_match('/^([+-]?)(\d*)(?:\.(\d*))?$/D', trim($value, " \t\r\n"), $parts, PREG_UNMATCHED_AS_NULL) !== 1) {
+            return null;
+        }
+
+        $integerDigits = $parts[2];
+        $fractionDigits = $parts[3] ?? '';
+
+        if ($integerDigits.$fractionDigits === '') {
+            return null;
+        }
+
+        $normalised = ($parts[1] === '-' ? '-' : '').($integerDigits === '' ? '0' : $integerDigits).($fractionDigits === '' ? '' : '.'.$fractionDigits);
+
+        return self::isNumeric($normalised) ? $normalised : null;
+    }
+
+    /**
      * @param  numeric-string  $augend
      * @param  numeric-string  $addend
      * @return numeric-string

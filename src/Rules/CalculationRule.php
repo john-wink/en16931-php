@@ -39,9 +39,9 @@ final readonly class CalculationRule implements Rule
 
     public function evaluate(Invoice $invoice): array
     {
-        $declared = ($this->declared)($invoice);
+        $declared = Decimal::fromXsDecimal(($this->declared)($invoice));
 
-        if ($declared === null || ! Decimal::isNumeric($declared)) {
+        if ($declared === null) {
             return [];
         }
 

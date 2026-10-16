@@ -193,6 +193,17 @@ it('returns a result for a model that carries values outside the model classes',
     'object with a property name that is not valid UTF-8' => [static fn (): array => [(object) ["\xFF" => 'Hinweis']]],
 ]);
 
+it('returns a result for lines that each hold a list that contains itself', function (): void {
+    $lines = array_map(static function (int $index): InvoiceLine {
+        $attributes = [];
+        $attributes[] = &$attributes;
+
+        return new InvoiceLine(id: (string) $index, name: 'Beratung', attributes: $attributes);
+    }, range(1, 2));
+
+    expect(ModelEncoding::violations(makeInvoice(lines: $lines)))->toBe([]);
+});
+
 it('reports a string that is not valid UTF-8 in a value outside the model classes without its keys', function (Closure $scenario, string $field): void {
     $validationResult = xr()->validateModel($scenario());
 
@@ -303,20 +314,123 @@ it('checks a model of 25000 lines in valid UTF-8 within the limits', function ()
     expect(ModelEncoding::violations(makeInvoice(lines: array_fill(0, 25000, $line))))->toBe([]);
 });
 
-it('reports model objects that share a subtree on every level as too large to be checked', function (): void {
+it('checks model objects that share a subtree on every level in linear time', function (): void {
     $line = static fn (array $attributes): InvoiceLine => new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', attributes: $attributes);
     $invoiceLine = array_reduce(range(1, 30), static fn (InvoiceLine $invoiceLine): InvoiceLine => $line([$invoiceLine, $invoiceLine]), $line([]));
+
+    $startedAt = hrtime(true);
+    $encodingViolations = ModelEncoding::violations(makeInvoice(lines: [$invoiceLine]));
+    $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
+
+    expect($encodingViolations)->toBe([])
+        ->and($elapsedSeconds)->toBeLessThan(1.0);
+});
+
+it('reports model objects that share a subtree with a violation on every level with a limit violation within a second', function (): void {
+    $line = static fn (array $attributes, string $name): InvoiceLine => new InvoiceLine(id: '1', name: $name, netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', attributes: $attributes);
+    $invoiceLine = array_reduce(range(1, 30), static fn (InvoiceLine $invoiceLine): InvoiceLine => $line([$invoiceLine, $invoiceLine], 'Beratung'), $line([], "\xA0"));
 
     $startedAt = hrtime(true);
     $validationResult = xr()->validateModel(makeInvoice(lines: [$invoiceLine]));
     $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
 
-    expect($validationResult->violations)->toHaveCount(1)
-        ->and($validationResult->violations[0]->ruleId)->toBe('UTF-8')
-        ->and($validationResult->violations[0]->severity)->toBe(Severity::Fatal)
-        ->and($validationResult->violations[0]->message)->toBe("The value of {$validationResult->violations[0]->flag} is nested too deep or too large to be checked for valid UTF-8.")
+    $lastViolation = $validationResult->violations[array_key_last($validationResult->violations)];
+    $invalidViolations = array_filter($validationResult->violations, static fn (Violation $violation): bool => $violation->message === "The value of {$violation->flag} is not valid UTF-8.");
+
+    expect(array_unique(array_map(static fn (Violation $violation): string => $violation->ruleId.'/'.$violation->severity->value, $validationResult->violations)))->toBe(['UTF-8/'.Severity::Fatal->value])
+        ->and($lastViolation->message)->toBe("The value of {$lastViolation->flag} is nested too deep or too large to be checked for valid UTF-8.")
+        ->and(count($invalidViolations))->toBe(count($validationResult->violations) - 1)
+        ->and(reset($invalidViolations)->flag)->toBe('lines[0]'.str_repeat('.attributes[0]', 30).'.name')
         ->and($elapsedSeconds)->toBeLessThan(1.0);
 });
+
+it('checks lines that share their model objects with the result of the business rules and no limit violation', function (int $lineCount, Closure $lines): void {
+    $invoice = makeInvoice(lines: $lines($lineCount));
+
+    $startedAt = hrtime(true);
+    $encodingViolations = ModelEncoding::violations($invoice);
+    $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
+
+    expect($encodingViolations)->toBe([])
+        ->and($elapsedSeconds)->toBeLessThan($lineCount / 25000)
+        ->and(xr()->validateModel($invoice)->violations)->toEqual(new Validator([...RuleSets::en16931(), ...RuleSets::xrechnung()])->validate($invoice)->violations);
+})->with([
+    '50000 lines' => [50000],
+    '200000 lines' => [200000],
+])->with([
+    'that hold the same lists' => [static function (int $lineCount): array {
+        $allowanceCharges = [new LineAllowanceCharge(isCharge: false, amount: '5.00', reason: 'Rabatt'), new LineAllowanceCharge(isCharge: true, amount: '5.00', reason: 'Fracht')];
+        $itemClassifications = [new ItemClassification(code: '8471', scheme: 'HS'), new ItemClassification(code: '7311', scheme: 'STI')];
+        $attributes = [new ItemAttribute(name: 'cva', value: 'clean'), new ItemAttribute(name: 'Farbe', value: 'Blau'), new ItemAttribute(name: 'Größe', value: 'M')];
+
+        return array_map(static fn (int $index): InvoiceLine => new InvoiceLine(
+            id: (string) $index, name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00',
+            allowanceCharges: $allowanceCharges, itemClassifications: $itemClassifications, attributes: $attributes,
+        ), range(1, $lineCount));
+    }],
+    'that hold lists of their own with the same model objects' => [static function (int $lineCount): array {
+        [$discount, $freight] = [new LineAllowanceCharge(isCharge: false, amount: '5.00', reason: 'Rabatt'), new LineAllowanceCharge(isCharge: true, amount: '5.00', reason: 'Fracht')];
+        [$customsCode, $productCode] = [new ItemClassification(code: '8471', scheme: 'HS'), new ItemClassification(code: '7311', scheme: 'STI')];
+        [$cva, $colour, $size] = [new ItemAttribute(name: 'cva', value: 'clean'), new ItemAttribute(name: 'Farbe', value: 'Blau'), new ItemAttribute(name: 'Größe', value: 'M')];
+
+        return array_map(static fn (int $index): InvoiceLine => new InvoiceLine(
+            id: (string) $index, name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00',
+            allowanceCharges: [$discount, $freight], itemClassifications: [$customsCode, $productCode], attributes: [$cva, $colour, $size],
+        ), range(1, $lineCount));
+    }],
+]);
+
+it('checks many model objects that share a long list in linear time', function (Closure $entries): void {
+    $sharedList = $entries();
+    $lines = array_map(static fn (int $index): InvoiceLine => new InvoiceLine(id: (string) $index, name: 'Beratung', attributes: $sharedList), range(1, 10000));
+
+    $startedAt = hrtime(true);
+    $encodingViolations = ModelEncoding::violations(makeInvoice(lines: $lines));
+    $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
+
+    expect($encodingViolations)->toBe([])
+        ->and($elapsedSeconds)->toBeLessThan(1.0);
+})->with([
+    'list of strings' => [static fn (): array => array_fill(0, 10000, 'Hinweis')],
+    'list of one model object' => [static fn (): array => array_fill(0, 10000, new ItemAttribute(name: 'cva', value: 'clean'))],
+    'list of distinct model objects' => [static fn (): array => array_map(static fn (int $index): ItemAttribute => new ItemAttribute(name: 'cva', value: (string) $index), range(1, 10000))],
+]);
+
+it('reports many model objects that hold one of two long lists in turn with a limit violation within a second', function (Closure $entries): void {
+    $sharedLists = [$entries('clean'), $entries('dirty')];
+    $lines = array_map(static fn (int $index): InvoiceLine => new InvoiceLine(id: (string) $index, name: 'Beratung', attributes: $sharedLists[$index % 2]), range(1, 10000));
+
+    $startedAt = hrtime(true);
+    $validationResult = xr()->validateModel(makeInvoice(lines: $lines));
+    $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
+
+    expect($validationResult->violations)->toHaveCount(1)
+        ->and($validationResult->violations[0]->message)->toBe("The value of {$validationResult->violations[0]->flag} is nested too deep or too large to be checked for valid UTF-8.")
+        ->and($elapsedSeconds)->toBeLessThan(1.0);
+})->with([
+    'lists of strings' => [static fn (string $value): array => array_fill(0, 10000, $value)],
+    'lists of model objects' => [static function (string $value): array {
+        $itemAttribute = new ItemAttribute(name: 'cva', value: $value);
+
+        return array_fill(0, 10000, $itemAttribute);
+    }],
+]);
+
+it('reports a long string that is not valid UTF-8 in many places within a second', function (Closure $scenario, string $firstField, string $lastField): void {
+    $invalidString = str_repeat('a', 2_000_000)."\xA0";
+
+    $startedAt = hrtime(true);
+    $validationResult = xr()->validateModel($scenario($invalidString));
+    $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
+
+    expect($validationResult->violations)->toHaveCount(50000)
+        ->and($validationResult->violations[0]->flag)->toBe($firstField)
+        ->and($validationResult->violations[49999]->message)->toBe("The value of {$lastField} is not valid UTF-8.")
+        ->and($elapsedSeconds)->toBeLessThan(1.0);
+})->with([
+    'list entries' => [static fn (string $invalidString): Invoice => makeInvoice(notes: array_fill(0, 50000, $invalidString)), 'notes[0]', 'notes[49999]'],
+    'fields of distinct lines' => [static fn (string $invalidString): Invoice => makeInvoice(lines: array_map(static fn (int $index): InvoiceLine => new InvoiceLine(id: (string) $index, name: $invalidString), range(0, 49999))), 'lines[0].name', 'lines[49999].name'],
+]);
 
 it('returns a result with a violation for a model object that contains itself or a chain of model objects deeper than the depth limit', function (Closure $scenario, string $field, string $message): void {
     $validationResult = xr()->validateModel($scenario());

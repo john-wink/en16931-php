@@ -19,7 +19,38 @@ final class Decimal
      */
     public static function isNumeric(?string $value): bool
     {
-        return $value !== null && preg_match('/^-?\d+(\.\d+)?$/', mb_trim($value)) === 1;
+        return $value !== null && preg_match('/^-?\d+(\.\d+)?$/D', $value) === 1;
+    }
+
+    public static function isFilled(?string $value): bool
+    {
+        return $value !== null && mb_trim($value) !== '';
+    }
+
+    public static function isFilledButNotXsDecimal(?string $value): bool
+    {
+        return self::isFilled($value) && self::fromXsDecimal($value) === null;
+    }
+
+    /**
+     * @return numeric-string|null
+     */
+    public static function fromXsDecimal(?string $value): ?string
+    {
+        if ($value === null || preg_match('/^([+-]?)(\d*)(?:\.(\d*))?$/D', trim($value, " \t\r\n"), $parts, PREG_UNMATCHED_AS_NULL) !== 1) {
+            return null;
+        }
+
+        $integerDigits = $parts[2];
+        $fractionDigits = $parts[3] ?? '';
+
+        if ($integerDigits.$fractionDigits === '') {
+            return null;
+        }
+
+        $normalised = ($parts[1] === '-' ? '-' : '').($integerDigits === '' ? '0' : $integerDigits).($fractionDigits === '' ? '' : '.'.$fractionDigits);
+
+        return self::isNumeric($normalised) ? $normalised : null;
     }
 
     /**

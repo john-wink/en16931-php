@@ -77,7 +77,31 @@ final class CoverageMatrix
         'BR-IC-09' => 'A missing BT-117 passes (presence is owned by BR-46).',
         'BR-G-09' => 'A missing BT-117 passes (presence is owned by BR-46).',
         'BR-O-09' => 'A missing BT-117 passes (presence is owned by BR-46).',
+        'BR-DEC-01' => self::DECIMALS_NOTE,
+        'BR-DEC-02' => self::DECIMALS_NOTE,
+        'BR-DEC-05' => self::DECIMALS_NOTE,
+        'BR-DEC-06' => self::DECIMALS_NOTE,
+        'BR-DEC-09' => self::DECIMALS_NOTE,
+        'BR-DEC-10' => self::DECIMALS_NOTE,
+        'BR-DEC-11' => self::DECIMALS_NOTE,
+        'BR-DEC-12' => self::DECIMALS_NOTE,
+        'BR-DEC-13' => self::DECIMALS_NOTE,
+        'BR-DEC-14' => self::DECIMALS_NOTE,
+        'BR-DEC-15' => self::DECIMALS_NOTE,
+        'BR-DEC-16' => self::DECIMALS_NOTE,
+        'BR-DEC-17' => self::DECIMALS_NOTE,
+        'BR-DEC-18' => self::DECIMALS_NOTE,
+        'BR-DEC-19' => self::DECIMALS_NOTE,
+        'BR-DEC-20' => self::DECIMALS_NOTE,
+        'BR-DEC-23' => self::DECIMALS_NOTE,
+        'BR-DEC-24' => self::DECIMALS_NOTE,
+        'BR-DEC-25' => self::DECIMALS_NOTE,
+        'BR-DEC-27' => self::DECIMALS_NOTE,
+        'BR-DEC-28' => self::DECIMALS_NOTE,
+        'BR-DEX-13' => self::DECIMALS_NOTE,
     ];
+
+    private const string DECIMALS_NOTE = 'Counts the decimals of the xs:decimal reading: space, tab, CR and LF around the amount are ignored, and +0.505 or .505 count like 0.505. The official assert presumably counts the characters after the first "." of the raw text, where XML whitespace after the decimals would count too (19.00 followed by a space); this deviation is not proven against KoSIT. A filled amount that is not an xs:decimal fails.';
 
     /**
      * Rules counted as open although an id-equal rule is registered (❌ + note).

@@ -37,7 +37,9 @@ final readonly class TaxableSumRule implements Rule
         $violations = [];
 
         foreach ($invoice->taxSubtotals as $subtotal) {
-            if (! Decimal::isNumeric($subtotal->taxableAmount)) {
+            $taxableAmount = Decimal::fromXsDecimal($subtotal->taxableAmount);
+
+            if ($taxableAmount === null) {
                 continue;
             }
 
@@ -48,8 +50,8 @@ final readonly class TaxableSumRule implements Rule
 
             $expected = $this->expectedTaxable($invoice, $subtotal);
 
-            if (! Decimal::equals($expected, $subtotal->taxableAmount)) {
-                $violations[] = Violation::fatal($id, "The category taxable amount (BT-116) must equal its lines net − allowances + charges (expected {$expected}, declared {$subtotal->taxableAmount}).", 'BT-116');
+            if (! Decimal::equals($expected, $taxableAmount)) {
+                $violations[] = Violation::fatal($id, "The category taxable amount (BT-116) must equal its lines net − allowances + charges (expected {$expected}, declared {$taxableAmount}).", 'BT-116');
             }
         }
 
@@ -64,8 +66,10 @@ final readonly class TaxableSumRule implements Rule
         $sum = '0';
 
         foreach ($invoice->lines as $line) {
-            if ($this->matches($line->taxCategory, $line->taxRate, $taxSubtotal) && Decimal::isNumeric($line->netAmount)) {
-                $sum = Decimal::add($sum, $line->netAmount);
+            $netAmount = Decimal::fromXsDecimal($line->netAmount);
+
+            if ($netAmount !== null && $this->matches($line->taxCategory, $line->taxRate, $taxSubtotal)) {
+                $sum = Decimal::add($sum, $netAmount);
             }
         }
 
@@ -73,12 +77,13 @@ final readonly class TaxableSumRule implements Rule
             if (! $this->matches($allowanceCharge->taxCategory, $allowanceCharge->taxRate, $taxSubtotal)) {
                 continue;
             }
-            if (! Decimal::isNumeric($allowanceCharge->amount)) {
+            $amount = Decimal::fromXsDecimal($allowanceCharge->amount);
+            if ($amount === null) {
                 continue;
             }
             $sum = $allowanceCharge->isCharge
-                ? Decimal::add($sum, $allowanceCharge->amount)
-                : Decimal::sub($sum, $allowanceCharge->amount);
+                ? Decimal::add($sum, $amount)
+                : Decimal::sub($sum, $amount);
         }
 
         return $sum;
@@ -90,8 +95,11 @@ final readonly class TaxableSumRule implements Rule
             return false;
         }
 
-        if (Decimal::isNumeric($rate) && Decimal::isNumeric($taxSubtotal->rate)) {
-            return Decimal::equals($rate, $taxSubtotal->rate);
+        $lineRate = Decimal::fromXsDecimal($rate);
+        $subtotalRate = Decimal::fromXsDecimal($taxSubtotal->rate);
+
+        if ($lineRate !== null && $subtotalRate !== null) {
+            return Decimal::equals($lineRate, $subtotalRate);
         }
 
         return true;

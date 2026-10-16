@@ -8,6 +8,9 @@ Pre-1.0: the public API may still change between minor versions.
 
 ## [Unreleased]
 
+Candidate for 0.4.0, not 0.3.1: `Decimal` is public API and
+`Decimal::isNumeric()` changes in a backwards-incompatible way (see below).
+
 ### Changed
 
 - **BR-CO-17 now applies the official CEN tolerance instead of exact equality.**
@@ -21,6 +24,17 @@ Pre-1.0: the public API may still change between minor versions.
 - **BR-CO-17 with a missing rate, or one that rounds to zero, now requires
   BT-117 to round to zero.** A missing BT-119 used to skip the rule; a BT-117
   of 0.50 or more (or below -0.50) is now fatal, as in the official artefacts.
+- **`Decimal::isNumeric()` no longer trims (breaking).** It accepts a subset
+  of what BCMath accepts: an optional `-`, digits and an optional fraction.
+  BCMath also takes `+19.00`, `.50`, `19.` and `-.5`; `isNumeric()` rejects
+  them. Every value it accepts can go into `Decimal::add()`, `sub()`, `mul()`
+  and `compare()`. A value framed by whitespace, including U+00A0 and U+3000,
+  used to pass and then crashed BCMath with a `ValueError`; it now returns
+  `false`. Callers that read raw XML text use `Decimal::fromXsDecimal()`, which
+  ignores only XML whitespace, reads the forms `+19.00`, `.50` and `19.`, and
+  returns a value `isNumeric()` accepts. New: `Decimal::isFilled()` (the one
+  definition of a filled value: not null and not only whitespace, U+00A0 and
+  U+3000 included) and `Decimal::isFilledButNotXsDecimal()`.
 
 ### Fixed
 
@@ -30,6 +44,35 @@ Pre-1.0: the public API may still change between minor versions.
   normalised and validated instead of skipped. Only XML whitespace (space, tab,
   CR, LF) around a value is ignored; a value framed by other Unicode spaces
   such as U+00A0 is not an `xs:decimal` and fails.
+- **`validateModel` no longer throws a `ValueError` on amounts framed by XML
+  whitespace.** A BT-117 such as `' 19.00 '` crashed BCMath in BR-CO-14 and in
+  BR-S-09, BR-IG-09 and BR-IP-09; the same happened in BR-CO-10 to BR-CO-16,
+  BR-S/Z/E/AE/IC/G/O/IG/IP-08, the VAT-rate rules BR-S/Z/E/AE/IC/G/IG/IP-05,
+  -06 and -07, the zero-tax rules BR-Z/E/AE/IC/G/O-09, BR-27, BR-28,
+  BR-CO-25, BR-DEX-02 and BR-DEX-09. Every amount and rate that reaches a
+  calculation is now read as an `xs:decimal` through the new
+  `Decimal::fromXsDecimal()`, the reader BR-CO-17 already used: space, tab, CR
+  and LF around a value are ignored, and the forms `+19.00`, `.50` and `19.`
+  are read instead of being treated as unreadable. BR-CO-14 and BR-CO-15 stay
+  exact.
+- **A filled amount that is not an `xs:decimal` now fails closed.** A value
+  such as U+00A0 + `999.00` + U+00A0 used to count as missing, so the rule
+  passed silently. It is now a fatal violation of BR-CO-10 to BR-CO-16 (as the
+  declared total or as one of its operands, including BR-CO-16, which is
+  otherwise a warning), of BR-CO-25 (BT-115), of BR-DEX-09 (BT-112 to BT-115
+  and the third party payment amounts) and of the zero-tax rules
+  BR-Z/E/AE/IC/G/O-09 (BT-117), in addition to BR-CO-17. The same holds for
+  BR-27 (BT-146) and BR-28 (BT-148), and for the amounts no calculation reads:
+  BT-111, BT-93, BT-100, BT-136, BT-137, BT-141 and BT-142 now fail BR-DEC-15,
+  -02, -06, -24, -25, -27 and -28, with or without a decimal point. A value of
+  only whitespace, U+00A0 or U+3000 still counts as missing.
+- **BR-DEC-* and BR-DEX-13 count the decimals of the `xs:decimal` reading.**
+  An amount written as `+0.505` or `.505` used to pass them; it now fails them
+  like `0.505`. A filled value that is not an `xs:decimal` fails them. Known
+  deviation, not proven against KoSIT: space, tab, CR and LF after the
+  decimals are ignored, while the official assert presumably counts them as
+  characters after the `.` (`19.00` followed by a space). The rules are not
+  tightened without that proof; COVERAGE.md notes it per rule.
 
 ## [0.3.0] - 2026-07-15
 

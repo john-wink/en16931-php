@@ -296,17 +296,25 @@ it('checks a model of 50000 full lines with the result of the business rules and
         ->and(xr()->validateModel($invoice)->violations)->toEqual(new Validator([...RuleSets::en16931(), ...RuleSets::xrechnung()])->validate($invoice)->violations);
 });
 
-it('reports every one of 100000 list entries that are not valid UTF-8 within a second', function (): void {
+it('reports every list entry that is not valid UTF-8 within a second', function (Closure $notes, int $noteCount): void {
     $startedAt = hrtime(true);
-    $validationResult = xr()->validateModel(makeInvoice(notes: array_fill(0, 100000, "\xA0")));
+    $validationResult = xr()->validateModel(makeInvoice(notes: $notes()));
     $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
 
-    expect($validationResult->violations)->toHaveCount(100000)
+    $lastIndex = $noteCount - 1;
+
+    expect($validationResult->violations)->toHaveCount($noteCount)
         ->and($validationResult->violations[0]->flag)->toBe('notes[0]')
-        ->and($validationResult->violations[99999]->flag)->toBe('notes[99999]')
-        ->and($validationResult->violations[99999]->message)->toBe('The value of notes[99999] is not valid UTF-8.')
+        ->and($validationResult->violations[$lastIndex]->flag)->toBe("notes[{$lastIndex}]")
+        ->and($validationResult->violations[$lastIndex]->message)->toBe("The value of notes[{$lastIndex}] is not valid UTF-8.")
         ->and($elapsedSeconds)->toBeLessThan(1.0);
-});
+})->with([
+    'one of 100000 entries' => [static fn (): array => array_fill(0, 100000, "\xA0"), 100000],
+    'many distinct strings that are not valid UTF-8 with the same hash value' => [static fn (): array => array_map(
+        static fn (string $collidingBlocks): string => str_repeat('a', 30).$collidingBlocks."\xA0",
+        array_reduce(range(1, 15), static fn (array $prefixes): array => [...array_map(static fn (string $prefix): string => $prefix.'Ez', $prefixes), ...array_map(static fn (string $prefix): string => $prefix.'FY', $prefixes)], ['']),
+    ), 32768],
+]);
 
 it('checks a model of 25000 lines in valid UTF-8 within the limits', function (): void {
     $line = new InvoiceLine(id: '1', name: 'Beratung', netAmount: '100.00', netPrice: '100.00', quantity: '1', unitCode: 'C62', taxCategory: 'S', taxRate: '19.00', itemClassifications: [new ItemClassification(code: 'M1', scheme: 'CVD')], attributes: [new ItemAttribute(name: 'cva', value: 'clean')]);
@@ -394,6 +402,7 @@ it('compares a list of up to 64 units without counting and counts a longer list 
     'entry of 64 bytes' => [static fn (): array => [str_repeat('a', 64)], [true]],
     'key of 63 bytes' => [static fn (): array => [str_repeat('k', 63) => 1], []],
     'key of 64 bytes' => [static fn (): array => [str_repeat('k', 64) => 1], [true]],
+    'distinct lines that each hold 65 distinct model objects' => [static fn (): array => array_map(static fn (int $index): ItemAttribute => new ItemAttribute(name: 'cva', value: (string) $index), range(1, 65)), [true]],
 ]);
 
 it('reports many model objects that hold the same, content-equal or alternating long lists with a limit violation within a second', function (Closure $entries): void {
@@ -429,20 +438,37 @@ it('reports many model objects that hold the same, content-equal or alternating 
     'one of two lists of model objects in turn' => [static fn (): array => [array_fill(0, 10000, new ItemAttribute(name: 'cva', value: 'clean')), array_fill(0, 10000, new ItemAttribute(name: 'cva', value: 'dirty'))]],
 ]);
 
-it('reports a long string that is not valid UTF-8 in many places within a second', function (Closure $scenario, string $firstField, string $lastField): void {
+it('reports a long string that is not valid UTF-8 in many places once and counts it against the budget in the next place within a second', function (Closure $scenario, string $firstField, string $secondField): void {
     $invalidString = str_repeat('a', 2_000_000)."\xA0";
 
     $startedAt = hrtime(true);
     $validationResult = xr()->validateModel($scenario($invalidString));
     $elapsedSeconds = (hrtime(true) - $startedAt) / 1e9;
 
-    expect($validationResult->violations)->toHaveCount(50000)
-        ->and($validationResult->violations[0]->flag)->toBe($firstField)
-        ->and($validationResult->violations[49999]->message)->toBe("The value of {$lastField} is not valid UTF-8.")
-        ->and($elapsedSeconds)->toBeLessThan(1.0);
+    expect(array_map(static fn (Violation $violation): array => [$violation->flag, $violation->message], $validationResult->violations))->toBe([
+        [$firstField, "The value of {$firstField} is not valid UTF-8."],
+        [$secondField, "The value of {$secondField} is nested too deep or too large to be checked for valid UTF-8."],
+    ])->and($elapsedSeconds)->toBeLessThan(1.0);
 })->with([
-    'list entries' => [static fn (string $invalidString): Invoice => makeInvoice(notes: array_fill(0, 50000, $invalidString)), 'notes[0]', 'notes[49999]'],
-    'fields of distinct lines' => [static fn (string $invalidString): Invoice => makeInvoice(lines: array_map(static fn (int $index): InvoiceLine => new InvoiceLine(id: (string) $index, name: $invalidString), range(0, 49999))), 'lines[0].name', 'lines[49999].name'],
+    'list entries' => [static fn (string $invalidString): Invoice => makeInvoice(notes: array_fill(0, 50000, $invalidString)), 'notes[0]', 'notes[1]'],
+    'fields of distinct lines' => [static fn (string $invalidString): Invoice => makeInvoice(lines: array_map(static fn (int $index): InvoiceLine => new InvoiceLine(id: (string) $index, name: $invalidString), range(0, 49999))), 'lines[0].name', 'lines[1].name'],
+    'fields of distinct lines that hold content-equal strings in separate places' => [static function (string $invalidString): Invoice {
+        $names = [$invalidString, strrev(strrev($invalidString))];
+
+        return makeInvoice(lines: array_map(static fn (int $index): InvoiceLine => new InvoiceLine(id: (string) $index, name: $names[$index % 2]), range(0, 49999)));
+    }, 'lines[0].name', 'lines[1].name'],
+]);
+
+it('checks a string that is not valid UTF-8 of up to 64 bytes in every place without counting and counts a longer one against the budget in every further place', function (int $length, int $limitViolationCount): void {
+    $invalidString = str_repeat('a', $length - 1)."\xA0";
+    $lines = array_map(static fn (int $index): InvoiceLine => new InvoiceLine(id: (string) $index, name: $invalidString), range(1, 20000));
+
+    $encodingViolations = ModelEncoding::violations(makeInvoice(lines: $lines));
+
+    expect(count(array_filter($encodingViolations, static fn (Violation $violation): bool => $violation->message === "The value of {$violation->flag} is nested too deep or too large to be checked for valid UTF-8.")))->toBe($limitViolationCount);
+})->with([
+    'string of 64 bytes' => [64, 0],
+    'string of 65 bytes' => [65, 1],
 ]);
 
 it('returns a result with a violation for a model object that contains itself or a chain of model objects deeper than the depth limit', function (Closure $scenario, string $field, string $message): void {
